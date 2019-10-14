@@ -1,0 +1,87 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsfonts}
+\usepackage{amsmath}
+
+\title{Notes on Stochastic Reformulation of Peridynamics}
+\author{}
+\date{July 2019}
+
+\begin{document}
+
+\maketitle
+
+\begin{itemize}
+
+\item Peridynamics is a reformulation of classical mechanics, which gives rise to a nonlocal continuum model.
+
+\item The key feature is formulation is written as integral representation of the force density around any material point. Consequently there are no assumptions of the differentiability of the displacement field. Hence, it's significant advantage over classical continuum models built around weak-derivatives of the stress tensor, peridynamic naturally handles the discontinuities which arise when modelling fracture mechanics.
+
+\end{itemize}
+
+\section{Adapted Peridynamic Potential Energy}
+
+In the process of establishing a probabilistic reformulation of peridynamics, to utilise theory in ??, the definition of the strain energy function $V(u)$ is adapted to ensure that the Boltzmann-Gibbs measure (??) is well-defined and converges sufficiently fast, further details can be found in [Roberts1996]. To ensure the Boltzmann-Gibbs measure is well-defined it is sufficient to show that
+\begin{enumerate}
+\item $V(u)$ is $C^2$.
+\item $V(u)$ is confining, in that $\lim_{|u| \rightarrow +\infty} V(u) = +\infty$.
+\item $V(u)$ satisfies $\exp(-\gamma V(u)) \in L^1(\mathbb R^M)$, for all $\gamma > 0$.
+\end{enumerate}
+Immediately (iii) is trivally satisfied, since all {\em peridynamic springs} store positive energy, and $V(u) \geq 0$. For the standard formulation however neither (i) and (iii) generally hold.
+
+The first condition is physically equivalent to the stiffness of the system being continuous in any deformed configuration. It is simple to construct a counter example to this, in which the structural integrity of the body depends on a single peridynamic connection. Under further deformation, at which this connection exceeds it's critical strain, the 
+
+
+\section{A stochastic reformulation of peridynamics}
+
+We consider a brittle elastic material which when free from external load occupies the domain $\Omega_0 \subset \mathbb R^d$. We choose to model the material using a mesh-less method, peridynamics, where simply the material is represented by $N$ interconnected particles.
+
+Each particle has a position vector $\textbf{x}^{(i)} \in \mathbb R^d$ of it's location with $\Omega_0$, and also a deformation at time $t$, $\textbf{u}^{(i)}(t) \in [0,T] \times \mathbb R^d$. For a moment excluding the technical details of a peridynamic model by Silling et al., we assume that any two particles $i$ and $j$ in elastic body are connected by a simple elastic spring whose stiffness is parameterised by $k_{ij} (= k_{ji}) \geq 0$. 
+
+\noindent
+This spring has an original length of
+\begin{equation}
+\ell_{ij} = \ell_{ji} = \| \textbf{x}^{(i)} - \textbf{x}^{(j)} \|
+\end{equation}
+at which the spring is stress-free. Under a general deformation of each particle the strain in the spring (stretch over original length) is given by
+$$
+\varepsilon_{ij} = \frac{\| \textbf{y}_j - \textbf{y}_i\| - \ell_{ij}}{\ell_{ij}} \quad \mbox{where} \quad \textbf{y}_k = \textbf{x}_k + \textbf{u}_k
+$$
+The contribution of elastic strain energy of this spring to the particle is therefore
+$$
+V_{ij} = \frac{1}{2} k_{ij} \varepsilon_{ij}^2
+$$
+
+\smallskip\noindent
+Therefore the total potential energy (strain energy minus work done by externally applied loads) of the system is therefore
+$$
+V = \sum_{i=1}^N \left(\sum_{j=1}^N \frac{1}{4} k_{ij} \varepsilon_{ij}^2\right) - \sum_{i=1}^N \left(\textbf{F}_i \cdot \textbf{u}_i\right)
+$$
+where $\textbf{F}_i$ is an externally applied load vector applied to the $i^{th}$ particle, so that $\textbf{F}_i \cdot \textbf{u}_i$, represents the work done by that load on that particle. Note the $\frac{1}{4}$ comes from sharing the energy in the spring to each of the particles to which it connects. 
+
+\smallskip\noindent
+A suitable model for the evolution of the elastic body, is to assume that the system evolves to a configuration which minimises the total potential energy, this is hence the gradient flow
+$$
+\epsilon^{-1} \partial_t \textbf{U} = -\nabla V \quad \mbox{for} \quad t > 0 \quad \mbox{and} \quad \textbf{U}(0) \quad \mbox{given}.
+$$
+Where $\textbf{U} = [\textbf{u}_1,\ldots,\textbf{u}_n]^T$, a the complete solution vector, and $\epsilon^{-1}$ a parameter which has the physical interpretation as the damping/viscosity of the material, and is a measure of the responsiveness of the material to non-equilibrium in loads acting on it. Physically the $\nabla V_i$, can be interpreted as net forces (internal and external) acting on the particle.
+
+\smallskip\noindent
+Re-thinking this deterministic equation as a Stochastic Differential Equation (SDE), we derived the equation for overdamped Langevin dynamics, given by
+\begin{equation}
+\partial_t \textbf{U} = -\epsilon\nabla V (\textbf{U})dt  + \sigma d\textbf{B} \quad \mbox{for} \quad t > 0 \quad \mbox{and} \quad \textbf{U}(0) \quad \mbox{given}.
+\end{equation}
+where $\textbf{B}$ denotes $N$-dimensional Brownian motion in $\mathbb R^d$ and $\sigma > 0$ the volatility of the noise.
+ 
+
+
+
+
+
+
+
+
+
+
+\end{document}
