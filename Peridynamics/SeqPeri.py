@@ -203,18 +203,35 @@ class SeqModel:
 			for j in range(0,n.size):
 				self.V[int(n[j])] += val
 
-		# -- Setup the family for each particle
+		# -- Setup the family for each particle and define the covariance matrix
 		# There is more efficient ways to do this, but doesn't really matter since one of calculation
+		
+		# Initiate Covariance matrix, C and length scale, lambda
+		self.COVARIANCE = np.empty([self.nnodes, self.nnodes])
+		lambd = 0.001
 		self.family = []
+		
+# =============================================================================
+# 		#  TODO Calculate covariance matrices using outer products
+# 		print('shape', np.shape(self.coords))
+# 		sqr = pow(self.coords, 2)
+# 		sqr_mat = sqr * self.nnodes
+# 		print('shape sqr_mat', np.shape(self.coords))
+# =============================================================================
+
 		for i in range(0, self.nnodes):
 			tmp = []
+			
 			for j in range(0, self.nnodes):
 				if(i != j):
-					if(func.isNeighbour(self.coords[i,:], self.coords[j,:], horizon)):
+					l2_sqr = func.l2_sqr(self.coords[i,:], self.coords[j,:])
+					self.COVARIANCE[i][j] = np.exp(-1.* lambd * l2_sqr)
+					if(np.sqrt(l2_sqr) < horizon):
 						tmp.append(j)
+				else:
+					self.COVARIANCE[i][j] = 1.0
 			self.family.append(np.zeros(len(tmp), dtype = int))
 			for j in range(0, len(tmp)):
 				self.family[i][j] = int(tmp[j])
-
 		# vectorAddTime = timer() - start
 		# print("VectorAdd took %f seconds" % vectorAddTime)
