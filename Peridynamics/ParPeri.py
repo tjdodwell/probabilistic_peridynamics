@@ -428,7 +428,7 @@ class ParModel:
 					ids = self.IdListGhostRequests_send[i]
 					proc_recv = self.GhostRequestProcessorIds_send[i]
 					self.comm.Isend(u[ids,j], dest = proc_recv)
-					print("This is processor = " + str(self.comm.Get_rank()) + " size = " + str(ids.size) + " , sending to proc = " + str(proc_recv) + " norm is = " + str(np.linalg.norm(u[ids,j])))
+					#print("This is processor = " + str(self.comm.Get_rank()) + " size = " + str(ids.size) + " , sending to proc = " + str(proc_recv) + " norm is = " + str(np.linalg.norm(u[ids,j])))
 
 				self.comm.Barrier() # Why do I need these? Someone can explain to me!
 
@@ -438,7 +438,7 @@ class ParModel:
 					tmpDisp= np.empty((ids.size,1), dtype=float)
 					proc_send = self.GhostRequestProcessorIds_recv[i]
 					self.comm.Irecv(tmpDisp, source = proc_send)
-					print("This is processor = " + str(self.comm.Get_rank()) + " size = " + str(ids.size) + ", recv from proc = " + str(proc_send) + " norm is = " + str(np.linalg.norm(tmpDisp)))
+					#print("This is processor = " + str(self.comm.Get_rank()) + " size = " + str(ids.size) + ", recv from proc = " + str(proc_send) + " norm is = " + str(np.linalg.norm(tmpDisp)))
 					for k in range(0, ids.size):
 						uNew[ids[k],j] = tmpDisp[0]
 
