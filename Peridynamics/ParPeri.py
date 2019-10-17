@@ -14,6 +14,8 @@ sys.path.insert(1, '../PostProcessing')
 
 import vtk as vtk
 
+import vtu as vtu
+
 class ParModel:
 
 	def __init__(self, param, comm):
@@ -199,16 +201,23 @@ class ParModel:
 
 		neighbour_ids = []
 
-		self.l2g = []
+		self.l2g = [] # local to global
+
+		self.g2l = [] # global to local
 
 		localCount = 0
 		for i in range(0, self.nnodes): # For each of the particles
+
+			self.g2l.append(-1);
+
 			if(myRank == int(self.partition[i])): # particle belongs to this processor
 				self.net.append(peri.Particle())
 				self.net[localCount].setId(i)
 				self.net[localCount].setCoord(self.coords[i])
 				localCount += 1
 				self.l2g.append(i)
+				self.g2l[i] = localCount
+
 			else: # This is the case where particle lives on another process but is in a neighbouring subdomain, so has potential to be in family
 				check = 0
 				for k in range(0,len(self.NN[myRank])):
@@ -219,6 +228,7 @@ class ParModel:
 
 		self.numlocalNodes = localCount # Store the number of particles directly in subdomains
 
+		self.localCoords = np.zeros((self.numlocalNodes, 3))
 
 		if(self.testCode):
 			# Check that no nodes have be lost or added by bug
@@ -356,7 +366,17 @@ class ParModel:
 					# All those in a Ghost Request list set to value of processor to which they will be sent!
 					id = self.IdListGhostRequests_send[i][j]
 					data[id] = self.GhostRequestProcessorIds_send[i]
-			vtk.write("GhostInformation_send" + str(myRank)+".vtk","Partition", self.coords, data, np.zeros((self.nnodes, 3)))
+
+			x = np.zeros((self.numlocalNodes,3))
+			data_local = []
+
+			for i in range(0, self.numlocalNodes):
+				x[i,:] = self.coords[self.l2g[i],:]
+				data_local.append(data[self.l2g[i]])
+
+			vtu.writeParallel("GhostInformation", self.comm, self.numlocalNodes, x, data_local, np.zeros((self.numlocalNodes, 3)))
+
+#			vtk.write("GhostInformation_send" + str(myRank)+".vtk","Partition", self.coords, data, np.zeros((self.nnodes, 3)))
 
 
 	def communicateGhostParticles(self, u):
@@ -411,7 +431,7 @@ class ParModel:
 					#print("This is processor = " + str(self.comm.Get_rank()) + " size = " + str(ids.size) + " , sending to proc = " + str(proc_recv))
 
 				self.comm.Barrier() # Why do I need these? Someone can explain to me!
-				
+
 				# Receiving block
 				for i in range(0, self.numGhostRequests_to_recv):
 					ids = self.IdListGhostRequests_recv[i]
