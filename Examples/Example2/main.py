@@ -8,6 +8,7 @@ import PeriParticle as peri
 import ParPeri as sim
 import numpy as np
 import vtu as vtu
+import vtk as vtk
 
 from mpi4py import MPI
 from timeit import default_timer as timer
@@ -132,8 +133,15 @@ for t in range(1, numSteps):
 		print("Time step = " + str(t) + ", Time = " + str(time))
 
 
+	for i in range(0, myModel.numlocalNodes):
+		u[t-1][myModel.l2g[i],:] = myModel.coords[myModel.l2g[i],0] * np.ones((1,3))
+
+	vtu.writeParallel("before",comm, myModel.numlocalNodes, myModel.coords[myModel.l2g,:], d[t-1], u[t-1][myModel.l2g,:])
+
 	# Communicate Ghost particles to required processors
 	u[t-1] = myModel.communicateGhostParticles(u[t-1])
+
+	vtk.write("After_" + str(rank) + ".vtk", "ER", myModel.coords, d[t], u[t-1])
 
 	damage.append(np.zeros(myModel.numlocalNodes))
 
