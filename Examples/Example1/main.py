@@ -96,7 +96,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 	
 	
-def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 20, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 10):
+def sim(sample, myModel =simpleSquare(), numSteps = 580, sigma = 8e-6, loadRate = 0.00001, dt = 1e-3, print_every = 10):
 	print("Peridynamic Simulation -- Starting")
 	
 	u = []
@@ -123,8 +123,6 @@ def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 20, sigma 
 	# Number of nodes
 	nnodes = myModel.nnodes
 	
-	# Amplification factor
-	sigma = 1e-4
 	
 	# Covariance matrix
 	M = myModel.COVARIANCE
@@ -163,8 +161,9 @@ def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 20, sigma 
 	
 		
 		#u[t] = u[t-1] + dt * f + np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
-		#u[t] = u[t-1] + dt * np.dot(M,f) + noise(L, 3) #exponential length squared kernel
-		u[t] = u[t-1] + dt * f + noise(L, 3, nnodes)
+		
+		#TODO: Check this is the correct update equation
+		u[t] = u[t-1] + dt * np.dot(M,f) + noise(L, 3, nnodes) #exponential length squared kernel
 	
 		# Apply boundary conditions
 		u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))
@@ -173,7 +172,8 @@ def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 20, sigma 
 		u[t][myModel.lhs,0] = -0.5 * t * loadRate * np.ones(len(myModel.rhs))
 		u[t][myModel.rhs,0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
 		
-		if(verb==0 and t % print_every == 0) :
+		if(verb==1 and t % print_every == 0) :
+			vtk.write("U_"+"sample"+str(sample)+"time"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 			print('Timestep {} complete'.format(t))
 			
 	return vtk.write("U_"+"sample"+str(sample)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
@@ -186,7 +186,7 @@ def main():
 	"""	
 	# TODO: implement dynamic time step based on strain energy?
 	
-	no_samples = 3
+	no_samples = 50
 	for s in range(no_samples):
 		sim(sample= s)
 	

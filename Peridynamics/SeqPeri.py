@@ -192,9 +192,10 @@ class SeqModel:
 
 				xi = self.coords[int(n[0])][0]
 				yi = self.coords[int(n[0])][1]
+				
 				xj = self.coords[int(n[1])][0]
-
 				yj = self.coords[int(n[1])][1]
+				
 				xk = self.coords[int(n[2])][0]
 				yk = self.coords[int(n[2])][1]
 
@@ -207,29 +208,40 @@ class SeqModel:
 		# There is more efficient ways to do this, but doesn't really matter since one of calculation
 		
 		# Initiate Covariance matrix, C and length scale, lambda
-		self.COVARIANCE = np.empty([self.nnodes, self.nnodes])
-		lambd = 0.001
+		lambd = 900
 		self.family = []
 		
+		X = np.sum(pow(self.coords, 2), axis=1)
+		
+		tiled_X = np.tile(X, (self.nnodes,1))
+		tiled_Xt = np.transpose(tiled_X)
+		
+		outer_product= np.dot(self.coords, np.transpose(self.coords))
+		
+		sqr_l2norm = (tiled_X - np.multiply(outer_product, 2) + tiled_Xt)
+		
+		# Construct covariance matrix
+		kernel_values= np.multiply(-lambd, sqr_l2norm)
+		self.COVARIANCE= np.exp(kernel_values)
+		
+		
 # =============================================================================
-# 		#  TODO Calculate covariance matrices using outer products
-# 		print('shape', np.shape(self.coords))
-# 		sqr = pow(self.coords, 2)
-# 		sqr_mat = sqr * self.nnodes
-# 		print('shape sqr_mat', np.shape(self.coords))
+# 		# Construct family matrix
+# 		l2norm = np.sqrt(sqr_l2norm)
+# 		A = np.add(l2norm, -1.*horizon)
+# 		self.family = (A<0)
+# 		print(self.family)
 # =============================================================================
 
+		# OLD SLOW METHOD
 		for i in range(0, self.nnodes):
 			tmp = []
 			
 			for j in range(0, self.nnodes):
 				if(i != j):
 					l2_sqr = func.l2_sqr(self.coords[i,:], self.coords[j,:])
-					self.COVARIANCE[i][j] = np.exp(-1.* lambd * l2_sqr)
 					if(np.sqrt(l2_sqr) < horizon):
 						tmp.append(j)
-				else:
-					self.COVARIANCE[i][j] = 1.0
 			self.family.append(np.zeros(len(tmp), dtype = int))
 			for j in range(0, len(tmp)):
 				self.family[i][j] = int(tmp[j])
