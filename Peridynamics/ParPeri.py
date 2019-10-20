@@ -80,13 +80,17 @@ class ParModel:
 			family = self.family[i] # extract family for particle i
 			for k in range(0, len(family)):
 				j = self.family[i][k]
-				if( broken[i][k] == 0 ): # if bond is not previously broken
+				d = self.distance2Boundary(self.coords[j,:])
+				testMe = 0
+				if(d > 1.0 * self.horizon):
+					testMe = 1
+				if( broken[i][k] == 0): # if bond is not previously broken
 					yj = self.coords[j,:] + U[j,:] # deformed coordinates of particle j
 					bondLength = func.l2norm(self.coords[id,:] - self.coords[j,:])
 					rvec = yj - yi
 					r = func.l2norm(rvec)
 					strain = (r - bondLength) / bondLength
-					if (strain > self.s00):
+					if ((strain > self.s00) and (testMe == 1)):
 						broken[i][k] = 1 # Break the bond
 						count += 1
 				else :

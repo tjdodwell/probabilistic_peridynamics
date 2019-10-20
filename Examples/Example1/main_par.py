@@ -62,13 +62,19 @@ class simpleSquare(MODEL):
 				(self.rhs).append(i)
 
 	def findBoundary(self,x):
-		# Function which markes constrain particles
+		# Function which markes constrained particles
 	    bnd = 0 # Does not live on a boundary
 	    if (x[0] < 1.5 * self.horizon):
 	        bnd = -1
 	    elif (x[0] > 1.0 - 1.5 * self.horizon):
 	        bnd = 1
 	    return bnd
+
+	def distance2Boundary(self,x):
+		d1 = np.abs(x[0])
+		d2 = np.abs(1. - x[0])
+		return min(d1,d2)
+
 
 	def initialiseCrack(self, broken, damage):
 
@@ -128,7 +134,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 
 
-def sim(sample, myModel, numSteps = 600, numSamples = 20, sigma = 1e-12, loadRate = 0.001, dt = 1e-3, print_every = 10):
+def sim(sample, myModel, numSteps = 600, numSamples = 20, sigma = 1e-5, loadRate = 0.00001, dt = 1e-2, print_every = 10):
 
 	print("Peridynamic Simulation -- Starting")
 
@@ -210,7 +216,7 @@ def sim(sample, myModel, numSteps = 600, numSamples = 20, sigma = 1e-12, loadRat
 
 		u.append(np.zeros((myModel.nnodes, 3)))
 
-		u[t][myModel.l2g,:] = u[t-1][myModel.l2g,:] + sigma*dt * f +  np.random.normal(loc = 0.0, scale = sigma, size = (myModel.numlocalNodes, 3))
+		u[t][myModel.l2g,:] = u[t-1][myModel.l2g,:] + dt * f +  0.0 * np.random.normal(loc = 0.0, scale = sigma, size = (myModel.numlocalNodes, 3))
 
 		# Apply boundary conditions
 
