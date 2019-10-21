@@ -10,6 +10,9 @@ import numpy as np
 import scipy.stats as sp
 import vtk as vtk
 from timeit import default_timer as timer
+import time
+from mpi4py import MPI
+import sys
 
 
 class simpleSquare(MODEL):
@@ -96,7 +99,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 	
 	
-def sim(sample, myModel =simpleSquare(), numSteps = 580, sigma = 8e-6, loadRate = 0.00001, dt = 1e-3, print_every = 10):
+def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loadRate = 0.00001, dt = 1e-3, print_every = 600):
 	print("Peridynamic Simulation -- Starting")
 	
 	u = []
@@ -115,7 +118,7 @@ def sim(sample, myModel =simpleSquare(), numSteps = 580, sigma = 8e-6, loadRate 
 	
 	broken, damage[0] = myModel.initialiseCrack(broken, damage[0])
 	
-	verb = 1
+	verb = 0
 	
 	time = 0.0;
 	
@@ -161,9 +164,8 @@ def sim(sample, myModel =simpleSquare(), numSteps = 580, sigma = 8e-6, loadRate 
 	
 		
 		#u[t] = u[t-1] + dt * f + np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
-		
-		#TODO: Check this is the correct update equation
 		u[t] = u[t-1] + dt * np.dot(M,f) + noise(L, 3, nnodes) #exponential length squared kernel
+		#u[t] = u[t-1] + dt * f + noise(L, 3, nnodes)
 	
 		# Apply boundary conditions
 		u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))
@@ -176,20 +178,47 @@ def sim(sample, myModel =simpleSquare(), numSteps = 580, sigma = 8e-6, loadRate 
 			vtk.write("U_"+"sample"+str(sample)+"time"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 			print('Timestep {} complete'.format(t))
 			
-	return vtk.write("U_"+"sample"+str(sample)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
+	return vtk.write("U_"+ "rank" + str(rank) + "_sample"+str(sample) + ".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 	
 	
 
 	
 def main():
 	""" Stochastic Peridynamics, takes multiple stable states (fully formed cracks)
+        >>>PARALLELIZED SAMPLING
 	"""	
 	# TODO: implement dynamic time step based on strain energy?
+
+	# MPI4py stuff
+	comm = MPI.COMM_WORLD
+	rank = comm.Get_rank() # which process
+	size= comm.Get_size() # total no. processes 
+    
+    # read from command line
+	n = int(sys.argv[1]) # no. of samples
 	
-	no_samples = 50
-	for s in range(no_samples):
-		sim(sample= s)
+	# test for conformability
+	if rank == 0:
+		time1 = time.time()
+		
+		# Currently, our program cannot handle sizes that are not evenly
+        # divided by the number of processors
+		if (n % size != 0):
+			raise Exception('The number of processors should evenly divide the number of samples! \n The number of processes was: {}, the number of samples was: {}'.format(size, n))
 	
+		# number of samples taken by each process
+		#local_n= np.array([n/size]) # TODO: for some reason getting a referenced before assignment error
+	# communicate local array size to all processes
+	#comm.Bcast(local_n, root=0)
+	local_n= np.array([int(n/size)])
+	
+	# take some samples
+	for s in range(local_n[0]):
+		sim(sample = s, rank= rank)
+	
+	if rank == 0:
+		time2 = time.time()
+		print('Finished rank 0 in time: {}s'.format(time2 - time1))
 main()
 	
 		
