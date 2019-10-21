@@ -226,14 +226,13 @@ class SeqModel:
 		
 		
 # =============================================================================
-# 		# Construct family matrix
+# 		# TODO: Vectorize family matrix construction
 # 		l2norm = np.sqrt(sqr_l2norm)
 # 		A = np.add(l2norm, -1.*horizon)
 # 		self.family = (A<0)
 # 		print(self.family)
 # =============================================================================
-
-		# OLD SLOW METHOD
+		
 		for i in range(0, self.nnodes):
 			tmp = []
 			
