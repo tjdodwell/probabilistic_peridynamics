@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<VTKFile type="PUnstructuredGrid" version="0.1" byte_order="LittleEndian">
+	<PUnstructuredGrid GhostLevel="0">
+		<PPoints>
+			<PDataArray type="Float32" Name="Coordinates" NumberOfComponents="3"/>
+		</PPoints>
+		<PCellData>
+		</PCellData>
+		<PPointData Scalars="Damage" Vectors="Displacement">
+			<PDataArray type="Float32" Name="Damage" NumberOfComponents="1"/>
+			<PDataArray type="Float32" Name="Displacement" NumberOfComponents="3"/>
+		</PPointData>
+		<Piece Source="GhostInformation_proc_0.vtu"/>
+		<Piece Source="GhostInformation_proc_1.vtu"/>
+		<Piece Source="GhostInformation_proc_2.vtu"/>
+		<Piece Source="GhostInformation_proc_3.vtu"/>
+		<Piece Source="GhostInformation_proc_4.vtu"/>
+		<Piece Source="GhostInformation_proc_5.vtu"/>
+		<Piece Source="GhostInformation_proc_6.vtu"/>
+		<Piece Source="GhostInformation_proc_7.vtu"/>
+	</PUnstructuredGrid>
+</VTKFile>
