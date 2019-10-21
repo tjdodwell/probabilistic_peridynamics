@@ -99,7 +99,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 	
 	
-def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 600):
+def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loadRate = 0.00001, dt = 1e-3, print_every = 600):
 	print("Peridynamic Simulation -- Starting")
 	
 	u = []
