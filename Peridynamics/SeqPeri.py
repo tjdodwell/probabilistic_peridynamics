@@ -208,7 +208,7 @@ class SeqModel:
 		
 		# Initiate Covariance matrix, C and length scale, lambda
 		self.COVARIANCE = np.empty([self.nnodes, self.nnodes])
-		lambd = 0.001
+		lambd = 900
 		self.family = []
 		
 # =============================================================================
