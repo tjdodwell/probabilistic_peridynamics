@@ -41,11 +41,18 @@ class SeqModel:
 		return 0
 
 	def isCrack(self, x, y):
-		# Default funciton return no pre-defined crack overwritten by user
+		# Default function return no pre-defined crack overwritten by user
 		return 0
 
-	def checkBonds(self, U, broken, damage):
+	def checkBonds(self, U, broken, damage, nofail):
+		""" Updates broken and damage matrices during run time integration
+		"""
 		for i in range(0, self.nnodes):
+			# if i in no fail set, then pass
+			if i in nofail:
+				damage[i] = 0 # Damage is 0
+				continue #loop will continue after skipping this node, since it is no failure
+			
 			yi = self.coords[i,:] + U[i,:] # deformed coordinates of particle i
 			count = 0;
 			family = self.family[i] # extract family for particle i
@@ -86,6 +93,9 @@ class SeqModel:
 	  return F
 
 	def initialiseCrack(self, broken, damage):
+		""" Initialises the crack, used once to initialise the crack at the start of the simulation,
+			however, in the run time integration, broken, damage is updated using checkBonds instead
+		"""
 
 		for i in range(0, self.nnodes):
 

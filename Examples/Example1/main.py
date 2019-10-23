@@ -31,7 +31,7 @@ class simpleSquare(MODEL):
 		self.numMeshNodes = 3
 
 		# Material Parameters from classical material model
-		self.horizon = 0.1
+		self.horizon = 0.1 # Note: this is large compared 
 		self.K = 0.05
 		self.s00 = 0.005
 
@@ -43,14 +43,20 @@ class simpleSquare(MODEL):
 
 		self.lhs = []
 		self.rhs = []
+		self.nofail = []
 
-		# Find the Boundary
+		# Find the Boundary and No fail zone
 		for i in range(0, self.nnodes):
 			bnd = self.findBoundary(self.coords[i][:])
-			if (bnd < 0):
+			nfl = self.noFail(self.coords[i][:])
+			if (nfl == 1): # In no failure zone
+				(self.nofail).append(i)
+			if (bnd < 0): # Left hand boundary
 				(self.lhs).append(i)
-			elif (bnd > 0):
+			elif (bnd > 0): # Right hand boundary
 				(self.rhs).append(i)
+			
+				
 
 	def findBoundary(self,x):
 		# Function which markes constrain particles
@@ -60,6 +66,17 @@ class simpleSquare(MODEL):
 	    elif (x[0] > 1.0 - 1.5 * self.horizon):
 	        bnd = 1
 	    return bnd
+	
+	def noFail(self, x):
+		""" Function which marks the no-failure zone for the simulations
+			TODO: investigate if this can be avoided with applying a displacement more slowly, or on a curve that does not increase strain energy
+		"""
+		nfl = 0 # Does not live in nofail zone 
+		if (x[0] < 2.5 * self.horizon):
+			nfl = 1
+		elif (x[0] > 1.0 - 2.5 * self.hohorizon):
+			nfl = 1
+		return nfl
 
 	def isCrack(self, x, y):
 		output = 0
@@ -118,7 +135,7 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loa
 	
 	broken, damage[0] = myModel.initialiseCrack(broken, damage[0])
 	
-	verb = 0
+	verb = 1
 	
 	time = 0.0;
 	
@@ -154,7 +171,7 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loa
 	
 		damage.append(np.zeros(nnodes))
 	
-		broken, damage[t] = myModel.checkBonds(u[t-1], broken, damage[t-1])
+		broken, damage[t] = myModel.checkBonds(u[t-1], broken, damage[t-1], myModel.nofail)
 	
 		f = myModel.computebondForce(u[t-1], broken) # myModel.computeForce(u[t-1])
 	
