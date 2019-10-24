@@ -13,6 +13,7 @@ from timeit import default_timer as timer
 import time
 from mpi4py import MPI
 import sys
+import matplotlib.pyplot as plt
 
 
 class simpleSquare(MODEL):
@@ -72,10 +73,12 @@ class simpleSquare(MODEL):
 			TODO: investigate if this can be avoided with applying a displacement more slowly, or on a curve that does not increase strain energy
 		"""
 		nfl = 0 # Does not live in nofail zone 
-		if (x[0] < 2.5 * self.horizon):
-			nfl = 1
-		elif (x[0] > 1.0 - 2.5 * self.hohorizon):
-			nfl = 1
+# =============================================================================
+# 		if (x[0] < 2.5 * self.horizon):
+# 			nfl = 1
+# 		elif (x[0] > 1.0 - 2.5 * self.horizon):
+# 			nfl = 1
+# =============================================================================
 		return nfl
 
 	def isCrack(self, x, y):
@@ -116,7 +119,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 	
 	
-def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loadRate = 0.00001, dt = 1e-3, print_every = 600):
+def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loadRate = 0.00001, dt = 1e-3, print_every = 10):
 	print("Peridynamic Simulation -- Starting")
 	
 	u = []
@@ -143,6 +146,9 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loa
 	# Number of nodes
 	nnodes = myModel.nnodes
 	
+	# Final displacement
+	finalDisplacement = loadRate * numSteps
+	
 	
 	# Covariance matrix
 	M = myModel.COVARIANCE
@@ -159,6 +165,7 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loa
 	M_tild = np.multiply(pow(sigma, 2), M_tild)
 	
 	L = np.linalg.cholesky(M_tild)
+	y = []
 	
 	for t in range(1, numSteps):
 	
@@ -185,17 +192,65 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loa
 		#u[t] = u[t-1] + dt * f + noise(L, 3, nnodes)
 	
 		# Apply boundary conditions
+		# Set y and z values to 0
 		u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))
 		u[t][myModel.rhs,1:3] = np.zeros((len(myModel.rhs),2))
 	
-		u[t][myModel.lhs,0] = -0.5 * t * loadRate * np.ones(len(myModel.rhs))
-		u[t][myModel.rhs,0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
+# =============================================================================
+# 		# Apply displacements to x values
+# 		u[t][myModel.lhs,0] = -0.5 * t * loadRate * np.ones(len(myModel.rhs))
+# 		u[t][myModel.rhs,0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
+# =============================================================================
+		
+		# Instead try cubic-linear displacement curve, jump 
+		
+		tStar = 200
+		
+		# Tangent at tStar of smooth cubic displacement-time curve matches with linear displacement time curve
+		cubic_coef = loadRate / (3*pow(tStar, 2))
+		
+		# Linear displacement time curve
+		
+		frac= np.divide(loadRate, 3*cubic_coef)
+		
+		intercept = cubic_coef * pow(frac, 1.5) - loadRate * pow(frac, 0.5)
+
+		if t < tStar: # smooth cubic displacement-time cuve
+			alpha = (cubic_coef * pow(t,3))
+			u[t][myModel.lhs,0] = -0.5 * alpha * np.ones(len(myModel.lhs))
+			u[t][myModel.rhs,0] = 0.5 * alpha * np.ones(len(myModel.rhs))
+			y.append(alpha)
+		
+		else: # linear displacement-time curve
+			alpha = (loadRate*t + intercept)
+			u[t][myModel.lhs,0] = -0.5 * alpha * np.ones(len(myModel.lhs))
+			u[t][myModel.rhs,0] = 0.5 * alpha * np.ones(len(myModel.rhs))
+			y.append(alpha)
+		
+		
+# =============================================================================
+# 		# Instead try a smooth displacement curve
+# 		x = t / numSteps
+# 		
+# 		alpha = finalDisplacement * pow(x,3) * (10 - 15 * x + 6 * pow(x,2)) # 5th order polynomial
+# 		
+# 		u[t][myModel.lhs,0] = -0.5 * alpha * np.ones(len(myModel.rhs))
+# 		u[t][myModel.rhs,0] = 0.5 * alpha * np.ones(len(myModel.rhs))
+# =============================================================================
+
 		
 		if(verb==1 and t % print_every == 0) :
 			vtk.write("U_"+"sample"+str(sample)+"time"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 			print('Timestep {} complete'.format(t))
-			
-	return vtk.write("U_"+ "rank" + str(rank) + "_sample"+str(sample) + ".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
+	
+	vtk.write("U_"+ "rank" + str(rank) + "_sample"+str(sample) + ".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
+	
+	tspace = np.linspace(0, 1e-3 * 600, 599)
+	plt.plot(tspace, y)
+	plt.plt
+	
+	mean_nodal_damage = np.sum(damage[t])/myModel.nnodes
+	return mean_nodal_damage
 	
 	
 
@@ -218,6 +273,8 @@ def main():
 	if rank == 0:
 		time1 = time.time()
 		
+		
+		#TODO: mean_damage = np.zeros((rank,))
 		# Currently, our program cannot handle sizes that are not evenly
         # divided by the number of processors
 		if (n % size != 0):
@@ -232,6 +289,7 @@ def main():
 	# take some samples
 	for s in range(local_n[0]):
 		sim(sample = s, rank= rank)
+		
 	
 	if rank == 0:
 		time2 = time.time()
