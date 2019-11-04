@@ -264,7 +264,7 @@ def main():
 	# MPI4py stuff
 	comm = MPI.COMM_WORLD
 	rank = comm.Get_rank() # which process
-	size= comm.Get_size() # total no. processes 
+	size= comm.Get_size() # total no. processes
     
     # read from command line
 	n = int(sys.argv[1]) # no. of samples
@@ -272,7 +272,6 @@ def main():
 	# test for conformability
 	if rank == 0:
 		time1 = time.time()
-		
 		
 		#TODO: mean_damage = np.zeros((rank,))
 		# Currently, our program cannot handle sizes that are not evenly
