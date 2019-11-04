@@ -72,13 +72,13 @@ class simpleSquare(MODEL):
 		""" Function which marks the no-failure zone for the simulations
 			TODO: investigate if this can be avoided with applying a displacement more slowly, or on a curve that does not increase strain energy
 		"""
+		NO_FAIL = True; # Have a no fail zone?
 		nfl = 0 # Does not live in nofail zone 
-# =============================================================================
-# 		if (x[0] < 2.5 * self.horizon):
-# 			nfl = 1
-# 		elif (x[0] > 1.0 - 2.5 * self.horizon):
-# 			nfl = 1
-# =============================================================================
+		if NO_FAIL:
+			if (x[0] < 2.5 * self.horizon):
+				nfl = 1
+			elif (x[0] > 1.0 - 2.5 * self.horizon):
+				nfl = 1	
 		return nfl
 
 	def isCrack(self, x, y):
@@ -127,7 +127,6 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loa
 	damage = []
 	
 	# Setup broken flag
-	
 	broken = []
 	for i in range(0, myModel.nnodes):
 		broken.append(np.zeros(len(myModel.family[i])))
@@ -138,9 +137,13 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loa
 	
 	broken, damage[0] = myModel.initialiseCrack(broken, damage[0])
 	
+	# Verbose
 	verb = 1
 	
-	time = 0.0;
+	# Various flags for the simulation settings
+	LOADING_MODE = 1 # 1 2 or 3, depending on the displacement curve desired
+	
+	time = 0.0
 	
 	
 	# Number of nodes
@@ -195,48 +198,45 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loa
 		# Set y and z values to 0
 		u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))
 		u[t][myModel.rhs,1:3] = np.zeros((len(myModel.rhs),2))
-	
-# =============================================================================
-# 		# Apply displacements to x values
-# 		u[t][myModel.lhs,0] = -0.5 * t * loadRate * np.ones(len(myModel.rhs))
-# 		u[t][myModel.rhs,0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
-# =============================================================================
 		
-		# Instead try cubic-linear displacement curve, jump 
-		
-		tStar = 200
-		
-		# Tangent at tStar of smooth cubic displacement-time curve matches with linear displacement time curve
-		cubic_coef = loadRate / (3*pow(tStar, 2))
-		
-		# Linear displacement time curve
-		
-		frac= np.divide(loadRate, 3*cubic_coef)
-		
-		intercept = cubic_coef * pow(frac, 1.5) - loadRate * pow(frac, 0.5)
+		if LOADING_MODE == 1: # Displacements applied at the linear loading rate
 
-		if t < tStar: # smooth cubic displacement-time cuve
-			alpha = (cubic_coef * pow(t,3))
-			u[t][myModel.lhs,0] = -0.5 * alpha * np.ones(len(myModel.lhs))
+			# Apply displacements to x values
+			u[t][myModel.lhs,0] = -0.5 * t * loadRate * np.ones(len(myModel.rhs))
+			u[t][myModel.rhs,0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
+		
+		elif LOADING_MODE ==2: # Cubic-linear displacement curve, discontinuous accelation at tStar
+			tStar = 200
+		
+			# Tangent at tStar of smooth cubic displacement-time curve matches with linear displacement time curve
+			cubic_coef = loadRate / (3*pow(tStar, 2))
+		
+			# Linear displacement time curve
+		
+			frac= np.divide(loadRate, 3*cubic_coef)
+		
+			intercept = cubic_coef * pow(frac, 1.5) - loadRate * pow(frac, 0.5)
+
+			if t < tStar: # smooth cubic displacement-time cuve
+				alpha = (cubic_coef * pow(t,3))
+				u[t][myModel.lhs,0] = -0.5 * alpha * np.ones(len(myModel.lhs))
+				u[t][myModel.rhs,0] = 0.5 * alpha * np.ones(len(myModel.rhs))
+				y.append(alpha)
+			
+			else: # linear displacement-time curve
+				alpha = (loadRate*t + intercept)
+				u[t][myModel.lhs,0] = -0.5 * alpha * np.ones(len(myModel.lhs))
+				u[t][myModel.rhs,0] = 0.5 * alpha * np.ones(len(myModel.rhs))
+				y.append(alpha)
+				
+		elif LOADING_MODE ==3: # Smooth 5th order polynomial displacement curve, with a final displacement
+			
+			x = t / numSteps
+			
+			alpha = finalDisplacement * pow(x,3) * (10 - 15 * x + 6 * pow(x,2)) # 5th order polynomial
+			
+			u[t][myModel.lhs,0] = -0.5 * alpha * np.ones(len(myModel.rhs))
 			u[t][myModel.rhs,0] = 0.5 * alpha * np.ones(len(myModel.rhs))
-			y.append(alpha)
-		
-		else: # linear displacement-time curve
-			alpha = (loadRate*t + intercept)
-			u[t][myModel.lhs,0] = -0.5 * alpha * np.ones(len(myModel.lhs))
-			u[t][myModel.rhs,0] = 0.5 * alpha * np.ones(len(myModel.rhs))
-			y.append(alpha)
-		
-		
-# =============================================================================
-# 		# Instead try a smooth displacement curve
-# 		x = t / numSteps
-# 		
-# 		alpha = finalDisplacement * pow(x,3) * (10 - 15 * x + 6 * pow(x,2)) # 5th order polynomial
-# 		
-# 		u[t][myModel.lhs,0] = -0.5 * alpha * np.ones(len(myModel.rhs))
-# 		u[t][myModel.rhs,0] = 0.5 * alpha * np.ones(len(myModel.rhs))
-# =============================================================================
 
 		
 		if(verb==1 and t % print_every == 0) :
