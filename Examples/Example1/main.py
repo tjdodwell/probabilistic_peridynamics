@@ -9,6 +9,7 @@ from SeqPeri import SeqModel as MODEL
 import numpy as np
 import scipy.stats as sp
 import vtk as vtk
+import csv
 from timeit import default_timer as timer
 import time
 from mpi4py import MPI
@@ -70,9 +71,8 @@ class simpleSquare(MODEL):
 	
 	def noFail(self, x):
 		""" Function which marks the no-failure zone for the simulations
-			TODO: investigate if this can be avoided with applying a displacement more slowly, or on a curve that does not increase strain energy
 		"""
-		NO_FAIL = True; # Have a no fail zone?
+		NO_FAIL = False; # Have a no fail zone?
 		nfl = 0 # Does not live in nofail zone 
 		if NO_FAIL:
 			if (x[0] < 2.5 * self.horizon):
@@ -119,7 +119,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 	
 	
-def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loadRate = 0.00001, dt = 1e-3, print_every = 10):
+def sim(sample, rank, myModel =simpleSquare(), numSteps = 400, sigma = 8e-6, loadRate = 0.00001, dt = 1e-3, print_every = 10):
 	print("Peridynamic Simulation -- Starting")
 	
 	u = []
@@ -138,7 +138,7 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loa
 	broken, damage[0] = myModel.initialiseCrack(broken, damage[0])
 	
 	# Verbose
-	verb = 1
+	verb = 0
 	
 	# Various flags for the simulation settings
 	LOADING_MODE = 1 # 1 2 or 3, depending on the displacement curve desired
@@ -189,7 +189,6 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loa
 	
 		u.append(np.zeros((nnodes, 3)))
 	
-		
 		#u[t] = u[t-1] + dt * f + np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
 		u[t] = u[t-1] + dt * np.dot(M,f) + noise(L, 3, nnodes) #exponential length squared kernel
 		#u[t] = u[t-1] + dt * f + noise(L, 3, nnodes)
@@ -237,6 +236,9 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loa
 			
 			u[t][myModel.lhs,0] = -0.5 * alpha * np.ones(len(myModel.rhs))
 			u[t][myModel.rhs,0] = 0.5 * alpha * np.ones(len(myModel.rhs))
+		
+		else:
+			raise Exception('LOADING_MODE must take int value from 1 to 3, LOADING_MODE was {}'.format(LOADING_MODE))
 
 		
 		if(verb==1 and t % print_every == 0) :
@@ -245,14 +247,26 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 600, sigma = 8e-6, loa
 	
 	vtk.write("U_"+ "rank" + str(rank) + "_sample"+str(sample) + ".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 	
-	tspace = np.linspace(0, 1e-3 * 600, 599)
-	plt.plot(tspace, y)
-	plt.plt
-	
+
 	mean_nodal_damage = np.sum(damage[t])/myModel.nnodes
 	return mean_nodal_damage
 	
-	
+def writecsv(fileName, meandamage):
+
+	f = open(fileName,"w")
+
+
+	f.write("# vtk DataFile Version 2.0\n")
+	f.write("ASCII\n")
+	f.write("\n")
+
+	f.write("MEAN_DAMAGE_DATA %s\n" % (int(len(meandamage))))
+	f.write("SCALARS mean damage double\n")
+	for i in range(len(meandamage)):
+		for j in range(len(meandamage[1])):
+			tmp = meandamage[i][j]
+			f.write("%f\n" %(tmp))
+	f.close()
 
 	
 def main():
@@ -272,27 +286,34 @@ def main():
 	# test for conformability
 	if rank == 0:
 		time1 = time.time()
-		
-		#TODO: mean_damage = np.zeros((rank,))
+
 		# Currently, our program cannot handle sizes that are not evenly
         # divided by the number of processors
 		if (n % size != 0):
 			raise Exception('The number of processors should evenly divide the number of samples! \n The number of processes was: {}, the number of samples was: {}'.format(size, n))
 	
-		# number of samples taken by each process
-		#local_n= np.array([n/size]) # TODO: for some reason getting a referenced before assignment error
-	# communicate local array size to all processes
-	#comm.Bcast(local_n, root=0)
 	local_n= np.array([int(n/size)])
+	
+	# initiate local mean_damage array
+	local_mean_damage = np.zeros(local_n[0])
 	
 	# take some samples
 	for s in range(local_n[0]):
-		sim(sample = s, rank= rank)
-		
+		local_mean_damage[s] = sim(sample = s, rank= rank)
+	
+	# Send the local mean damage array to process 0 to be appended to global mean damage array
+	data = comm.gather(local_mean_damage, root=0)
+	print("Process {} has the mean damage array {}".format(rank, local_mean_damage))
 	
 	if rank == 0:
+		if len(data) != size:
+			raise Exception('length of data should equal rank. length of data was {}, size was {}'.format(len(data),size))
 		time2 = time.time()
+		np.array(data).flatten().tolist()
+		writecsv("mean_damage_samples"+".csv", data)
+		print(data)
 		print('Finished rank 0 in time: {}s'.format(time2 - time1))
+	return
 main()
 	
 		
