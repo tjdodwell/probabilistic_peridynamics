@@ -14,7 +14,6 @@ class Grid:
 
         for ie in range(0, self.nel):
             nodes = self.connectivity[ie][:]
-            print(nodes)
             for i in range(0, 4):
                 for j in range(0,4):
                     if(i != j):
@@ -74,10 +73,10 @@ class Grid:
 
 
         count = 0
-        for i in range(0, n[0] + 1):
-            for j in range(0, n[1] + 1):
-                self.coords[count][0] = x[i]
-                self.coords[count][1] = y[j]
+        for i in range(0, n[1] + 1):
+            for j in range(0, n[0] + 1):
+                self.coords[count][0] = x[j]
+                self.coords[count][1] = y[i]
                 count += 1 # increment node counter
 
         # Build Connectivity Matrix

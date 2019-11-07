@@ -35,8 +35,6 @@ class MultiscaleGrid:
 
         self.N2E = allN2E[self.rank]
 
-        print("This is rank " + str(self.rank) + " - " + str(self.N2E))
-
         self.numNeighbours = len(self.NN)
 
         # Find boundary box for local grid
@@ -49,6 +47,7 @@ class MultiscaleGrid:
         l1[0] = np.sum(np.abs(self.macroGrid.coords[self.rank][:]))
         for i in range(0, self.numNeighbours):
             l1[i+1] = np.sum(np.abs(self.macroGrid.coords[self.NN[i]][:]))
+
         tmp_id_min = np.argmin(l1)
         tmp_id_max = np.argmax(l1)
 
@@ -68,6 +67,8 @@ class MultiscaleGrid:
         nf = [];
         for i in range(0, self.dim):
             nf.append(int(np.floor(L_local[i] / hf[i])))
+
+
         self.fineGrid = fem.Grid()
         self.fineGrid.buildStructuredMesh2D(L_local,nf,bottomLeft,1,0)
 
