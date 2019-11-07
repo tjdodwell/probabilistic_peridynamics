@@ -14,9 +14,9 @@ dim = 2
 
 numParticles = 10
 
-L = [10 , 10] #
+L = [20 , 10] #
 
-n = [1, 1]
+n = [2, 1]
 
 hf = np.ones(dim)
 

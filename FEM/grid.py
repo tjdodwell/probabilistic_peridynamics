@@ -11,8 +11,10 @@ class Grid:
     def findNeighbours(self):
         # Simple implementation for now as coarse mesh will be small
         M = np.zeros((self.numNodes, self.numNodes), dtype = int)
+
         for ie in range(0, self.nel):
             nodes = self.connectivity[ie][:]
+            print(nodes)
             for i in range(0, 4):
                 for j in range(0,4):
                     if(i != j):
@@ -23,7 +25,22 @@ class Grid:
             for j in range(0, self.numNodes):
                 if (M[i][j] == 1):
                     self.neighbours[i].append(int(j))
-        return self.neighbours
+
+        # Build list of macroscale elements in which a node lives
+        tmpN2E = [ [] for i in range(self.numNodes) ]
+        for ie in range(0, self.nel): # For each elements
+            nodes = self.connectivity[ie][:]
+            for j in range(0,nodes.size):
+                tmpN2E[nodes[j]].append(ie)
+
+        self.Node2Elements = [ [] for i in range(self.numNodes) ]
+
+        for i in range(0, self.numNodes):
+            tmpArray = np.array(tmpN2E[i])
+            self.Node2Elements[i] = np.unique(tmpArray)
+
+
+        return self.neighbours, self.Node2Elements
 
     def buildStructuredMesh2D(self,L,n,X0,order,verb = 2):
 
@@ -39,6 +56,7 @@ class Grid:
             self.nodePerElement = 4
             self.numNodes = numNodesX * numNodesY
             self.nel = n[0] * n[1]
+
         else:
             print('Grids of order 2 or high are not currently supported, assuming order 1')
             order == 1;
@@ -47,16 +65,19 @@ class Grid:
         y = np.linspace(X0[1], X0[1] + L[1], numNodesY)
 
         self.h = np.zeros(self.dim)
+
         for i in range(0,self.dim):
             self.h[i] = L[i] / n[i]
 
         # Nodes will be formed from a tensor product of this two vectors
         self.coords = np.zeros((self.numNodes, 2))
+
+
         count = 0
         for i in range(0, n[0] + 1):
             for j in range(0, n[1] + 1):
-                self.coords[count][0] = x[j]
-                self.coords[count][1] = y[i]
+                self.coords[count][0] = x[i]
+                self.coords[count][1] = y[j]
                 count += 1 # increment node counter
 
         # Build Connectivity Matrix
@@ -64,15 +85,16 @@ class Grid:
         self.connectivity = np.zeros((self.nel, self.nodePerElement), dtype = int)
         count = 0
         ncount = 0
-        for i in range(0, n[0]):
-            for j in range(0, n[1]):
+        for j in range(0, n[1]):
+            for i in range(0, n[0]):
                 self.connectivity[count][0] = ncount
                 self.connectivity[count][1] = ncount + 1
                 self.connectivity[count][2] = ncount + numNodesX + 1
                 self.connectivity[count][3] = ncount + numNodesX
                 count += 1 # increment element counter
                 ncount += 1
-            ncount += 1
+
+            ncount+=1
 
         if(verb > 1):
             print('... Grid Built!')
