@@ -115,7 +115,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 	
 	
-def sim(sample, rank, myModel =simpleSquare(), numSteps = 400, sigma = 8e-6, loadRate = 0.00001, dt = 1e-3, print_every = 10):
+def sim(sample, rank, myModel =simpleSquare(), numSteps = 4, sigma = 8e-6, loadRate = 0.00001, dt = 1e-3, print_every = 1):
 	print("Peridynamic Simulation -- Starting")
 	
 	u = []
@@ -134,7 +134,7 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 400, sigma = 8e-6, loa
 	broken, damage[0] = myModel.initialiseCrack(broken, damage[0])
 	
 	# Verbose
-	verb = 0
+	verb = 1
 	
 	# Various flags for the simulation settings
 	LOADING_MODE = 1 # 1 2 or 3, depending on the displacement curve desired
@@ -238,7 +238,7 @@ def sim(sample, rank, myModel =simpleSquare(), numSteps = 400, sigma = 8e-6, loa
 
 		
 		if(verb==1 and t % print_every == 0) :
-			vtk.write("U_"+"sample"+str(sample)+"time"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
+			#vtk.write("U_"+"sample"+str(sample)+"time"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 			print('Timestep {} complete'.format(t))
 	
 	vtk.write("U_"+ "rank" + str(rank) + "_sample"+str(sample) + ".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
