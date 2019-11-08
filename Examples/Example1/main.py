@@ -7,14 +7,10 @@ sys.path.insert(1, '../../PostProcessing')
 import PeriParticle as peri
 from SeqPeri import SeqModel as MODEL
 import numpy as np
-import scipy.stats as sp
 import vtk as vtk
-import csv
-from timeit import default_timer as timer
 import time
 from mpi4py import MPI
 import sys
-import matplotlib.pyplot as plt
 
 
 class simpleSquare(MODEL):
