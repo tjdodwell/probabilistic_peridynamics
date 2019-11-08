@@ -28,10 +28,10 @@
 
 #! How many (MPI) tasks will there be in total? (<= nodes*32)
 #! The skylake/skylake-himem nodes have 32 CPUs (cores) each.
-#SBATCH --ntasks=4
+#SBATCH --ntasks=32
 
 #! How much wallclock time will be required? 12 hours maximum for free accounts
-#SBATCH --time=0:05:00
+#SBATCH --time=1:30:00
 
 #! What types of email messages do you wish to receive?
 #SBATCH --mail-type=ALL
@@ -96,6 +96,8 @@ mpi_tasks_per_node=$(echo "$SLURM_TASKS_PER_NODE" | sed -e  's/^\([0-9][0-9]*\).
 
 # FOR MATLAB!
 #! Run embarrassingly parallel jobs
+source YOUR_PYTHON/bin/activate
+pip install mpi4py
 cd ~/rds/hpc-work/probabilistic_peridynamics/Examples/Example1
 mpiexec -n 4 python main.py 4
 
