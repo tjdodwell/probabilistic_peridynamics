@@ -72,10 +72,33 @@ class MultiscaleGrid:
         self.fineGrid = fem.Grid()
         self.fineGrid.buildStructuredMesh2D(L_local,nf,bottomLeft,1,0)
 
-    # def buildPartitionOfUnity(self):
-    #
-    #     # In this case we will assume POU is linear shape functions on macroGrid
-    #
-    #     self.xi = np.zeros(self.fineGrid.numNodes) # Setup vector to store POU - xi
-    #
-    #     for i in range(0, self.fineGrid.numNodes):
+    def buildPartitionOfUnity(self):
+        # In this case we will assume POU is linear shape functions on macroGrid
+        self.xi = np.zeros(self.fineGrid.numNodes) # Setup vector to store POU - xi
+        x0 = self.macroGrid.coords[self.rank][:]
+        for i in range(0, self.fineGrid.numNodes):
+            y = self.fineGrid.coords[i][:]
+            d = np.zeros(self.dim)
+            d = y - x0
+            localX = np.zeros(self.dim)
+            if(self.dim == 2):
+                theNode = 0
+                if(d[0] > 0 and d[1] > 0):
+                    theNode = 0
+                    localX[0] = (d[0] - 0.5 * self.macroGrid.h[0]) / self.macroGrid.h[0]
+                    localX[1] = (d[1] - 0.5 * self.macroGrid.h[1]) / self.macroGrid.h[1]
+                elif(d[0] > 0 and d[1] < 0):
+                    theNode = 3
+                    localX[0] = (d[0] - 0.5 * self.macroGrid.h[0]) / self.macroGrid.h[0]
+                    localX[1] = (d[1] + 0.5 * self.macroGrid.h[1]) / self.macroGrid.h[1]
+                elif(d[0] < 0 and d[1] < 0):
+                    theNode = 2
+                    localX[0] = (d[0] + 0.5 * self.macroGrid.h[0]) / self.macroGrid.h[0]
+                    localX[1] = (d[1] + 0.5 * self.macroGrid.h[1]) / self.macroGrid.h[1]
+                else:
+                    theNode = 1
+                    localX[0] = (d[0] + 0.5 * self.macroGrid.h[0]) / self.macroGrid.h[0]
+                    localX[1] = (d[1] - 0.5 * self.macroGrid.h[1]) / self.macroGrid.h[1]
+            tmp = self.fineGrid.evalPhi(localX,1)
+
+            self.xi[i] = tmp[theNode]

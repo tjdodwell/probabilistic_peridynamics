@@ -42,4 +42,6 @@ comm_Size = comm.Get_size()
 
 parGrid = ms.MultiscaleGrid(comm)
 
-myGrid = parGrid.buildCoarseGrid("node_centered", L, n, X0, hf)
+parGrid.buildCoarseGrid("node_centered", L, n, X0, hf)
+
+parGrid.buildPartitionOfUnity()

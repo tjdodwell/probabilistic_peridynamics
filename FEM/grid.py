@@ -125,3 +125,14 @@ class Grid:
 
 
         return p_localCoords, p2e
+
+    def evalPhi(self, x, order = 1):
+        if(self.dim == 2):
+            if(order == 1):
+                phi = np.zeros(4)
+                phi[0] = (1 - x[0]) * (1 - x[1])
+                phi[1] = (1 + x[0]) * (1 - x[1])
+                phi[2] = (1 + x[0]) * (1 + x[1])
+                phi[3] = (1 - x[0]) * (1 + x[1])
+                phi *= 0.25
+        return phi
