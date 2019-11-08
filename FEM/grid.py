@@ -106,14 +106,16 @@ class Grid:
 
     def particletoCell_structured(self,pCoords):
         numParticles = int(pCoords[:].size / self.dim)
-        particle2Cell_Maps = np.zeros(numParticles, dtype = int)
-        localCoords = np.zeros((numParticles, self.dim))
-
-        for i in range(0, numParticles):
-            xP = pCoords[i][:]
+        p2e = np.zeros(numParticles, dtype = int)
+        p_localCoords = np.zeros((numParticles, self.dim))
+        for i in range(0, numParticles): # For each of the particles
+            xP = pCoords[i][:] # particle coordinates
             id = np.zeros(self.dim)
             for j in range(0,self.dim):
                 id[j] = np.floor(xP[j] / self.h[j])
+                # Catch boundary case
+                if(id[j] == self.n[j]):
+                    id[j] -= 1
             if(self.dim == 2):
                 p2e[i] = self.n[0] * id[1] + id[0]
             else:
