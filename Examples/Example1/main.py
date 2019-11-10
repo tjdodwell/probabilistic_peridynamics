@@ -54,7 +54,7 @@ class simpleSquare(MODEL):
 
 		# Build Finite Element Grid Overlaying particles
 
-		myGrid = fem.Grid()
+		self.myGrid = fem.Grid()
 
 		self.L = []
 		self.X0  = [0.0, 0.0] # bottom left
@@ -64,16 +64,42 @@ class simpleSquare(MODEL):
 			self.L.append(np.max(self.coords[:,i]))
 			self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
 
-		myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
+		self.myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
 
-		self.p_localCoords, self.p2e = myGrid.particletoCell_structured(self.coords[:,:self.dim])
+		self.p_localCoords, self.p2e = self.myGrid.particletoCell_structured(self.coords[:,:self.dim])
+
+		self.elementsLHS = np.unique(self.p2e[self.lhs])
+		self.elementsRHS = np.unique(self.p2e[self.rhs])
+
+		tmpLHS = self.p2e[self.lhs]
+		tmpRHS = self.p2e[self.rhs]
+
+		print(tmpLHS)
+
+		self.eL = [ [] for i in range(self.elementsLHS.size) ]
+		self.eR = [ [] for i in range(self.elementsRHS.size) ]
+
+		for i in range(0, len(self.lhs)):
+			id = np.where(self.elementsLHS == tmpLHS[i])
+			print(id)
+			print(tmpLHS[i])
+			self.eL[id].append(int(tmpLHS[i]))
+
+		for i in range(0, len(self.rhs)):
+			id = np.where(self.elementsRHS == tmpRHS[i])
+			self.eR[id].append(int(tmpRHS[i]))
+
+		print(self.eL)
+
+		print(self.eR)
+
 
 	def findBoundary(self,x):
-		# Function which markes constrain particles
+		# Function which marks constrained particles
 	    bnd = 0 # Does not live on a boundary
-	    if (x[0] < 1.5 * self.horizon):
+	    if (x[0] < self.horizon - 1e-6):
 	        bnd = -1
-	    elif (x[0] > 1.0 - 1.5 * self.horizon):
+	    elif (x[0] > 1.0 - self.horizon + 1e-6):
 	        bnd = 1
 	    return bnd
 
@@ -179,6 +205,11 @@ def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 20, sigma 
 		# Simple Euler update of the Solution + Add the Stochastic Random Noise
 
 		u.append(np.zeros((nnodes, 3)))
+
+		# Compute Incremental force
+
+		df = dt * f + noise(L,3,nnodes)
+
 
 
 		#u[t] = u[t-1] + dt * f + np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
