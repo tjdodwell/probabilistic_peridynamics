@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Nov 10 16:25:58 2019
+
+@author: Ben Boys
+"""
 
 import sys
 # insert at 1, 0 is the script path (or '' in REPL)
@@ -6,7 +12,7 @@ sys.path.insert(1, '../../PostProcessing')
 sys.path.insert(1, '../../FEM')
 
 import PeriParticle as peri
-from SeqPeri import SeqModel as MODEL
+from SeqPeriVectorized import SeqModel as MODEL
 import numpy as np
 import scipy.stats as sp
 import vtk as vtk
@@ -38,9 +44,12 @@ class simpleSquare(MODEL):
 		self.crackLength = 0.3
 
 		self.readMesh(self.meshFileName)
-
-		self.setNetwork(self.horizon)
-
+		self.setVolume()
+# =============================================================================
+# 		self.setConn(self.horizon)
+# 		self.setH()
+# =============================================================================
+		
 		self.lhs = []
 		self.rhs = []
 
@@ -53,7 +62,6 @@ class simpleSquare(MODEL):
 				(self.rhs).append(i)
 
 		# Build Finite Element Grid Overlaying particles
-
 		myGrid = fem.Grid()
 
 		self.L = []
@@ -117,22 +125,20 @@ def noise(L, samples, num_nodes):
 
 def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 10):
 	print("Peridynamic Simulation -- Starting")
+	
+	
+	myModel.setConn(0.1)
+	myModel.setH()
 
 	u = []
 
 	damage = []
 
-	# Setup broken flag
-
-	broken = []
-	for i in range(0, myModel.nnodes):
-		broken.append(np.zeros(len(myModel.family[i])))
 
 	u.append(np.zeros((myModel.nnodes, 3)))
 
 	damage.append(np.zeros(myModel.nnodes))
 
-	broken, damage[0] = myModel.initialiseCrack(broken, damage[0])
 
 	verb = 1
 
@@ -142,24 +148,20 @@ def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 1, sigma =
 	# Number of nodes
 	nnodes = myModel.nnodes
 
-	# Amplification factor
-	sigma = 1e-4
-
 	# Covariance matrix
-	M = myModel.COVARIANCE
+	K = myModel.K
 
 	#Create L matrix
-	#TODO: epsilon, numerical trick so that M is positive semi definite
+	#epsilon, numerical trick so that M is positive semi definite
 	epsilon = 1e-4
 
 	# Sample a random vector
 
 	I = np.identity(nnodes)
-	M_tild = M + np.multiply(epsilon, I)
+	K_tild = K + np.multiply(epsilon, I)
 
-	M_tild = np.multiply(pow(sigma, 2), M_tild)
 
-	L = np.linalg.cholesky(M_tild)
+	L = np.linalg.cholesky(K_tild)
 
 	for t in range(1, numSteps):
 
@@ -172,12 +174,13 @@ def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 1, sigma =
 
 		damage.append(np.zeros(nnodes))
 
-		broken, damage[t] = myModel.checkBonds(u[t-1], broken, damage[t-1])
-
-		f = myModel.computebondForce(u[t-1], broken) # myModel.computeForce(u[t-1])
+		
+		
+		myModel.calcBondStretch(u[t-1])
+		damage[t] = myModel.checkBonds()
+		f = myModel.computebondForce()
 
 		# Simple Euler update of the Solution + Add the Stochastic Random Noise
-
 		u.append(np.zeros((nnodes, 3)))
 
 
