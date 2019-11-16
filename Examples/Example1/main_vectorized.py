@@ -26,7 +26,9 @@ class simpleSquare(MODEL):
 	# A User defined class for a particular problem which defines all necessary parameters
 
 	def __init__(self):
-
+		
+		# verbose
+		self.v = False
 		self.dim = 2
 
 		self.meshFileName = 'test.msh'
@@ -61,20 +63,22 @@ class simpleSquare(MODEL):
 			elif (bnd > 0):
 				(self.rhs).append(i)
 
-		# Build Finite Element Grid Overlaying particles
-		myGrid = fem.Grid()
-
-		self.L = []
-		self.X0  = [0.0, 0.0] # bottom left
-		self.nfem = []
-
-		for i in range(0, self.dim):
-			self.L.append(np.max(self.coords[:,i]))
-			self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
-
-		myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
-
-		self.p_localCoords, self.p2e = myGrid.particletoCell_structured(self.coords[:,:self.dim])
+# =============================================================================
+# 		# Build Finite Element Grid Overlaying particles
+# 		myGrid = fem.Grid()
+# 
+# 		self.L = []
+# 		self.X0  = [0.0, 0.0] # bottom left
+# 		self.nfem = []
+# 
+# 		for i in range(0, self.dim):
+# 			self.L.append(np.max(self.coords[:,i]))
+# 			self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
+# 
+# 		myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
+# 
+# 		self.p_localCoords, self.p2e = myGrid.particletoCell_structured(self.coords[:,:self.dim])
+# =============================================================================
 
 	def findBoundary(self,x):
 		# Function which markes constrain particles
@@ -123,7 +127,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 
 
-def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 10):
+def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 10):
 	print("Peridynamic Simulation -- Starting")
 	
 	
@@ -174,19 +178,18 @@ def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 1, sigma =
 
 		damage.append(np.zeros(nnodes))
 
-		
-		
-		myModel.calcBondStretch(u[t-1])
-		damage[t] = myModel.checkBonds()
-		f = myModel.computebondForce()
+
+		myModel.calcBondStretch(u[t-1], t)
+		damage[t] = myModel.checkBonds(t)
+		f = myModel.computebondForce(t)
 
 		# Simple Euler update of the Solution + Add the Stochastic Random Noise
 		u.append(np.zeros((nnodes, 3)))
+		
 
-
-		#u[t] = u[t-1] + dt * f + np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
+		u[t] = u[t-1] + dt * f #+ np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
 		#u[t] = u[t-1] + dt * np.dot(M,f) + noise(L, 3) #exponential length squared kernel
-		u[t] = u[t-1] + dt * f + noise(L, 3, nnodes)
+		#u[t] = u[t-1] + np.multiply(dt,f) + noise(L, 3, nnodes)
 
 		# Apply boundary conditions
 		u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))
@@ -195,7 +198,8 @@ def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 1, sigma =
 		u[t][myModel.lhs,0] = -0.5 * t * loadRate * np.ones(len(myModel.rhs))
 		u[t][myModel.rhs,0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
 
-		if(verb==0 and t % print_every == 0) :
+		if(verb==1) :
+			vtk.write("U_"+"t"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 			print('Timestep {} complete'.format(t))
 
 	return vtk.write("U_"+"sample"+str(sample)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])

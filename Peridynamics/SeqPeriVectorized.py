@@ -7,13 +7,16 @@ import periFunctions as func
 
 from scipy import sparse
 
+import warnings
+
 import time
+
 
 class SeqModel:
 	def __init__(self):
         ## Scalars
 		# self.nnodes defined when instance of readMesh called, cannot initialise any other matrix until we know the nnodes
-
+		self.v = False # is this needed here, since it was put in MODEL class, simplesquare?
 		self.dim = 2
 
 		self.meshFileName = "test.msh"
@@ -149,18 +152,25 @@ class SeqModel:
 					
 		# Initial bond damages
 		count = np.sum(conn, axis =0)
-		family = np.sum(conn_0, axis=0)
-		damage = np.divide((family - count), family)			
-						
+		self.family = np.sum(conn_0, axis=0)
+		damage = np.divide((self.family - count), self.family)
+		damage.resize(self.nnodes)
+		
+		print('initial damage vector is {}'.format(damage))
+		
+		# Lower triangular - count bonds only once
+		conn = np.tril(conn, -1)
+		
 		# Convert to sparse matrix
 		self.conn = sparse.csr_matrix(conn)
+		
+		if self.v:
+			print('self.conn is HERE', self.conn)
 		
 		# intial connectivity matrix
 		self.conn_0 = sparse.csr_matrix(conn_0)
 		
-		if damage.shape != (self.nnodes, ):
-			raise Exception('damage vector must have shape {}. damage had shape {}'.format((self.nnodes, ),(damage.shape)))
-		
+
 		return damage
 	
 	def setH(self):
@@ -187,7 +197,9 @@ class SeqModel:
 		H_z0 = lam_z - lam_y.transpose()
 		
 		norms_matrix = np.power(H_x0, 2) + np.power(H_y0, 2) + np.power(H_z0, 2)
-		print('the type and shape of norms_matrix are {} and {}'.format(type(norms_matrix), norms_matrix.shape))
+		norms_matrix = np.sqrt(norms_matrix)
+		
+		#print('the type and shape of norms_matrix are {} and {}'.format(type(norms_matrix), norms_matrix.shape))
 		
 		
 # =============================================================================
@@ -245,28 +257,33 @@ class SeqModel:
 		self.H_y0 = sparse.csr_matrix(self.conn.multiply(H_y0))
 		self.H_z0 = sparse.csr_matrix(self.conn.multiply(H_z0))
 		
+		if self.H_x0.size != self.H_y0.size or self.H_x0.size != self.H_z0.size:
+			raise Exception(' The sizes of H_x0, H_y0 and H_z0 did not match! The sizes were {}, respectively'.format(self.H_x0.size, self.H_y0.size, self.H_z0.size))
+		
+		self.L_0 = sparse.csr_matrix(self.conn.multiply(norms_matrix))
+		#self.L_0 = self.H_x0.power(2) + self.H_y0.power(2) + self.H_z0.power(2) # no need to recalculate
+        
+        # TODO: resize L_0 to same size as H_x0?
+		
+		if self.L_0.size != self.H_x0.size:
+			print(' The size of the connectivity matrix is {}'.format(self.conn.size))
+			warnings.warn('L_0.size was {}, whilst H_x0.size was {}, they should be the same size'.format(self.L_0.size, self.H_x0.size))
+		
 		# initiate fail_stretches matrix as a linked list format
-		fail_strains = np.full((self.nnodes, self.nnodes), self.s00)
+		self.fail_strains = np.full((self.nnodes, self.nnodes), self.s00)
+		# Make into a sparse matrix
+		self.fail_strains = sparse.csr_matrix(self.fail_strains)
 		
-		fail_strains = sparse.csr_matrix(self.conn.multiply(fail_strains))
-		fail_strains.eliminate_zeros()
-		self.fail_strains = fail_strains.prune()
-		
-		print('Hello')
-		
-		print('Type of fail strains is {}'.format(type(self.fail_strains)))
+		if self.v:
+			
+			print('Type of fail strains is {} and the size is {}'.format(type(self.fail_strains), self.fail_strains.size))
 		
 		print('Constructed H in {} seconds'.format(time.time() - st))
 
-	def calcBondStretch(self, U):
+	def calcBondStretch(self, U, t):
 		
 		st = time.time()
 		
-		shape = (self.nnodes, self.nnodes)
-		
-		H_x0, H_y0, H_z0 = self.H_x0, self.H_y0, self.H_z0
-		
-        	
 		delV_x = U[:, 0]
 		lam_x = np.tile(delV_x, (self.nnodes, 1))
 	
@@ -277,89 +294,149 @@ class SeqModel:
 		lam_z = np.tile(delV_z, (self.nnodes, 1))
 		
 		
-		delH_x = sparse.csr_matrix(self.conn.multiply(lam_x) - self.conn.multiply(lam_x.transpose()))
-		delH_y = sparse.csr_matrix(self.conn.multiply(lam_y) - self.conn.multiply(lam_y.transpose()))
-		delH_z = sparse.csr_matrix(self.conn.multiply(lam_z) - self.conn.multiply(lam_z.transpose()))
+		delH_x = lam_x - lam_x.transpose()
+		delH_y = lam_y - lam_y.transpose()
+		delH_z = lam_z - lam_y.transpose()
 		
-		print('the type of delH_x is {} and the shape is {}'.format(type(delH_x), delH_x.shape))
+		delH_x = sparse.csr_matrix(self.conn.multiply(delH_x))
+		delH_y = sparse.csr_matrix(self.conn.multiply(delH_y))
+		delH_z = sparse.csr_matrix(self.conn.multiply(delH_z))
 		
-		tmp_x = 1 / H_x0.d
+		self.H_x = delH_x + self.H_x0
+		self.H_y = delH_y + self.H_y0
+		self.H_z = delH_z + self.H_z0
 		
-		tmp_x = sparse.csr_matrix(delH_x[H_x0.nonzero()] / H_x0[H_x0.nonzero()])
-		tmp_y = sparse.csr_matrix(delH_y[H_y0.nonzero()] / H_y0[H_y0.nonzero()])
-		tmp_z = sparse.csr_matrix(delH_z[H_z0.nonzero()] / H_z0[H_z0.nonzero()])
+		# Compute bond length matrix
+		# bond lengths at current time step
+		# Step 1. Initiate as a sparse matrix
+			
+		L = self.H_x.power(2) + self.H_y.power(2) + self.H_z.power(2)
+		self.L = sparse.csr_matrix(L.sqrt())
 		
+		if self.v:
+			print(' The shape of L is {}'.format(self.L.shape))
+			
+			print(delH_x, 'ABOVE is delH_x')
 		
-		print('the type of tmp_x is {} and the shape is {}'.format(type(tmp_x), tmp_x.shape))
-		print('temp_x')
+			print('the type of delH_x is {} and the shape is {}'.format(type(delH_x), delH_x.shape))
 		
-		# TODO: fix bug where reshape shape is not compatible with sparse matrix
-		tmp_x.resize(shape)
-		tmp_y.resize(shape)
-		tmp_z.resize(shape)
+		del_L = delH_x.power(2) + delH_y.power(2) + delH_z.power(2)
 		
-		self.H_x = H_x0 + delH_x
-		self.H_y = H_y0 + delH_y
-		self.H_z = H_z0 + delH_z
+            # Step 1. initiate as sparse matrix
+		strain = sparse.csr_matrix(self.conn.shape)
 		
-		tmp = tmp_x.power(2) + tmp_y.power(2) + tmp_z.power(2)
-		print('the type of tmp is {} and the shape is {}'.format(type(tmp), tmp.shape))
-		self.strain = tmp.sqrt()
-		print('the type of strain is {} and the shape is {}'.format(type(self.strain), self.strain.shape))
+		# Step 2. elementwise division
+		strain[self.conn.nonzero()] = sparse.csr_matrix(del_L[self.conn.nonzero()]/self.L_0[self.conn.nonzero()])
+		
+		# Step 3. Square root
+		self.strain = strain.sqrt()
 
-		print('Constructed H in {} seconds'.format(time.time() - st))
+
+		if del_L.size != delH_x.size:
+			warnings.warn('del_L.size was {}, whilst H_x.size was {}, they should be the same'.format(del_L.size, delH_x.size))
+
+
+		if strain.size != self.L_0.size:
+			warnings.warn('strain.size was {}, whilst L_0.size was {}'.format(strain.size, self.L_0.size))
 		
-	def checkBonds(self):
+	
+		print('the type of strain is {} and the shape is {}'.format(type(self.strain), self.strain.size))
+
+		print('Constructed bond strain matrix in {} seconds'.format(time.time() - st))
+		
+	def checkBonds(self, t):
 		""" Calculates bond damage
 		"""
 		# if bond_health value is less than 0 then it is a broken bond
-		bond_healths = self.fail_strains - self.strain.sign().multiply(self.strain)
+		
+# =============================================================================
+# 		if t == 1:
+# 			bond_healths = self.fail_strains
+# 			# bond damages
+# 			count = self.conn.sum(axis = 0)
+# 			family = self.conn_0.sum(axis = 0)
+# 			damage = np.divide((family - count), family)[0]
+# 			
+# 			return damage
+# =============================================================================
+			
+		
+		# Make sure only calculating for bonds that exist
+		
+		# Step 1. initiate as sparse matrix
+		bond_healths = sparse.csr_matrix(self.conn.shape)
+		
+		# Step 2. Find broken bonds
+		
+		bond_healths[self.conn.nonzero()] = sparse.csr_matrix(self.fail_strains[self.conn.nonzero()] - self.strain[self.conn.nonzero()])
 		bond_healths[bond_healths < 0] = 0
-		bond_healths = bond_healths.astype(bool)
 		
-		# connectivity matrix
-		bond_healths.eliminate_zeros()
-		self.conn = bond_healths.prune() #need to prune?
-		print(self.conn)
-		print(self.conn.shape)
+		# play around with converting to bool instead
+		bond_healths[bond_healths > 0] = 1
 		
-		# bond damages
-		count = self.conn.sum(axis = 0)
-		family = self.conn_0.sum(axis = 0)
-		damage = np.divide((family - count), family)
+		bond_healths.eliminate_zeros() #needed?
+		self.conn = bond_healths
+		#print(self.conn.shape)
 		
-		if damage.shape != (self.nnodes, ):
-			raise Exception('damage vector must have shape {}. damage had shape {}'.format((self.nnodes, ),(damage.shape)))
+		# Bond damages
 		
+		# Using lower triangular connectivity matrix, so just mirror it for bond damage calc
+		temp = self.conn + self.conn.transpose()
+		count = temp.sum(axis = 0)
+		damage = np.divide((self.family - count), self.family)
+		damage.resize(self.nnodes)
+		
+		#print(damage, damage.shape)
+	
+	
 		return damage
 		
 		
-	def computebondForce(self):
+	def computebondForce(self, t):
 		
+# =============================================================================
+# 		if t == 1:
+# 			F = np.zeros((self.nnodes, 3))
+# 			
+# 			if self.v:
+# 				print('Type of f is {}'.format(type(F)))
+# 			
+# 			return F
+# =============================================================================
 		self.c = 18.0 * self.K / (np.pi * (self.horizon**4))
 		F = np.zeros((self.nnodes,3)) # Container for the forces on each particle in each dimension
-		
+	
 		force_mags = self.strain.multiply(self.V)
-		force_mags =  force_mags.multiply(self.c)
+		force_mags =  sparse.csr_matrix(force_mags.multiply(self.c))
 		
-		force_norms = sparse.csr_matrix(force_mags[self.norms.nonzero()]/ self.norms[self.norms.nonzero()])
+
+		# Step 1. Initiate container as sparse matrix, only computed for connected bonds
+		force_norms = sparse.csr_matrix(self.conn.shape)
 		
-		# norms for the bond lengths
-		norms = self.H_x.power(2) + self.H_y.power(2) + self.H_z.power(2)
-		norms = norms.sqrt()
+		# Step 2. find normalised forces
+		force_norms[self.conn.nonzero()] = sparse.csr_matrix(force_mags[self.conn.nonzero()]/ self.L[self.conn.nonzero()])
 		
-		bond_force_x = sparse.csr_matrix(force_norms[norms.nonzero()].multiply(self.H_x[norms.nonzero()]))
-		bond_force_y = sparse.csr_matrix(force_norms[norms.nonzero()].multiply(self.H_x[norms.nonzero()]))
-		bond_force_z = sparse.csr_matrix(force_norms[norms.nonzero()].multiply(self.H_x[norms.nonzero()]))
+		bond_force_x = force_norms.multiply(self.H_x)
+		bond_force_y = force_norms.multiply(self.H_y)
+		bond_force_z = force_norms.multiply(self.H_z)
 		
+		# Since the bond forces will be lower triangular, mirror them for nodal force calculation
+		tmp_x = bond_force_x + bond_force_x.transpose()
+		tmp_y = bond_force_y + bond_force_y.transpose()
+		tmp_z = bond_force_z + bond_force_z.transpose()
+	
+	
+		F_x = tmp_x.sum(axis = 0)
+		F_y = tmp_y.sum(axis = 0)
+		F_z = tmp_z.sum(axis = 0)
 		
-		F_x = bond_force_x.sum(axis = 0)
-		F_y = bond_force_y.sum(axis = 0)
-		F_z = bond_force_z.sum(axis = 0)
-		F[:, 0] = F_x.todense()
-		F[:, 1] = F_y.todense()
-		F[:, 2] = F_z.todense()
+		if self.v:
+			print('here are the x forces for each node {} '.format(F_x))
 		
+		F[:, 0] = F_x
+		F[:, 1] = F_y
+		F[:, 2] = F_z
+	
 		assert F.shape == (self.nnodes, 3)
-		
+	
 		return F
