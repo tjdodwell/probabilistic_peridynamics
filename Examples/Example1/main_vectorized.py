@@ -40,7 +40,7 @@ class simpleSquare(MODEL):
 
 		# Material Parameters from classical material model
 		self.horizon = 0.1
-		self.K = 0.05
+		self.kscalar = 0.05
 		self.s00 = 0.005
 
 		self.crackLength = 0.3
@@ -127,7 +127,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 
 
-def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 10):
+def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 1):
 	print("Peridynamic Simulation -- Starting")
 	
 	
@@ -152,20 +152,22 @@ def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma =
 	# Number of nodes
 	nnodes = myModel.nnodes
 
-	# Covariance matrix
-	K = myModel.K
-
-	#Create L matrix
-	#epsilon, numerical trick so that M is positive semi definite
-	epsilon = 1e-4
-
-	# Sample a random vector
-
-	I = np.identity(nnodes)
-	K_tild = K + np.multiply(epsilon, I)
-
-
-	L = np.linalg.cholesky(K_tild)
+# =============================================================================
+# 	# Covariance matrix
+# 	K = myModel.K
+# 
+# 	#Create L matrix
+# 	#epsilon, numerical trick so that M is positive semi definite
+# 	epsilon = 1e-4
+# 
+# 	# Sample a random vector
+# 
+# 	I = np.identity(nnodes)
+# 	K_tild = K + np.multiply(epsilon, I)
+# 
+# 
+# 	L = np.linalg.cholesky(K_tild)
+# =============================================================================
 
 	for t in range(1, numSteps):
 
@@ -179,9 +181,9 @@ def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma =
 		damage.append(np.zeros(nnodes))
 
 
-		myModel.calcBondStretch(u[t-1], t)
-		damage[t] = myModel.checkBonds(t)
-		f = myModel.computebondForce(t)
+		myModel.calcBondStretch(u[t-1])
+		damage[t] = myModel.checkBonds()
+		f = myModel.computebondForce()
 
 		# Simple Euler update of the Solution + Add the Stochastic Random Noise
 		u.append(np.zeros((nnodes, 3)))
@@ -198,7 +200,8 @@ def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma =
 		u[t][myModel.lhs,0] = -0.5 * t * loadRate * np.ones(len(myModel.rhs))
 		u[t][myModel.rhs,0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
 
-		if(verb==1) :
+		if(verb==1 and t % print_every == 0) :
+			#print(f)
 			vtk.write("U_"+"t"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 			print('Timestep {} complete'.format(t))
 

@@ -28,10 +28,10 @@ class SeqModel:
 
 		# Material Parameters from classical material model
 		self.horizon = 0.1
-		self.K = 0.05
+		self.kscalar = 0.05
 		self.s00 = 0.05
 
-		self.c = 18.0 * self.K / (np.pi * (self.horizon**4));
+		self.c = 18.0 * self.kscalar / (np.pi * (self.horizon**4));
 
 
 		if (self.dim == 3):
@@ -146,7 +146,9 @@ class SeqModel:
 			for j in range(0, self.nnodes):
 				if(func.l2(self.coords[i,:], self.coords[j,:]) < horizon):
 					conn_0[i, j] = 1
-					if (self.isCrack(self.coords[i,:], self.coords[j,:]) == False):
+					if i == j:
+						pass # do not fill diagonal
+					elif (self.isCrack(self.coords[i,:], self.coords[j,:]) == False):
 						conn[i, j] = 1
 						
 					
@@ -158,8 +160,11 @@ class SeqModel:
 		
 		print('initial damage vector is {}'.format(damage))
 		
-		# Lower triangular - count bonds only once
-		conn = np.tril(conn, -1)
+# =============================================================================
+# 		# Lower triangular - count bonds only once
+# 		# make diagonal values 0
+# 		conn = np.tril(conn, -1)
+# =============================================================================
 		
 		# Convert to sparse matrix
 		self.conn = sparse.csr_matrix(conn)
@@ -168,7 +173,7 @@ class SeqModel:
 			print('self.conn is HERE', self.conn)
 		
 		# intial connectivity matrix
-		self.conn_0 = sparse.csr_matrix(conn_0)
+		#self.conn_0 = sparse.csr_matrix(conn_0)
 		
 
 		return damage
@@ -181,23 +186,27 @@ class SeqModel:
 		
 		
 		V_x = coords[:,0]
-		lam_x = np.tile(V_x, (self.nnodes,1 ))
-		del V_x
+		lam_x = sparse.csr_matrix(np.tile(V_x, (self.nnodes,1 )))
 		
 		V_y = coords[:, 1]
-		lam_y = np.tile(V_y, (self.nnodes, 1))
-		del V_y
+		lam_y = sparse.csr_matrix(np.tile(V_y, (self.nnodes, 1)))
 		
-		V_z = coords[:, 1]
-		lam_z = np.tile(V_z, (self.nnodes, 1))
-		del V_z
+		V_z = coords[:, 2]
+		lam_z = sparse.csr_matrix(np.tile(V_z, (self.nnodes, 1)))
 		
-		H_x0 = lam_x - lam_x.transpose()
-		H_y0 = lam_y - lam_y.transpose()
-		H_z0 = lam_z - lam_y.transpose()
+				
+		H_x0 = sparse.csr_matrix(lam_x.multiply(self.conn) - lam_x.transpose().multiply(self.conn))
+		H_y0 = sparse.csr_matrix(lam_y.multiply(self.conn) - lam_y.transpose().multiply(self.conn))
+		H_z0 = sparse.csr_matrix(lam_z.multiply(self.conn) - lam_z.transpose().multiply(self.conn))
 		
-		norms_matrix = np.power(H_x0, 2) + np.power(H_y0, 2) + np.power(H_z0, 2)
-		norms_matrix = np.sqrt(norms_matrix)
+		
+		norms_matrix = H_x0.power(2) + H_y0.power(2) + H_z0.power(2)
+		
+		self.L_0 = norms_matrix.sqrt()
+		self.H_x0 = H_x0
+		self.H_y0 = H_y0
+		self.H_z0 = H_z0
+		
 		
 		#print('the type and shape of norms_matrix are {} and {}'.format(type(norms_matrix), norms_matrix.shape))
 		
@@ -234,40 +243,41 @@ class SeqModel:
 # =============================================================================
 		
 		
-		# Length scale for the covariance matrix
-		l = 0.001
+# =============================================================================
+# 		# Length scale for the covariance matrix
+# 		l = 0.001
+# 		
+# 		# Scale of the covariance matrix
+# 		nu = 0.1
+# 		
+# 		# inv length scale parameter
+# 		inv_length_scale = (np.divide(-1., 2.*pow(l, 2)))
+# 		
+# 		# radial basis functions
+# 		rbf = np.multiply(inv_length_scale, norms_matrix)
+# 		
+# 		# Exponential of radial basis functions
+# 		K = np.exp(rbf)
+# 		
+# 		# Multiply by the vertical scale to get covariance matrix, K
+# 		self.K = np.multiply(pow(nu, 2), K)
+# =============================================================================
 		
-		# Scale of the covariance matrix
-		nu = 0.1
 		
-		# inv length scale parameter
-		inv_length_scale = (np.divide(-1., 2.*pow(l, 2)))
+
+		if self.H_x0.shape != self.H_y0.shape or self.H_x0.shape != self.H_z0.shape:
+			raise Exception(' The sizes of H_x0, H_y0 and H_z0 did not match! The sizes were {}, {}, {}, respectively'.format(self.H_x0.shape, self.H_y0.shape, self.H_z0.shape))
 		
-		# radial basis functions
-		rbf = np.multiply(inv_length_scale, norms_matrix)
-		
-		# Exponential of radial basis functions
-		K = np.exp(rbf)
-		
-		# Multiply by the vertical scale to get covariance matrix, K
-		self.K = np.multiply(pow(nu, 2), K)
-		
-		
-		self.H_x0 = sparse.csr_matrix(self.conn.multiply(H_x0))
-		self.H_y0 = sparse.csr_matrix(self.conn.multiply(H_y0))
-		self.H_z0 = sparse.csr_matrix(self.conn.multiply(H_z0))
-		
-		if self.H_x0.size != self.H_y0.size or self.H_x0.size != self.H_z0.size:
-			raise Exception(' The sizes of H_x0, H_y0 and H_z0 did not match! The sizes were {}, respectively'.format(self.H_x0.size, self.H_y0.size, self.H_z0.size))
-		
-		self.L_0 = sparse.csr_matrix(self.conn.multiply(norms_matrix))
+
+		if self.v:
+			print(self.L_0, self.L_0.shape, 'here is L_0')
 		#self.L_0 = self.H_x0.power(2) + self.H_y0.power(2) + self.H_z0.power(2) # no need to recalculate
         
         # TODO: resize L_0 to same size as H_x0?
 		
-		if self.L_0.size != self.H_x0.size:
-			print(' The size of the connectivity matrix is {}'.format(self.conn.size))
-			warnings.warn('L_0.size was {}, whilst H_x0.size was {}, they should be the same size'.format(self.L_0.size, self.H_x0.size))
+		if self.L_0.shape != self.H_x0.shape:
+			print(' The size of the connectivity matrix is {}'.format(self.conn.shape))
+			warnings.warn('L_0.size was {}, whilst H_x0.size was {}, they should be the same size'.format(self.L_0.shape, self.H_x0.shape))
 		
 		# initiate fail_stretches matrix as a linked list format
 		self.fail_strains = np.full((self.nnodes, self.nnodes), self.s00)
@@ -275,32 +285,26 @@ class SeqModel:
 		self.fail_strains = sparse.csr_matrix(self.fail_strains)
 		
 		if self.v:
-			
-			print('Type of fail strains is {} and the size is {}'.format(type(self.fail_strains), self.fail_strains.size))
+			print('Type of fail strains is {} and the shape is {}'.format(type(self.fail_strains), self.fail_strains.shape))
 		
 		print('Constructed H in {} seconds'.format(time.time() - st))
 
-	def calcBondStretch(self, U, t):
+	def calcBondStretch(self, U):
 		
 		st = time.time()
 		
 		delV_x = U[:, 0]
-		lam_x = np.tile(delV_x, (self.nnodes, 1))
+		lam_x = sparse.csr_matrix(np.tile(delV_x, (self.nnodes, 1)))
 	
 		delV_y = U[:, 1]
-		lam_y = np.tile(delV_y, (self.nnodes, 1))
+		lam_y = sparse.csr_matrix(np.tile(delV_y, (self.nnodes, 1)))
 		
 		delV_z = U[:, 2]
-		lam_z = np.tile(delV_z, (self.nnodes, 1))
+		lam_z = sparse.csr_matrix(np.tile(delV_z, (self.nnodes, 1)))
 		
-		
-		delH_x = lam_x - lam_x.transpose()
-		delH_y = lam_y - lam_y.transpose()
-		delH_z = lam_z - lam_y.transpose()
-		
-		delH_x = sparse.csr_matrix(self.conn.multiply(delH_x))
-		delH_y = sparse.csr_matrix(self.conn.multiply(delH_y))
-		delH_z = sparse.csr_matrix(self.conn.multiply(delH_z))
+		delH_x = sparse.csr_matrix(lam_x.multiply(self.conn) - lam_x.transpose().multiply(self.conn))
+		delH_y = sparse.csr_matrix(lam_y.multiply(self.conn) - lam_y.transpose().multiply(self.conn))
+		delH_z = sparse.csr_matrix(lam_z.multiply(self.conn) - lam_z.transpose().multiply(self.conn))
 		
 		self.H_x = delH_x + self.H_x0
 		self.H_y = delH_y + self.H_y0
@@ -310,41 +314,45 @@ class SeqModel:
 		# bond lengths at current time step
 		# Step 1. Initiate as a sparse matrix
 			
-		L = self.H_x.power(2) + self.H_y.power(2) + self.H_z.power(2)
-		self.L = sparse.csr_matrix(L.sqrt())
+		norms_matrix = self.H_x.power(2) + self.H_y.power(2) + self.H_z.power(2)
+		
+		#L = np.power(self.H_x, 2) + np.power(self.H_y, 2) + np.power(self.H_z, 2)
+		self.L = norms_matrix.sqrt()
 		
 		if self.v:
-			print(' The shape of L is {}'.format(self.L.shape))
+			print(' The shape of L is {}, {}'.format(self.L.shape, self.L))
 			
 			print(delH_x, 'ABOVE is delH_x')
+			
+			print(self.H_x, 'ABOVE is H_x')
 		
-			print('the type of delH_x is {} and the shape is {}'.format(type(delH_x), delH_x.shape))
 		
-		del_L = delH_x.power(2) + delH_y.power(2) + delH_z.power(2)
+		#del_L = delH_x.power(2) + delH_y.power(2) + delH_z.power(2)
+		del_L = self.L - self.L_0
 		
-            # Step 1. initiate as sparse matrix
+		# TODO: if any element of del_l < 1e-12 then set it to 0, to kill a rounding error?
+		
+		print('del_L shape', del_L.shape)
+		
+		# Step 1. initiate as a sparse matrix
 		strain = sparse.csr_matrix(self.conn.shape)
 		
 		# Step 2. elementwise division
-		strain[self.conn.nonzero()] = sparse.csr_matrix(del_L[self.conn.nonzero()]/self.L_0[self.conn.nonzero()])
+		strain[self.L_0.nonzero()] = sparse.csr_matrix(del_L[self.L_0.nonzero()]/self.L_0[self.L_0.nonzero()])
 		
-		# Step 3. Square root
-		self.strain = strain.sqrt()
-
-
-		if del_L.size != delH_x.size:
-			warnings.warn('del_L.size was {}, whilst H_x.size was {}, they should be the same'.format(del_L.size, delH_x.size))
-
-
-		if strain.size != self.L_0.size:
-			warnings.warn('strain.size was {}, whilst L_0.size was {}'.format(strain.size, self.L_0.size))
+		
+		self.strain = strain.multiply(self.conn)
+		#self.strain.eliminate_zeros()
+		
+		if strain.shape != self.L_0.shape:
+			warnings.warn('strain.shape was {}, whilst L_0.shape was {}'.format(strain.shape, self.L_0.shape))
 		
 	
-		print('the type of strain is {} and the shape is {}'.format(type(self.strain), self.strain.size))
+		print('the type of strain is {} and the shape is {}'.format(type(self.strain), self.strain.shape))
 
 		print('Constructed bond strain matrix in {} seconds'.format(time.time() - st))
 		
-	def checkBonds(self, t):
+	def checkBonds(self):
 		""" Calculates bond damage
 		"""
 		# if bond_health value is less than 0 then it is a broken bond
@@ -368,7 +376,10 @@ class SeqModel:
 		
 		# Step 2. Find broken bonds
 		
-		bond_healths[self.conn.nonzero()] = sparse.csr_matrix(self.fail_strains[self.conn.nonzero()] - self.strain[self.conn.nonzero()])
+		#bond_healths[self.conn.nonzero()] = sparse.csr_matrix(self.fail_strains[self.conn.nonzero()] - self.strain[self.conn.nonzero()])
+		
+		bond_healths[self.conn.nonzero()] = sparse.csr_matrix(self.fail_strains.power(2)[self.conn.nonzero()] - self.strain.power(2)[self.conn.nonzero()])
+		
 		bond_healths[bond_healths < 0] = 0
 		
 		# play around with converting to bool instead
@@ -379,64 +390,85 @@ class SeqModel:
 		#print(self.conn.shape)
 		
 		# Bond damages
-		
-		# Using lower triangular connectivity matrix, so just mirror it for bond damage calc
-		temp = self.conn + self.conn.transpose()
-		count = temp.sum(axis = 0)
+# =============================================================================
+# 		
+# 		# Using lower triangular connectivity matrix, so just mirror it for bond damage calc
+# 		temp = self.conn + self.conn.transpose()
+# =============================================================================
+		count = self.conn.sum(axis = 0)
 		damage = np.divide((self.family - count), self.family)
 		damage.resize(self.nnodes)
 		
-		#print(damage, damage.shape)
-	
+		print(np.max(damage), 'max_damage')
+		print(np.min(damage), 'min_damage')
+
+		print(damage, damage.shape)
 	
 		return damage
 		
 		
-	def computebondForce(self, t):
+	def computebondForce(self):
 		
-# =============================================================================
-# 		if t == 1:
-# 			F = np.zeros((self.nnodes, 3))
-# 			
-# 			if self.v:
-# 				print('Type of f is {}'.format(type(F)))
-# 			
-# 			return F
-# =============================================================================
-		self.c = 18.0 * self.K / (np.pi * (self.horizon**4))
+		self.c = 18.0 * self.kscalar / (np.pi * (self.horizon**4))
 		F = np.zeros((self.nnodes,3)) # Container for the forces on each particle in each dimension
-	
-		force_mags = self.strain.multiply(self.V)
-		force_mags =  sparse.csr_matrix(force_mags.multiply(self.c))
 		
+		# since strain is a lower triangular matrix, mirror it to get all bond strains
+# =============================================================================
+# 		temp_strain = self.strain + self.strain.transpose() #perhaps negative here instead, TODO: check this
+# 		temp_conn = self.conn + self.conn.transpose()
+# =============================================================================
+		# Then multiply the strain matrix by the rvecs, then divide by normalising terms
+		
+		# Get the force resolving terms for each bond, in each direction (just trigonometry)
+		
+		# Step 1. Initiate container as a sparse matrix, only need calculate for bonds that exist
+		force_normd = sparse.csr_matrix(self.conn.shape)
 
-		# Step 1. Initiate container as sparse matrix, only computed for connected bonds
-		force_norms = sparse.csr_matrix(self.conn.shape)
-		
 		# Step 2. find normalised forces
-		force_norms[self.conn.nonzero()] = sparse.csr_matrix(force_mags[self.conn.nonzero()]/ self.L[self.conn.nonzero()])
+		#force_normd[self.conn.nonzero()] = sparse.csr_matrix(self.strain[self.conn.nonzero()]/self.L[self.conn.nonzero()])
+		force_normd[self.L.nonzero()] = sparse.csr_matrix(self.strain[self.L.nonzero()]/self.L[self.L.nonzero()])
+		force_normd = force_normd.multiply(self.conn)
 		
-		bond_force_x = force_norms.multiply(self.H_x)
-		bond_force_y = force_norms.multiply(self.H_y)
-		bond_force_z = force_norms.multiply(self.H_z)
+		H_x_abs = abs(self.H_x)
+		H_y_abs = abs(self.H_y)
+		H_z_abs = abs(self.H_z)
 		
-		# Since the bond forces will be lower triangular, mirror them for nodal force calculation
-		tmp_x = bond_force_x + bond_force_x.transpose()
-		tmp_y = bond_force_y + bond_force_y.transpose()
-		tmp_z = bond_force_z + bond_force_z.transpose()
-	
-	
-		F_x = tmp_x.sum(axis = 0)
-		F_y = tmp_y.sum(axis = 0)
-		F_z = tmp_z.sum(axis = 0)
 		
-		if self.v:
-			print('here are the x forces for each node {} '.format(F_x))
+		bond_force_x = force_normd.multiply(H_x_abs)
+		bond_force_y = force_normd.multiply(H_y_abs)
+		bond_force_z = force_normd.multiply(H_z_abs)
+		
+		
+# =============================================================================
+# 		# Make lower triangular into full matrix
+# 		bond_force_x = bond_force_x + bond_force_x.transpose()
+# 		bond_force_y = bond_force_y + bond_force_y.transpose()
+# 		bond_force_z = bond_force_z + bond_force_z.transpose()
+# =============================================================================
+		
+		# now sum along the rows to calculate force on nodes
+		F_x = np.array(bond_force_x.sum(axis = 0))
+		F_y = np.array(bond_force_y.sum(axis = 0))
+		F_z = np.array(bond_force_z.sum(axis = 0))
+		
+		F_x.resize(self.nnodes)
+		F_y.resize(self.nnodes)
+		F_z.resize(self.nnodes)
+		
+		
+		# Finally multiply by volume and stiffness
+		F_x = self.c * np.multiply(F_x, self.V)
+		F_y = self.c * np.multiply(F_y, self.V)
+		F_z = self.c * np.multiply(F_z, self.V)
+		
+		if self.v == 1:
+			print(F_x, 'The shape of F_x is', F_x.shape, type(F_x))
+			print(self.V, 'The shape of V is', self.V.shape, type(self.V))
 		
 		F[:, 0] = F_x
 		F[:, 1] = F_y
 		F[:, 2] = F_z
-	
+		
 		assert F.shape == (self.nnodes, 3)
 	
 		return F
