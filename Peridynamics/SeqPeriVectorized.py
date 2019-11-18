@@ -160,11 +160,9 @@ class SeqModel:
 		
 		print('initial damage vector is {}'.format(damage))
 		
-# =============================================================================
-# 		# Lower triangular - count bonds only once
-# 		# make diagonal values 0
-# 		conn = np.tril(conn, -1)
-# =============================================================================
+		# Lower triangular - count bonds only once
+		# make diagonal values 0
+		conn = np.tril(conn, -1)
 		
 		# Convert to sparse matrix
 		self.conn = sparse.csr_matrix(conn)
@@ -193,11 +191,11 @@ class SeqModel:
 		
 		V_z = coords[:, 2]
 		lam_z = sparse.csr_matrix(np.tile(V_z, (self.nnodes, 1)))
-		
-				
-		H_x0 = sparse.csr_matrix(lam_x.multiply(self.conn) - lam_x.transpose().multiply(self.conn))
-		H_y0 = sparse.csr_matrix(lam_y.multiply(self.conn) - lam_y.transpose().multiply(self.conn))
-		H_z0 = sparse.csr_matrix(lam_z.multiply(self.conn) - lam_z.transpose().multiply(self.conn))
+    		
+        # lower triangular sparse matrices
+		H_x0 = sparse.csr_matrix(-lam_x + lam_x.transpose())
+		H_y0 = sparse.csr_matrix(-lam_y + lam_y.transpose())
+		H_z0 = sparse.csr_matrix(-lam_z + lam_z.transpose())
 		
 		
 		norms_matrix = H_x0.power(2) + H_y0.power(2) + H_z0.power(2)
@@ -302,10 +300,12 @@ class SeqModel:
 		delV_z = U[:, 2]
 		lam_z = sparse.csr_matrix(np.tile(delV_z, (self.nnodes, 1)))
 		
-		delH_x = sparse.csr_matrix(lam_x.multiply(self.conn) - lam_x.transpose().multiply(self.conn))
-		delH_y = sparse.csr_matrix(lam_y.multiply(self.conn) - lam_y.transpose().multiply(self.conn))
-		delH_z = sparse.csr_matrix(lam_z.multiply(self.conn) - lam_z.transpose().multiply(self.conn))
+        #dense matrices
+		delH_x = sparse.csr_matrix(-lam_x + lam_x.transpose())
+		delH_y = sparse.csr_matrix(-lam_y + lam_y.transpose())
+		delH_z = sparse.csr_matrix(-lam_z + lam_z.transpose())
 		
+        # dense matrices
 		self.H_x = delH_x + self.H_x0
 		self.H_y = delH_y + self.H_y0
 		self.H_z = delH_z + self.H_z0
@@ -316,7 +316,6 @@ class SeqModel:
 			
 		norms_matrix = self.H_x.power(2) + self.H_y.power(2) + self.H_z.power(2)
 		
-		#L = np.power(self.H_x, 2) + np.power(self.H_y, 2) + np.power(self.H_z, 2)
 		self.L = norms_matrix.sqrt()
 		
 		if self.v:
@@ -329,6 +328,9 @@ class SeqModel:
 		
 		#del_L = delH_x.power(2) + delH_y.power(2) + delH_z.power(2)
 		del_L = self.L - self.L_0
+        
+		del_L[del_L < 1e-12] = 0
+        #del_L[del_L < 1e-12] = 0 # says that we cannot have negative strains!
 		
 		# TODO: if any element of del_l < 1e-12 then set it to 0, to kill a rounding error?
 		
@@ -338,11 +340,13 @@ class SeqModel:
 		strain = sparse.csr_matrix(self.conn.shape)
 		
 		# Step 2. elementwise division
-		strain[self.L_0.nonzero()] = sparse.csr_matrix(del_L[self.L_0.nonzero()]/self.L_0[self.L_0.nonzero()])
-		
-		
-		self.strain = strain.multiply(self.conn)
-		#self.strain.eliminate_zeros()
+        # TODO: try indexing with [self.conn.nonzero()] instead of [self.L_0.nonzero()]
+		#strain[self.L_0.nonzero()] = sparse.csr_matrix(del_L[self.L_0.nonzero()]/self.L_0[self.L_0.nonzero()])
+		strain[self.conn.nonzero()] = sparse.csr_matrix(del_L[self.conn.nonzero()]/self.L_0[self.conn.nonzero()])
+		# make sure we get a lower triangular matrix
+		#self.strain = strain.multiply(self.conn)
+		strain.eliminate_zeros()
+		self.strain = strain
 		
 		if strain.shape != self.L_0.shape:
 			warnings.warn('strain.shape was {}, whilst L_0.shape was {}'.format(strain.shape, self.L_0.shape))
@@ -380,6 +384,7 @@ class SeqModel:
 		
 		bond_healths[self.conn.nonzero()] = sparse.csr_matrix(self.fail_strains.power(2)[self.conn.nonzero()] - self.strain.power(2)[self.conn.nonzero()])
 		
+        # failed bonds
 		bond_healths[bond_healths < 0] = 0
 		
 		# play around with converting to bool instead
@@ -390,12 +395,10 @@ class SeqModel:
 		#print(self.conn.shape)
 		
 		# Bond damages
-# =============================================================================
-# 		
-# 		# Using lower triangular connectivity matrix, so just mirror it for bond damage calc
-# 		temp = self.conn + self.conn.transpose()
-# =============================================================================
-		count = self.conn.sum(axis = 0)
+		
+		# Using lower triangular connectivity matrix, so just mirror it for bond damage calc
+		temp = self.conn + self.conn.transpose()
+		count = temp.sum(axis = 0)
 		damage = np.divide((self.family - count), self.family)
 		damage.resize(self.nnodes)
 		
@@ -425,26 +428,18 @@ class SeqModel:
 		force_normd = sparse.csr_matrix(self.conn.shape)
 
 		# Step 2. find normalised forces
-		#force_normd[self.conn.nonzero()] = sparse.csr_matrix(self.strain[self.conn.nonzero()]/self.L[self.conn.nonzero()])
-		force_normd[self.L.nonzero()] = sparse.csr_matrix(self.strain[self.L.nonzero()]/self.L[self.L.nonzero()])
-		force_normd = force_normd.multiply(self.conn)
+		force_normd[self.conn.nonzero()] = sparse.csr_matrix(self.strain[self.conn.nonzero()]/self.L[self.conn.nonzero()])
+		#force_normd[self.L.nonzero()] = sparse.csr_matrix(self.strain[self.L.nonzero()]/self.L[self.L.nonzero()])
+		#force_normd = force_normd.multiply(self.conn)
 		
-		H_x_abs = abs(self.H_x)
-		H_y_abs = abs(self.H_y)
-		H_z_abs = abs(self.H_z)
+        # Make lower triangular into full matrix
+		force_normd = force_normd + force_normd.transpose()
 		
+		# Multiply by the direction and scale of each bond (just trigonometry, we have already scaled for bond length)
+		bond_force_x = force_normd.multiply(self.H_x)
+		bond_force_y = force_normd.multiply(self.H_y)
+		bond_force_z = force_normd.multiply(self.H_z)
 		
-		bond_force_x = force_normd.multiply(H_x_abs)
-		bond_force_y = force_normd.multiply(H_y_abs)
-		bond_force_z = force_normd.multiply(H_z_abs)
-		
-		
-# =============================================================================
-# 		# Make lower triangular into full matrix
-# 		bond_force_x = bond_force_x + bond_force_x.transpose()
-# 		bond_force_y = bond_force_y + bond_force_y.transpose()
-# 		bond_force_z = bond_force_z + bond_force_z.transpose()
-# =============================================================================
 		
 		# now sum along the rows to calculate force on nodes
 		F_x = np.array(bond_force_x.sum(axis = 0))
