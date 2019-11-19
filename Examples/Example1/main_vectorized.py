@@ -59,22 +59,20 @@ class simpleSquare(MODEL):
 			elif (bnd > 0):
 				(self.rhs).append(i)
 
-# =============================================================================
-# 		# Build Finite Element Grid Overlaying particles
-# 		myGrid = fem.Grid()
-# 
-# 		self.L = []
-# 		self.X0  = [0.0, 0.0] # bottom left
-# 		self.nfem = []
-# 
-# 		for i in range(0, self.dim):
-# 			self.L.append(np.max(self.coords[:,i]))
-# 			self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
-# 
-# 		myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
-# 
-# 		self.p_localCoords, self.p2e = myGrid.particletoCell_structured(self.coords[:,:self.dim])
-# =============================================================================
+		# Build Finite Element Grid Overlaying particles
+		myGrid = fem.Grid()
+
+		self.L = []
+		self.X0  = [0.0, 0.0] # bottom left
+		self.nfem = []
+
+		for i in range(0, self.dim):
+			self.L.append(np.max(self.coords[:,i]))
+			self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
+
+		myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
+
+		self.p_localCoords, self.p2e = myGrid.particletoCell_structured(self.coords[:,:self.dim])
 
 	def findBoundary(self,x):
 		# Function which markes constrain particles
@@ -102,7 +100,7 @@ class simpleSquare(MODEL):
 		return output
 
 def multivar_normal(L, num_nodes):
-		""" Fn for taking a single multivar normal sample covariance matrix with cholisky factor, L
+		""" Fn for taking a single multivar normal sample covariance matrix with Cholesky factor, L
 		"""
 		zeta = np.random.normal(0, 1, size = num_nodes)
 		zeta = np.transpose(zeta)
@@ -112,7 +110,7 @@ def multivar_normal(L, num_nodes):
 		return w_tild
 
 def noise(L, samples, num_nodes):
-		""" takes multiple samples from multivariate normal distribution with covariance matrix whith cholisky factor, L
+		""" takes multiple samples from multivariate normal distribution with covariance matrix whith Cholesky factor, L
 		"""
 
 		noise = []
@@ -149,19 +147,13 @@ def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma =
 
 	# Covariance matrix
 	K = myModel.K
-
-	#Create L matrix
-	#epsilon, numerical trick so that M is positive semi definite
-	epsilon = 1e-4
-
-	# Sample a random vector
-
-	I = np.identity(nnodes)
-	K_tild = K + np.multiply(epsilon, I)
-
-
-	L = np.linalg.cholesky(K_tild)
+	
+	# Cholesky decomposition of K
+	L = myModel.L
+	
+	# Start the clock
 	st = time.time()
+	
 	for t in range(1, numSteps):
 		
 		tim += dt;
@@ -184,8 +176,7 @@ def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma =
 		
 
 		u[t] = u[t-1] + dt * f #+ np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
-		#u[t] = u[t-1] + dt * np.dot(M,f) + noise(L, 3) #exponential length squared kernel
-		#u[t] = u[t-1] + np.multiply(dt,f) + noise(L, 3, nnodes)
+		#u[t] = u[t-1] + dt * np.dot(K,f) + noise(L, 3, nnodes) #exponential length squared kernel
 
 		# Apply boundary conditions
 		u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))
@@ -195,7 +186,6 @@ def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma =
 		u[t][myModel.rhs,0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
 
 		if(verb==1 and t % print_every == 0) :
-			#print(f)
 			vtk.write("U_"+"t"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 			
 		print('Timestep {} complete in {} s '.format(t, time.time() - st))

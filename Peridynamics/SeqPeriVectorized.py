@@ -234,10 +234,10 @@ class SeqModel:
 		
 		
 		# Length scale for the covariance matrix
-		l = 0.001
+		l = 0.05
 		
 		# Scale of the covariance matrix
-		nu = 0.1
+		nu = 1e-5
 		
 		# inv length scale parameter
 		inv_length_scale = (np.divide(-1., 2.*pow(l, 2)))
@@ -250,6 +250,18 @@ class SeqModel:
 		
 		# Multiply by the vertical scale to get covariance matrix, K
 		self.K = np.multiply(pow(nu, 2), K)
+		
+		#Create L matrix for sampling perturbations
+		#epsilon, numerical trick so that M is positive semi definite
+		epsilon = 1e-5
+
+		# add epsilon before scaling by a vertical variance scale, nu
+		I = np.identity(self.nnodes)
+		K_tild = K + np.multiply(epsilon, I)
+		
+		K_tild = np.multiply(pow(nu, 2), K_tild)
+		
+		self.L = np.linalg.cholesky(K_tild)
 		
 	
 		if self.H_x0.shape != self.H_y0.shape or self.H_x0.shape != self.H_z0.shape:
@@ -351,12 +363,6 @@ class SeqModel:
 		
         # Update failed bonds
 		bond_healths = bond_healths > 0
-# =============================================================================
-# 		bond_healths[bond_healths < 0] = 0
-# 		
-# 		# TODO: play around with converting to bool instead
-# 		bond_healths[bond_healths > 0] = 1
-# =============================================================================
 		
 		self.conn = sparse.csr_matrix(bond_healths)
 		self.conn.eliminate_zeros() #needed?
