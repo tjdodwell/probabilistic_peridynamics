@@ -18,28 +18,23 @@ import vtu as vtu
 
 class ParModel:
 
-	def __init__(self, param, comm):
+	def __init__(self):
 
 		self.testCode = 1
 
-		self.comm = comm
 
-		self.partitionType = 1 # hard coded for now!
 
 		self.plotPartition = 1
 
-		self.param = param;
+		self.meshType = 2
+		self.boundaryType = 1
+		self.numBoundaryNodes = 2
+		self.numMeshNodes = 3
 
-		self.dim = param.dim
-
-		self.meshType = param.meshType
-		self.boundaryType = param.boundaryType
-		self.numBoundaryNodes = param.numBoundaryNodes
-		self.numMeshNodes = param.numMeshNodes
-
-		self.horizon = param.horizon
-		self.K = param.K
-		self.s00 = param.s00
+		# Material Parameters from classical material model
+		self.horizon = 5.0
+		self.K = 1.00
+		self.s00 = 0.005
 
 		self.c = 18.0 * self.K / (np.pi * (self.horizon**4));
 
@@ -50,7 +45,7 @@ class ParModel:
 			self.numBoundaryNodes = 3
 			self.numMeshNodes = 4
 
-		self.readMesh(param.meshFileName)
+		self.readMesh(self.meshFileName)
 
 		self.setNetwork(self.horizon)
 
@@ -71,16 +66,13 @@ class ParModel:
 		self.damage = [] # List containing damage at each time step
 
 
-	def findBoundary(self,x):
-	    # Thin wrapper to findBoundary belonging to problem class
-		return self.param.findBoundary(x);
+
 
 	def checkBonds(self, U, broken, damage):
 		# Check bonds to see if they have been broken in this time step
 		# This is the same as the sequential code apart from we only loop over local particles
 		# U will contain the displacements from the ghost particles becuase of communication step at beginning of the timestep
 		self.comm.Barrier()
-
 		for i in range(0, self.numlocalNodes):
 			id = self.net[i].id
 			yi = self.coords[id,:] + U[id,:] # deformed coordinates of particle i
@@ -88,13 +80,17 @@ class ParModel:
 			family = self.family[i] # extract family for particle i
 			for k in range(0, len(family)):
 				j = self.family[i][k]
-				if( broken[i][k] == 0 ): # if bond is not previously broken
+				d = self.distance2Boundary(self.coords[j,:])
+				testMe = 0
+				if(d > 1.0 * self.horizon):
+					testMe = 1
+				if( broken[i][k] == 0): # if bond is not previously broken
 					yj = self.coords[j,:] + U[j,:] # deformed coordinates of particle j
 					bondLength = func.l2norm(self.coords[id,:] - self.coords[j,:])
 					rvec = yj - yi
 					r = func.l2norm(rvec)
 					strain = (r - bondLength) / bondLength
-					if (strain > self.s00):
+					if ((strain > self.s00) and (testMe == 1)):
 						broken[i][k] = 1 # Break the bond
 						count += 1
 				else :
@@ -280,14 +276,14 @@ class ParModel:
 				# Loop over local nodes in same partition
 				if(globalId_i != globalId_j):
 					if(func.isNeighbour(self.coords[globalId_i,:], self.coords[globalId_j,:], horizon)):
-						testCrack = self.param.isCrack(self.coords[globalId_i,:],self.coords[globalId_j,:])
+						testCrack = self.isCrack(self.coords[globalId_i,:],self.coords[globalId_j,:])
 						if(testCrack == 0):
 							tmp.append(globalId_j)
 
 
 			for k in range(0, len(neighbour_ids)): # loop over only nodes in the nearest neighbour partitions
 				if(func.isNeighbour(self.coords[globalId_i,:], self.coords[neighbour_ids[k],:], horizon)):
-					testCrack = self.param.isCrack(self.coords[globalId_i,:],self.coords[globalId_j,:])
+					testCrack = self.isCrack(self.coords[globalId_i,:],self.coords[globalId_j,:])
 					if(testCrack == 0):
 						tmp.append(neighbour_ids[k])
 						tmpGhost.append(neighbour_ids[k])

@@ -20,4 +20,19 @@ def decomposeDomain(coords, connectivity, M, partitionType):
             nearestNeighbour.append([i-1,i+1])
         nearestNeighbour.append([M-2])
 
+    # if (partitionType == 2):
+    #
+    #     M0 = int(np.sqrt(M))
+    #
+    #     maxX = np.amax(coords[:,0])
+    #     maxY = np.amax(coords[:,1]
+    #
+    #     dX = (maxX / M0) + 1e-6
+    #     dY = (maxY / M0) + 1e-6
+    #
+    #     for i in range(0,coords[:,0].size):
+    #         iPart = np.floor(coords[i,0] / dX)
+    #         jPart = np.floor(coords[i,1] / dY)
+
+
     return part, nearestNeighbour

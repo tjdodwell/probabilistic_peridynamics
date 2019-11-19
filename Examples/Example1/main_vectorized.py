@@ -1,3 +1,8 @@
+"""
+Created on Sun Nov 10 16:25:58 2019
+
+@author: Ben Boys
+"""
 
 import sys
 # insert at 1, 0 is the script path (or '' in REPL)
@@ -6,12 +11,13 @@ sys.path.insert(1, '../../PostProcessing')
 sys.path.insert(1, '../../FEM')
 
 import PeriParticle as peri
-from SeqPeri import SeqModel as MODEL
+from SeqPeriVectorized import SeqModel as MODEL
 import numpy as np
 import scipy.stats as sp
 import vtk as vtk
-from timeit import default_timer as timer
 import time
+from timeit import default_timer as timer
+
 import grid as fem
 
 
@@ -20,7 +26,9 @@ class simpleSquare(MODEL):
 	# A User defined class for a particular problem which defines all necessary parameters
 
 	def __init__(self):
-
+		
+		# verbose
+		self.v = False
 		self.dim = 2
 
 		self.meshFileName = 'test.msh'
@@ -32,15 +40,14 @@ class simpleSquare(MODEL):
 
 		# Material Parameters from classical material model
 		self.horizon = 0.1
-		self.K = 0.05
+		self.kscalar = 0.05
 		self.s00 = 0.005
 
 		self.crackLength = 0.3
 
 		self.readMesh(self.meshFileName)
-
-		self.setNetwork(self.horizon)
-
+		self.setVolume()
+		
 		self.lhs = []
 		self.rhs = []
 
@@ -52,23 +59,20 @@ class simpleSquare(MODEL):
 			elif (bnd > 0):
 				(self.rhs).append(i)
 
-# =============================================================================
-# 		# Build Finite Element Grid Overlaying particles
-# 
-# 		myGrid = fem.Grid()
-# 
-# 		self.L = []
-# 		self.X0  = [0.0, 0.0] # bottom left
-# 		self.nfem = []
-# 
-# 		for i in range(0, self.dim):
-# 			self.L.append(np.max(self.coords[:,i]))
-# 			self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
-# 
-# 		myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
-# 
-# 		self.p_localCoords, self.p2e = myGrid.particletoCell_structured(self.coords[:,:self.dim])
-# =============================================================================
+		# Build Finite Element Grid Overlaying particles
+		myGrid = fem.Grid()
+
+		self.L = []
+		self.X0  = [0.0, 0.0] # bottom left
+		self.nfem = []
+
+		for i in range(0, self.dim):
+			self.L.append(np.max(self.coords[:,i]))
+			self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
+
+		myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
+
+		self.p_localCoords, self.p2e = myGrid.particletoCell_structured(self.coords[:,:self.dim])
 
 	def findBoundary(self,x):
 		# Function which markes constrain particles
@@ -96,7 +100,7 @@ class simpleSquare(MODEL):
 		return output
 
 def multivar_normal(L, num_nodes):
-		""" Fn for taking a single multivar normal sample covariance matrix with cholisky factor, L
+		""" Fn for taking a single multivar normal sample covariance matrix with Cholesky factor, L
 		"""
 		zeta = np.random.normal(0, 1, size = num_nodes)
 		zeta = np.transpose(zeta)
@@ -106,7 +110,7 @@ def multivar_normal(L, num_nodes):
 		return w_tild
 
 def noise(L, samples, num_nodes):
-		""" takes multiple samples from multivariate normal distribution with covariance matrix whith cholisky factor, L
+		""" takes multiple samples from multivariate normal distribution with covariance matrix whith Cholesky factor, L
 		"""
 
 		noise = []
@@ -115,24 +119,23 @@ def noise(L, samples, num_nodes):
 			noise.append(multivar_normal(L, num_nodes))
 
 		return np.transpose(noise)
+
+
 def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 1):
 	print("Peridynamic Simulation -- Starting")
+	
+	myModel.setConn(0.1)
+	myModel.setH()
 
 	u = []
 
 	damage = []
 
-	# Setup broken flag
-
-	broken = []
-	for i in range(0, myModel.nnodes):
-		broken.append(np.zeros(len(myModel.family[i])))
 
 	u.append(np.zeros((myModel.nnodes, 3)))
 
 	damage.append(np.zeros(myModel.nnodes))
 
-	broken, damage[0] = myModel.initialiseCrack(broken, damage[0])
 
 	verb = 1
 
@@ -142,49 +145,38 @@ def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma =
 	# Number of nodes
 	nnodes = myModel.nnodes
 
-	# Amplification factor
-	sigma = 1e-4
-
 	# Covariance matrix
-	M = myModel.COVARIANCE
-
-	#Create L matrix
-	#TODO: epsilon, numerical trick so that M is positive semi definite
-	epsilon = 1e-4
-
-	# Sample a random vector
-
-	I = np.identity(nnodes)
-	M_tild = M + np.multiply(epsilon, I)
-
-	M_tild = np.multiply(pow(sigma, 2), M_tild)
-
-	L = np.linalg.cholesky(M_tild)
-
+	K = myModel.K
+	
+	# Cholesky decomposition of K
+	L = myModel.L
+	
+	# Start the clock
+	st = time.time()
+	
 	for t in range(1, numSteps):
-
+		
 		tim += dt;
 
 		if(verb > 0):
-			print("Time step = " + str(t) + ", Time = " + str(tim))
-
+			print("Time step = " + str(t) + ", Wall clock time for last time step= " + str(time.time() - st))
+		
+		st = time.time()
 		# Compute the force with displacement u[t-1]
 
 		damage.append(np.zeros(nnodes))
 
-		broken, damage[t] = myModel.checkBonds(u[t-1], broken, damage[t-1])
 
-		f = myModel.computebondForce(u[t-1], broken) # myModel.computeForce(u[t-1])
+		myModel.calcBondStretch(u[t-1])
+		damage[t] = myModel.checkBonds()
+		f = myModel.computebondForce()
 
 		# Simple Euler update of the Solution + Add the Stochastic Random Noise
-
 		u.append(np.zeros((nnodes, 3)))
+		
 
-
-		#u[t] = u[t-1] + dt * f + np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
-
-		#u[t] = u[t-1] + dt * np.dot(M,f) + noise(L, 3) #exponential length squared kernel
-		u[t] = u[t-1] + dt * f #+ noise(L, 3, nnodes)
+		u[t] = u[t-1] + dt * f #+ np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
+		#u[t] = u[t-1] + dt * np.dot(K,f) + noise(L, 3, nnodes) #exponential length squared kernel
 
 		# Apply boundary conditions
 		u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))
@@ -195,8 +187,8 @@ def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma =
 
 		if(verb==1 and t % print_every == 0) :
 			vtk.write("U_"+"t"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
-			print('Timestep {} complete'.format(t))
-
+			
+		print('Timestep {} complete in {} s '.format(t, time.time() - st))
 	return vtk.write("U_"+"sample"+str(sample)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 
 
@@ -208,5 +200,5 @@ def main():
 	# TODO: implement dynamic time step based on strain energy?
 	st = time.time()
 	sim(1)
-	print('TOTAL TIME REQUIRED {} s'.format(time.time() - st))
+	print('TOTAL TIME REQUIRED {}'.format(time.time() - st))
 main()

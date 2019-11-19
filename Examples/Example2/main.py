@@ -89,8 +89,8 @@ myModel = sim.ParModel(modelParameters, comm)
 
 numSteps = 1000
 sigma = 0.0
-loadRate = 0.1
-dt = 1e-3
+loadRate = 1.0
+dt = 1e-2
 print_every = 10
 
 rank = comm.Get_rank()
@@ -135,7 +135,7 @@ for t in range(1, numSteps):
 	# Communicate Ghost particles to required processors
 	u[t-1] = myModel.communicateGhostParticles(u[t-1])
 
-
+	#
 	damage.append(np.zeros(myModel.numlocalNodes))
 
 	broken, damage[t] = myModel.checkBonds(u[t-1], broken, damage[t-1])
@@ -151,7 +151,8 @@ for t in range(1, numSteps):
 
 	u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))
 	u[t][myModel.rhs,1:3] = np.zeros((len(myModel.rhs),2))
-	u[t][myModel.lhs,0] = - 0.5 * time * loadRate * np.ones(len(myModel.rhs))
+
+	u[t][myModel.lhs,0] = - 0.5 * time * loadRate * np.ones(len(myModel.lhs))
 	u[t][myModel.rhs,0] = 0.5 * time * loadRate * np.ones(len(myModel.rhs))
 
 
