@@ -11,7 +11,7 @@ import numpy as np
 import scipy.stats as sp
 import vtk as vtk
 from timeit import default_timer as timer
-
+import time
 import grid as fem
 
 
@@ -52,21 +52,23 @@ class simpleSquare(MODEL):
 			elif (bnd > 0):
 				(self.rhs).append(i)
 
-		# Build Finite Element Grid Overlaying particles
-
-		myGrid = fem.Grid()
-
-		self.L = []
-		self.X0  = [0.0, 0.0] # bottom left
-		self.nfem = []
-
-		for i in range(0, self.dim):
-			self.L.append(np.max(self.coords[:,i]))
-			self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
-
-		myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
-
-		self.p_localCoords, self.p2e = myGrid.particletoCell_structured(self.coords[:,:self.dim])
+# =============================================================================
+# 		# Build Finite Element Grid Overlaying particles
+# 
+# 		myGrid = fem.Grid()
+# 
+# 		self.L = []
+# 		self.X0  = [0.0, 0.0] # bottom left
+# 		self.nfem = []
+# 
+# 		for i in range(0, self.dim):
+# 			self.L.append(np.max(self.coords[:,i]))
+# 			self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
+# 
+# 		myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
+# 
+# 		self.p_localCoords, self.p2e = myGrid.particletoCell_structured(self.coords[:,:self.dim])
+# =============================================================================
 
 	def findBoundary(self,x):
 		# Function which markes constrain particles
@@ -115,7 +117,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 
 
-def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 10):
+def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 1):
 	print("Peridynamic Simulation -- Starting")
 
 	u = []
@@ -136,37 +138,39 @@ def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 1, sigma =
 
 	verb = 1
 
-	time = 0.0;
+	tim = 0.0;
 
 
 	# Number of nodes
 	nnodes = myModel.nnodes
 
-	# Amplification factor
-	sigma = 1e-4
-
-	# Covariance matrix
-	M = myModel.COVARIANCE
-
-	#Create L matrix
-	#TODO: epsilon, numerical trick so that M is positive semi definite
-	epsilon = 1e-4
-
-	# Sample a random vector
-
-	I = np.identity(nnodes)
-	M_tild = M + np.multiply(epsilon, I)
-
-	M_tild = np.multiply(pow(sigma, 2), M_tild)
-
-	L = np.linalg.cholesky(M_tild)
+# =============================================================================
+# 	# Amplification factor
+# 	sigma = 1e-4
+# 
+# 	# Covariance matrix
+# 	M = myModel.COVARIANCE
+# 
+# 	#Create L matrix
+# 	#TODO: epsilon, numerical trick so that M is positive semi definite
+# 	epsilon = 1e-4
+# 
+# 	# Sample a random vector
+# 
+# 	I = np.identity(nnodes)
+# 	M_tild = M + np.multiply(epsilon, I)
+# 
+# 	M_tild = np.multiply(pow(sigma, 2), M_tild)
+# 
+# 	L = np.linalg.cholesky(M_tild)
+# =============================================================================
 
 	for t in range(1, numSteps):
 
-		time += dt;
+		tim += dt;
 
 		if(verb > 0):
-			print("Time step = " + str(t) + ", Time = " + str(time))
+			print("Time step = " + str(t) + ", Time = " + str(tim))
 
 		# Compute the force with displacement u[t-1]
 
@@ -183,7 +187,7 @@ def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 1, sigma =
 
 		#u[t] = u[t-1] + dt * f + np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
 		#u[t] = u[t-1] + dt * np.dot(M,f) + noise(L, 3) #exponential length squared kernel
-		u[t] = u[t-1] + dt * f + noise(L, 3, nnodes)
+		u[t] = u[t-1] + dt * f #+ noise(L, 3, nnodes)
 
 		# Apply boundary conditions
 		u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))
@@ -193,6 +197,7 @@ def sim(sample, myModel =simpleSquare(), numSteps = 600, numSamples = 1, sigma =
 		u[t][myModel.rhs,0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
 
 		if(verb==0 and t % print_every == 0) :
+			vtk.write("U_"+"t"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 			print('Timestep {} complete'.format(t))
 
 	return vtk.write("U_"+"sample"+str(sample)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
@@ -204,7 +209,7 @@ def main():
 	""" Stochastic Peridynamics, takes multiple stable states (fully formed cracks)
 	"""
 	# TODO: implement dynamic time step based on strain energy?
-
+	st = time.time()
 	sim(1)
-
+	print('TOTAL TIME REQUIRED {} s'.format(time.time() - st))
 main()

@@ -15,6 +15,7 @@ from SeqPeriVectorized import SeqModel as MODEL
 import numpy as np
 import scipy.stats as sp
 import vtk as vtk
+import time
 from timeit import default_timer as timer
 
 import grid as fem
@@ -46,10 +47,6 @@ class simpleSquare(MODEL):
 
 		self.readMesh(self.meshFileName)
 		self.setVolume()
-# =============================================================================
-# 		self.setConn(self.horizon)
-# 		self.setH()
-# =============================================================================
 		
 		self.lhs = []
 		self.rhs = []
@@ -129,7 +126,6 @@ def noise(L, samples, num_nodes):
 def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 1):
 	print("Peridynamic Simulation -- Starting")
 	
-	
 	myModel.setConn(0.1)
 	myModel.setH()
 
@@ -145,36 +141,35 @@ def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma =
 
 	verb = 1
 
-	time = 0.0;
+	tim = 0.0;
 
 
 	# Number of nodes
 	nnodes = myModel.nnodes
 
-# =============================================================================
-# 	# Covariance matrix
-# 	K = myModel.K
-# 
-# 	#Create L matrix
-# 	#epsilon, numerical trick so that M is positive semi definite
-# 	epsilon = 1e-4
-# 
-# 	# Sample a random vector
-# 
-# 	I = np.identity(nnodes)
-# 	K_tild = K + np.multiply(epsilon, I)
-# 
-# 
-# 	L = np.linalg.cholesky(K_tild)
-# =============================================================================
+	# Covariance matrix
+	K = myModel.K
 
+	#Create L matrix
+	#epsilon, numerical trick so that M is positive semi definite
+	epsilon = 1e-4
+
+	# Sample a random vector
+
+	I = np.identity(nnodes)
+	K_tild = K + np.multiply(epsilon, I)
+
+
+	L = np.linalg.cholesky(K_tild)
+	st = time.time()
 	for t in range(1, numSteps):
-
-		time += dt;
+		
+		tim += dt;
 
 		if(verb > 0):
-			print("Time step = " + str(t) + ", Time = " + str(time))
-
+			print("Time step = " + str(t) + ", Wall clock time for last time step= " + str(time.time() - st))
+		
+		st = time.time()
 		# Compute the force with displacement u[t-1]
 
 		damage.append(np.zeros(nnodes))
@@ -202,8 +197,8 @@ def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma =
 		if(verb==1 and t % print_every == 0) :
 			#print(f)
 			vtk.write("U_"+"t"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
-			print('Timestep {} complete'.format(t))
-
+			
+		print('Timestep {} complete in {} s '.format(t, time.time() - st))
 	return vtk.write("U_"+"sample"+str(sample)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 
 
@@ -213,7 +208,7 @@ def main():
 	""" Stochastic Peridynamics, takes multiple stable states (fully formed cracks)
 	"""
 	# TODO: implement dynamic time step based on strain energy?
-
+	st = time.time()
 	sim(1)
-
+	print('TOTAL TIME REQUIRED {}'.format(time.time() - st))
 main()
