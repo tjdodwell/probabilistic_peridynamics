@@ -200,39 +200,6 @@ class SeqModel:
 		self.H_y0 = H_y0
 		self.H_z0 = H_z0
 		
-		
-# =============================================================================
-# 		# TODO: Should I initiate connectivity matrices here instead?
-# 		# Initiate is crack matrix
-# 		is_crack_matrix = np.zeros((self.nnodes, self.nnodes))
-# 		
-# 		# Check if cracked, can this be vectorized?
-# 		for i in range(0, self.nnodes):		
-# 			for j in range(0, self.nnodes):
-# 				if (self.isCrack(self.coords[i,:], self.coords[j,:]) == True):
-# 					is_crack_matrix[i, j] = 1
-# 		
-# 		is_crack_matrix = is_crack_matrix.astype(bool)
-# 		
-# 		# connectivity matrix initialization
-# 		horizon_matrix = np.full((self.nnodes, self.nnodes), pow(self.horizon, 2))
-# 		conn_0_matrix = horizon_matrix - norms_matrix
-# 		conn_0_matrix[conn_0_matrix < 0] = 0
-# 		conn_0_matrix = conn_0_matrix.astype(bool)
-# 		
-# 		conn_0_matrix = 
-# 		# connectivity matrix post crack defect intialisation
-# 		conn_matrix
-# 		
-# 		
-# 		conn_0_matrix = sparse.csr_matrix(conn_matrix)
-# 		conn_0_matrix.eliminate_zeros()
-# 		self.conn_0 = conn_matrix.prune() #need to prune?
-# 		print('conn', self.conn_0)
-# 		print('shape conn', self.conn.shape)
-# =============================================================================
-		
-		
 		# Length scale for the covariance matrix
 		l = 0.05
 		
