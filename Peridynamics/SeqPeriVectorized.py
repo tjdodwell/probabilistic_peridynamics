@@ -16,7 +16,7 @@ class SeqModel:
 	def __init__(self):
         ## Scalars
 		# self.nnodes defined when instance of readMesh called, cannot initialise any other matrix until we know the nnodes
-		self.v = False # is this needed here, since it was put in MODEL class, simplesquare?
+		self.v = True  # is this needed here, since it was put in MODEL class, simplesquare?
 		self.dim = 2
 
 		self.meshFileName = "test.msh"
@@ -297,7 +297,7 @@ class SeqModel:
 		self.L = norms_matrix.sqrt()
 		
 
-		if self.v:
+		if self.v == 2:
 			print(' The shape of lamx is {}, {}'.format(lam_x.shape, lam_x))
 			print('The shape of delH_x is {}, {}'.format(delH_x.shape, delH_x))
 			print('The shape of H_x is {}, {}'.format(self.H_x.shape, self.H_x))
@@ -360,7 +360,7 @@ class SeqModel:
 		
 		self.L = np.sqrt(norms_matrix)
 		
-		if self.v:
+		if self.v == 2:
 			print(' The shape of L is {}, {}'.format(self.L.shape, self.L))
 			
 			print(delH_x, 'ABOVE is delH_x')
@@ -415,11 +415,12 @@ class SeqModel:
 		
 		# Using lower triangular connectivity matrix, so just mirror it for bond damage calc
 		temp = self.conn + self.conn.transpose()
+		
 		count = temp.sum(axis = 0)
 		damage = np.divide((self.family - count), self.family)
 		damage.resize(self.nnodes)
 		
-		if self.v:
+		if self.v == 2:
 			print(np.max(damage), 'max_damage')
 			print(np.min(damage), 'min_damage')
 		
@@ -461,7 +462,7 @@ class SeqModel:
 		F_y = self.c * np.multiply(F_y, self.V)
 		F_z = self.c * np.multiply(F_z, self.V)
 		
-		if self.v:
+		if self.v == 2:
 			print(F_x, 'The shape of F_x is', F_x.shape, type(F_x))
 			print(self.V, 'The shape of V is', self.V.shape, type(self.V))
 		
@@ -469,7 +470,6 @@ class SeqModel:
 		F[:, 1] = F_y
 		F[:, 2] = F_z
 		
-		#print(np.max(F_x), np.min(F_x))
 		assert F.shape == (self.nnodes, 3)
 		if self.v:	
 			print('time taken to compute bond force was {}'.format(-st + time.time()))

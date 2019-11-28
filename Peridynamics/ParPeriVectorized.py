@@ -28,7 +28,7 @@ class ParModel:
 		self.testCode = 1
 		self.plotPartiton = 1
         
-		self.v = False
+		self.v = True
 		self.dim = 2
 
 		self.meshFileName = "test.msh"
@@ -485,7 +485,7 @@ class ParModel:
 			raise Exception(' The sizes of H_x0, H_y0 and H_z0 did not match! The sizes were {}, {}, {}, respectively'.format(self.H_x0.shape, self.H_y0.shape, self.H_z0.shape))
 		
 
-		if self.v:
+		if self.v == 2:
 			print(self.L_0, self.L_0.shape, 'here is L_0')
 		
 		if self.L_0.shape != self.H_x0.shape:
@@ -540,7 +540,7 @@ class ParModel:
 		
 		self.L = norms_matrix.sqrt()
 		
-		if self.v:
+		if self.v == 2:
 			print(' The shape of lamx is {}, {}'.format(lam_x.shape, lam_x))
 			print('The shape of delH_x is {}, {}'.format(delH_x.shape, delH_x))
 			print('The shape of H_x is {}, {}'.format(self.H_x.shape, self.H_x))
@@ -606,7 +606,7 @@ class ParModel:
 		
 		self.L = np.sqrt(norms_matrix)
 		
-		if self.v:
+		if self.v == 2:
 			print(' The shape of L is {}, {}'.format(self.L.shape, self.L))
 			
 			print(delH_x, 'ABOVE is delH_x')
@@ -712,7 +712,7 @@ class ParModel:
 		F_y = self.c * np.multiply(F_y, self.V)
 		F_z = self.c * np.multiply(F_z, self.V)
 		
-		if self.v:
+		if self.v == 2:
 			print(F_x, 'The shape of F_x is', F_x.shape, type(F_x))
 			print(self.V, 'The shape of V is', self.V.shape, type(self.V))
 		
