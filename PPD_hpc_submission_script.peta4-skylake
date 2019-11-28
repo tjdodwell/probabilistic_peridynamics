@@ -96,7 +96,8 @@ mpi_tasks_per_node=$(echo "$SLURM_TASKS_PER_NODE" | sed -e  's/^\([0-9][0-9]*\).
 
 # FOR MATLAB!
 #! Run embarrassingly parallel jobs
-cd /rds/hpc-work/probabilistic_peridynamics/Examples/Example1/
+cd select 
+/Examples/Example1/
 mpiexec -n 4 python main.py 4
 
 #! Run options for the application:
