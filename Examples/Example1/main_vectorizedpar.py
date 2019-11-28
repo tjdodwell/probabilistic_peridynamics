@@ -29,7 +29,7 @@ class simpleSquare(MODEL): # Should I pass comm into the arguments here
 	def __init__(self, comm):
 		
 		# verbose
-		self.v = True
+		self.v = False
 		
 		self.dim = 2
 		
@@ -131,7 +131,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 
 
-def sim(sample, myModel, numSteps = 10, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 1):
+def sim(sample, myModel, numSteps = 100, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 1):
 	print("Peridynamic Simulation -- Starting")
 	
 	myModel.setConnPar(0.1) # May only need to set connectivity matrix up for each node
@@ -193,7 +193,7 @@ def sim(sample, myModel, numSteps = 10, numSamples = 1, sigma = 1e-5, loadRate =
 
 		damage.append(np.zeros(nnodes))
 
-		myModel.calcBondStretch(u[t-1])
+		myModel.calcBondStretchNew(u[t-1])
 		damage[t] = myModel.checkBonds()
 		f = myModel.computebondForce()
 
@@ -226,10 +226,10 @@ def main():
 	comm = MPI.COMM_WORLD
 	rank = comm.Get_rank()
 	comm_Size = comm.Get_size()
+	st = time.time()
 	thisModel = simpleSquare(comm)
 	no_samples = 1
 	for s in range(no_samples):
 		sim(s, thisModel)
-	st = time.time()
-	print('TOTAL TIME REQUIRED {}'.format(time.time() - st))
+	print('TOTAL TIME REQUIRED FOR PROCESS {} WAS {}s'.format(rank, time.time() - st))
 main()
