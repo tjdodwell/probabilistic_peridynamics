@@ -28,7 +28,7 @@ class simpleSquare(MODEL):
 	def __init__(self):
 		
 		# verbose
-		self.v = False
+		self.v = False 
 		self.dim = 2
 
 		self.meshFileName = 'test.msh'
@@ -167,7 +167,7 @@ def sim(sample, myModel =simpleSquare(), numSteps = 400, numSamples = 1, sigma =
 		damage.append(np.zeros(nnodes))
 
 
-		myModel.calcBondStretch(u[t-1])
+		myModel.calcBondStretchNew(u[t-1])
 		damage[t] = myModel.checkBonds()
 		f = myModel.computebondForce()
 

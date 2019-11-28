@@ -166,6 +166,7 @@ class SeqModel:
 		
 		# Convert to sparse matrix
 		self.conn = sparse.csr_matrix(conn)
+		self.conn_0 = sparse.csr_matrix(conn_0)
 		
 		if self.v:
 			print('self.conn is HERE', self.conn)
@@ -178,17 +179,17 @@ class SeqModel:
 		st = time.time()
 		coords = self.coords
 		
-		
+		# Extract the coordinates
 		V_x = coords[:,0]
-		lam_x = np.tile(V_x, (self.nnodes,1 ))
-		
 		V_y = coords[:, 1]
-		lam_y = np.tile(V_y, (self.nnodes, 1))
-		
 		V_z = coords[:, 2]
+		
+		# Tiled matrices
+		lam_x = np.tile(V_x, (self.nnodes, 1))
+		lam_y = np.tile(V_y, (self.nnodes, 1))
 		lam_z = np.tile(V_z, (self.nnodes, 1))
-    		
-        # lower triangular sparse matrices
+		
+        # Dense matrices
 		H_x0 = -lam_x + lam_x.transpose()
 		H_y0 = -lam_y + lam_y.transpose()
 		H_z0 = -lam_z + lam_z.transpose()
@@ -196,9 +197,16 @@ class SeqModel:
 		norms_matrix = np.power(H_x0, 2) + np.power(H_y0, 2) + np.power(H_z0, 2)
 		
 		self.L_0 = np.sqrt(norms_matrix)
-		self.H_x0 = H_x0
-		self.H_y0 = H_y0
-		self.H_z0 = H_z0
+		
+		# Into sparse matrices
+		self.H_x0 = sparse.csr_matrix(self.conn_0.multiply(H_x0))
+		self.H_y0 = sparse.csr_matrix(self.conn_0.multiply(H_y0))
+		self.H_z0 = sparse.csr_matrix(self.conn_0.multiply(H_z0))
+		self.H_x0.eliminate_zeros()
+		self.H_y0.eliminate_zeros()
+		self.H_z0.eliminate_zeros()
+		
+		
 		
 		# Length scale for the covariance matrix
 		l = 0.05
@@ -251,7 +259,76 @@ class SeqModel:
 			print('Type of fail strains is {} and the shape is {}'.format(type(self.fail_strains), self.fail_strains.shape))
 		
 		print('Constructed H in {} seconds'.format(time.time() - st))
+		
+		
+	def calcBondStretchNew(self, U):
+		
+		st = time.time()
 
+		cols, rows, data_x, data_y, data_z = [], [], [], [], []
+		
+		for i in range(self.nnodes):
+			row = self.conn_0.getrow(i)
+			
+			rows.extend(row.indices)
+			cols.extend(np.full((row.nnz), i))
+			data_x.extend(np.full((row.nnz), U[i, 0]))
+			data_y.extend(np.full((row.nnz), U[i, 1]))
+			data_z.extend(np.full((row.nnz), U[i, 2]))
+		
+		# Must not be lower triangular
+		lam_x = sparse.csr_matrix((data_x, (rows, cols)), shape = (self.nnodes, self.nnodes))
+		lam_y = sparse.csr_matrix((data_y, (rows, cols)), shape = (self.nnodes, self.nnodes))
+		lam_z = sparse.csr_matrix((data_z, (rows, cols)), shape = (self.nnodes, self.nnodes))
+		
+
+		delH_x = -lam_x + lam_x.transpose()
+		delH_y = -lam_y + lam_y.transpose()
+		delH_z = -lam_z + lam_z.transpose()
+		
+		# Sparse matrices
+		self.H_x = delH_x + self.H_x0
+		self.H_y = delH_y + self.H_y0
+		self.H_z = delH_z + self.H_z0
+		
+			
+		norms_matrix = self.H_x.power(2) + self.H_y.power(2) + self.H_z.power(2)
+		
+		self.L = norms_matrix.sqrt()
+		
+
+		if self.v:
+			print(' The shape of lamx is {}, {}'.format(lam_x.shape, lam_x))
+			print('The shape of delH_x is {}, {}'.format(delH_x.shape, delH_x))
+			print('The shape of H_x is {}, {}'.format(self.H_x.shape, self.H_x))
+			print('The shape of L is {} {}'.format(self.L.shape, self.L))
+		
+		
+		#del_L = delH_x.power(2) + delH_y.power(2) + delH_z.power(2)
+		del_L = self.L - self.L_0
+        
+		# Doesn't this kill compressive strains?
+		del_L[del_L < 1e-12] = 0
+		
+		
+		# Step 1. initiate as a sparse matrix
+		strain = sparse.csr_matrix(self.conn.shape)
+		
+		# Step 2. elementwise division
+        # TODO: investigate indexing with [self.L_0.nonzero()]  instead of [self.conn.nonzero()] 
+		#strain[self.L_0.nonzero()] = sparse.csr_matrix(del_L[self.L_0.nonzero()]/self.L_0[self.L_0.nonzero()])
+		strain[self.conn.nonzero()] = sparse.csr_matrix(del_L[self.conn.nonzero()]/self.L_0[self.conn.nonzero()])
+
+		
+		self.strain = sparse.csr_matrix(strain)
+		self.strain.eliminate_zeros()
+		
+		if strain.shape != self.L_0.shape:
+			warnings.warn('strain.shape was {}, whilst L_0.shape was {}'.format(strain.shape, self.L_0.shape))
+		if self.v:
+			
+			print('time taken to calc bond stretch was {}'.format(-st + time.time()))
+			
 	def calcBondStretch(self, U):
 		
 		st = time.time()
@@ -365,12 +442,10 @@ class SeqModel:
         # Make lower triangular into full matrix
 		force_normd = force_normd + force_normd.transpose()
 		
-		
 		# Multiply by the direction and scale of each bond (just trigonometry, we have already scaled for bond length in step 2)
 		bond_force_x = force_normd.multiply(self.H_x)
 		bond_force_y = force_normd.multiply(self.H_y)
 		bond_force_z = force_normd.multiply(self.H_z)
-		
 		
 		# now sum along the rows to calculate resultant force on nodes
 		F_x = np.array(bond_force_x.sum(axis = 0))
@@ -380,7 +455,6 @@ class SeqModel:
 		F_x.resize(self.nnodes)
 		F_y.resize(self.nnodes)
 		F_z.resize(self.nnodes)
-		
 		
 		# Finally multiply by volume and stiffness
 		F_x = self.c * np.multiply(F_x, self.V)
@@ -395,6 +469,7 @@ class SeqModel:
 		F[:, 1] = F_y
 		F[:, 2] = F_z
 		
+		#print(np.max(F_x), np.min(F_x))
 		assert F.shape == (self.nnodes, 3)
 		if self.v:	
 			print('time taken to compute bond force was {}'.format(-st + time.time()))

@@ -28,7 +28,7 @@ class ParModel:
 		self.testCode = 1
 		self.plotPartiton = 1
         
-		self.v = False
+		self.v = True
 		self.dim = 2
 
 		self.meshFileName = "test.msh"
@@ -374,7 +374,6 @@ class ParModel:
 			#vtu.writeParallel("GhostInformation", self.comm, self.numlocalNodes, x, data_local, np.zeros((self.numlocalNodes, 3)))
 			#vtk.write("GhostInformation_send" + str(myRank) + ".vtk", "Partition", self.coords, data, np.zeros((self.nnodes,3)))
 					   
-		   
 		return damage
 		
 # =============================================================================
@@ -580,7 +579,7 @@ class ParModel:
 		# Step 2. Find broken bonds, squared as strains can be negative
 		bond_healths[self.conn.nonzero()] = sparse.csr_matrix(self.fail_strains.power(2)[self.conn.nonzero()] - self.strain.power(2)[self.conn.nonzero()])
 		
-        # Update failed bonds
+        # Update failed bonds # Does it break the bonds of the neighbour particles?
 		bond_healths = bond_healths > 0
 		
 		self.conn = sparse.csr_matrix(bond_healths)
