@@ -512,8 +512,10 @@ class ParModel:
 		
 		cols, rows, data_x, data_y, data_z = [], [], [], [], []
 		
-		for i in range(self.nnodes):
-			row = self.conn_0.getrow(i)
+		for i in range(self.numlocalNodes):
+            # get the the l2g index 
+			globalId_i = self.net[i].id
+			row = self.conn_0.getrow(globalId_i)
 			
 			rows.extend(row.indices)
 			cols.extend(np.full((row.nnz), i))
