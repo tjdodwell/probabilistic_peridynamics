@@ -195,7 +195,6 @@ class SeqModel:
 		H_z0 = -lam_z + lam_z.transpose()
 		
 		norms_matrix = np.power(H_x0, 2) + np.power(H_y0, 2) + np.power(H_z0, 2)
-		
 		self.L_0 = np.sqrt(norms_matrix)
 		
 		# Into sparse matrices
@@ -204,9 +203,7 @@ class SeqModel:
 		self.H_z0 = sparse.csr_matrix(self.conn_0.multiply(H_z0))
 		self.H_x0.eliminate_zeros()
 		self.H_y0.eliminate_zeros()
-		self.H_z0.eliminate_zeros()
-		
-		
+		self.H_z0.eliminate_zeros()	
 		
 		# Length scale for the covariance matrix
 		l = 0.05
@@ -236,7 +233,9 @@ class SeqModel:
 		
 		K_tild = np.multiply(pow(nu, 2), K_tild)
 		
-		self.L = np.linalg.cholesky(K_tild)
+		self.C = np.linalg.cholesky(K_tild)
+		norms_matrix = sparse.csr_matrix(self.H_x0.power(2) + self.H_y0.power(2) + self.H_z0.power(2))
+		self.L_0 = norms_matrix.sqrt()
 		
 	
 		if self.H_x0.shape != self.H_y0.shape or self.H_x0.shape != self.H_z0.shape:
@@ -316,8 +315,8 @@ class SeqModel:
 		
 		# Step 2. elementwise division
         # TODO: investigate indexing with [self.L_0.nonzero()]  instead of [self.conn.nonzero()] 
-		#strain[self.L_0.nonzero()] = sparse.csr_matrix(del_L[self.L_0.nonzero()]/self.L_0[self.L_0.nonzero()])
-		strain[self.conn.nonzero()] = sparse.csr_matrix(del_L[self.conn.nonzero()]/self.L_0[self.conn.nonzero()])
+		strain[self.L_0.nonzero()] = sparse.csr_matrix(del_L[self.L_0.nonzero()]/self.L_0[self.L_0.nonzero()])
+		#strain[self.conn.nonzero()] = sparse.csr_matrix(del_L[self.conn.nonzero()]/self.L_0[self.conn.nonzero()])
 
 		
 		self.strain = sparse.csr_matrix(strain)

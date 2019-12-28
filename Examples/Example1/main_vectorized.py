@@ -149,7 +149,7 @@ def sim(sample, myModel =simpleSquare(), numSteps = 20, numSamples = 1, sigma = 
 	K = myModel.K
 	
 	# Cholesky decomposition of K
-	L = myModel.L
+	C = myModel.C
 	
 	# Start the clock
 	st = time.time()
@@ -176,7 +176,7 @@ def sim(sample, myModel =simpleSquare(), numSteps = 20, numSamples = 1, sigma = 
 		
 
 		u[t] = u[t-1] + dt * f #+ np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
-		#u[t] = u[t-1] + dt * np.dot(K,f) + noise(L, 3, nnodes) #exponential length squared kernel
+		#u[t] = u[t-1] + dt * np.dot(K,f) + noise(C, 3, nnodes) #exponential length squared kernel
 
 		# Apply boundary conditions
 		u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))

@@ -53,7 +53,7 @@ class simpleSquare(MODEL): # Should I pass comm into the arguments here
 		self.crackLength = 0.3
 
 		self.readMesh(self.meshFileName)
-		self.setNetwork()
+		self.setNetwork(self.horizon)
 		#self.setVolume() # SS by setNetwork
 		
 		self.lhs = []
@@ -131,10 +131,10 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 
 
-def sim(sample, myModel, numSteps = 20, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 1):
+def sim(sample, myModel, numSteps = 5, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 1):
 	print("Peridynamic Simulation -- Starting")
 	
-	myModel.setConnPar(0.1) # May only need to set connectivity matrix up for each node
+	#myModel.setConnPar(0.1) # May only need to set connectivity matrix up for each node
 	myModel.setH()
 
 	u = []
@@ -178,6 +178,7 @@ def sim(sample, myModel, numSteps = 20, numSamples = 1, sigma = 1e-5, loadRate =
 	
 	# Start the clock
 	st = time.time()
+	
 	
 	for t in range(1, numSteps):
 		

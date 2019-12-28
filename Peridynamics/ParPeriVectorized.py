@@ -122,7 +122,7 @@ class ParModel:
 		myRank = self.comm.Get_rank()
 		
 		self.net = [] # List to store the network
-		self.neighbour_ids = [] # wasnt previously a global variable
+		self.neighbour_ids = [] # wasnt previously a class variable
 		self.l2g = [] # local to global index list
 		self.g2l = [] # global to local index list
 		localCount = 0
@@ -246,11 +246,7 @@ class ParModel:
 			
 			
 		return uNew
-					
-				
-
-
-				
+							
 	def setConnPar(self, horizon):
 		""" Sets the sparse connectivity matrix for the partition, should only ever be called once
 		"""
@@ -274,7 +270,7 @@ class ParModel:
 			globalId_i = self.net[i].id
 			
 			for j in range(0, self.numlocalNodes): # For each node in the same partition
-				globalId_j = self.net[j].id
+				globalId_j = self.net[j].id # j is also in the set of local nodes
 				# Loop over local nodes in same partition
 				if globalId_i != globalId_j: # do not fill diagonals
 					if(func.l2(self.coords[globalId_i,:], self.coords[globalId_j,:]) < horizon):
@@ -283,11 +279,13 @@ class ParModel:
 							conn[globalId_i, globalId_j] = 1
 							
 			for k in range(0, len(self.neighbour_ids)): # loop over nodes in the nearest neighbour partitions
-				if (func.l2(self.coords[globalId_i,:], self.coords[self.neighbour_ids[k],:]) < horizon):
-					if (self.isCrack(self.coords[globalId_i,:], self.coords[self.neighbour_ids[k],:]) == False):
+				globalId_k = self.neighbour_ids[k] # k is in the set of nearest neighbour nodes
+				if(func.l2(self.coords[globalId_k,:], self.coords[globalId_k,:]) < horizon):
+					conn_0[globalId_i,globalId_k] = 1 # needed? There is definately an issue here
+					if (self.isCrack(self.coords[globalId_i,:], self.coords[globalId_k,:]) == False):
 						#connGhost[i, k] = 1
-						tmpGhost.append(self.neighbour_ids[k])
-						conn[i, self.neighbour_ids[k]] = 1
+						tmpGhost.append(globalId_k)
+						conn[globalId_i, globalId_k] = 1
 		
 		# Initial bond damages
 		count = np.sum(conn, axis =0)
@@ -307,7 +305,7 @@ class ParModel:
 			print('self.conn is', self.conn)
 		
 		# Find a better way to do this with the sparse matrices?
-		self.ghostList = np.unique(tmpGhost)
+		self.ghostList = np.unique(tmpGhost) # which is a list of ghost particles
 			
 		self.ghostListProcessors = []
 			
@@ -322,12 +320,13 @@ class ParModel:
 		self.IdListGhostRequests_recv = [] # List of list contain the global ids which will be recv.
 		
 		for i in range(0, self.comm.Get_size()): # Loop over each processor
-			areNN = np.zeros(self.comm.Get_size(), dtype = int) # Create a vector to mark which are nearest neighbours for process (partition) i
-			if myRank == i: # this is your turn, processor!
+			areNN = np.zeros(self.comm.Get_size(), dtype = int) # Container for vector to mark which partitions are nearest neighbours for partition i
+			# Each partition has a corresponding process
+			if myRank == i:
 				for k in range(0, len(self.NN[i])):
 					areNN[self.NN[i][k]] = 1 # Mark as a nearest neighbour for processor i
 			self.comm.Bcast(areNN, root=i) # Communicate to all other processors
-			self.comm.Barrier()
+			self.comm.Barrier() # wait here until all processes have reached this point, i.e. that the full areNN is constructed.
 			for k in range(0, len(self.NN[i])):
 				proc_id = int(self.NN[i][k])
 				if myRank == i: # If this is the control processor
@@ -339,7 +338,7 @@ class ParModel:
 					# tmp contains list of particles in ghost of i - required from processor self.NN[k]
 					self.numGhostRequests_to_recv += 1
 					self.GhostRequestProcessorIds_recv.append(proc_id)
-					self.comm.send(int(len(tmp)), dest = proc_id, tag = 1)
+					self.comm.send(int(len(tmp)), dest = proc_id, tag = 1) #messages with different tags will be buffered by the network until this processor is ready for them
 					tmpArray = np.zeros(len(tmp), dtype = int)
 					for ii in range(0, tmpArray.size):
 						tmpArray[ii] = int(tmp[ii])
@@ -354,7 +353,7 @@ class ParModel:
 					self.IdListGhostRequests_send.append(tmpNumpy)
 			self.comm.Barrier()
 
-		if(self.testCode): # for righting the Ghost information to file
+		if(self.testCode): # for writing the Ghost information to file
 			data = [] # Dirty hack as my vtkWriter only works for lists for scalar variables
 			for i in range(0, self.nnodes):
 				data.append(-1) # Initialise by default all particles to -1
@@ -468,8 +467,8 @@ class ParModel:
 		# Multiply by the vertical scale to get covariance matrix, K
 		self.K = np.multiply(pow(nu, 2), K)
 		
-		#Create L matrix for sampling perturbations
-		#epsilon, numerical trick so that M is positive semi definite
+		# Create L matrix for sampling perturbations
+		# epsilon is a numerical trick so that M is positive semi definite
 		epsilon = 1e-5
 
 		# add epsilon before scaling by a vertical variance scale, nu
@@ -492,9 +491,9 @@ class ParModel:
 			print(' The size of the connectivity matrix is {}'.format(self.conn.shape))
 			warnings.warn('L_0.size was {}, whilst H_x0.size was {}, they should be the same size'.format(self.L_0.shape, self.H_x0.shape))
 		
-		# initiate fail_stretches matrix as a linked list format
+		# initiate fail stretches matrix as a linked list format
 		self.fail_strains = np.full((self.nnodes, self.nnodes), self.s00)
-		# Make into a sparse matrix
+		# Store in sparse structure (even though it is dense)
 		self.fail_strains = sparse.csr_matrix(self.fail_strains)
 		
 		if self.v:
@@ -560,7 +559,7 @@ class ParModel:
 		# Step 2. elementwise division
         # TODO: investigate indexing with [self.L_0.nonzero()]  instead of [self.conn.nonzero()] 
 		#strain[self.L_0.nonzero()] = sparse.csr_matrix(del_L[self.L_0.nonzero()]/self.L_0[self.L_0.nonzero()])
-		strain[self.conn.nonzero()] = sparse.csr_matrix(del_L[self.conn.nonzero()]/self.L_0[self.conn.nonzero()])
+		strain[self.conn.nonzero()] = sparse.csr_matrix(del_L[self.conn.nonzero()]/self.L_0[self.conn.nonzero()]) #may have to use L_0 non zeros
 
 		
 		self.strain = sparse.csr_matrix(strain)

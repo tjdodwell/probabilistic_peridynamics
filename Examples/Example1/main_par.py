@@ -55,9 +55,7 @@ class simpleSquare(MODEL):
 		d2 = np.abs(1. - x[0])
 		return min(d1,d2)
 
-
 	def initialiseCrack(self, broken, damage):
-
 		for i in range(0, self.numlocalNodes):
 			id = self.net[i].id
 			family = self.family[i]
@@ -69,6 +67,7 @@ class simpleSquare(MODEL):
 					count += 1
 			damage[i] = float(count / len(family))
 		return broken, damage
+	
 	def isCrack(self, x, y):
 		output = 0
 		p1 = x
@@ -100,8 +99,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 
 
-def sim(sample, myModel, numSteps = 600, numSamples = 20, sigma = 1e-5, loadRate = 0.00001, dt = 1e-2, print_every = 10):
-
+def sim(sample, myModel, numSteps = 5, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 1):
 	print("Peridynamic Simulation -- Starting")
 
 	u = []
@@ -136,16 +134,18 @@ def sim(sample, myModel, numSteps = 600, numSamples = 20, sigma = 1e-5, loadRate
 	#Create L matrix
 	#TODO: epsilon, numerical trick so that M is positive semi definite
 	#epsilon = 1e-4
-	epsilon = 1.0
 	# Sample a random vector
 	I = np.identity(nnodes)
 	M_tild = I; #M + np.multiply(epsilon, I)
 	M_tild = np.multiply(pow(sigma, 2), M_tild)
 	L = np.linalg.cholesky(M_tild)
+	
+	# For debugging 27/12 write the timestep 0
+	vtu.writeParallel("U_" + str(0),myModel.comm, myModel.numlocalNodes, myModel.coords[myModel.l2g,:], damage[0], u[0][myModel.l2g,:])
+	
+	
 	for t in range(1, numSteps):
 		time += dt;
-		if(verb > 0):
-			print("Time step = " + str(t) + ", Time = " + str(time))
 		# Communicate Ghost particles to required processors
 		u[t-1] = myModel.communicateGhostParticles(u[t-1])
 		damage.append(np.zeros(myModel.numlocalNodes))
@@ -162,8 +162,8 @@ def sim(sample, myModel, numSteps = 600, numSamples = 20, sigma = 1e-5, loadRate
 
 		u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))
 		u[t][myModel.rhs,1:3] = np.zeros((len(myModel.rhs),2))
-		u[t][myModel.lhs,0] = - 0.5 * time * loadRate * np.ones(len(myModel.lhs))
-		u[t][myModel.rhs,0] = 0.5 * time * loadRate * np.ones(len(myModel.rhs))
+		u[t][myModel.lhs,0] = - 0.5 * t * loadRate * np.ones(len(myModel.lhs))
+		u[t][myModel.rhs,0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
 		if(t % print_every == 0) :
 			print('Timestep {} complete'.format(t))
 			vtu.writeParallel("U_" + str(t),myModel.comm, myModel.numlocalNodes, myModel.coords[myModel.l2g,:], damage[t], u[t][myModel.l2g,:])
