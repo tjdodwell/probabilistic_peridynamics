@@ -131,7 +131,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 
 
-def sim(sample, myModel, numSteps = 5, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 1):
+def sim(sample, myModel, numSteps = 100, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 10):
 	print("Peridynamic Simulation -- Starting")
 	
 	#myModel.setConnPar(0.1) # May only need to set connectivity matrix up for each node
@@ -144,8 +144,7 @@ def sim(sample, myModel, numSteps = 5, numSamples = 1, sigma = 1e-5, loadRate = 
 
 	u.append(np.zeros((myModel.nnodes, 3)))
 
-	damage.append(np.zeros(myModel.nnodes))
-
+	damage.append(np.zeros(myModel.numlocalNodes))
 
 	verb = 0
 	if(myModel.comm.Get_rank()):
@@ -191,10 +190,10 @@ def sim(sample, myModel, numSteps = 5, numSamples = 1, sigma = 1e-5, loadRate = 
 		
 		# Communicate Ghost particles to required processors
 		u[t-1] = myModel.communicateGhostParticles(u[t-1])
+		gt = time.time()
+		damage.append(np.zeros(myModel.numlocalNodes))
 
-		damage.append(np.zeros(nnodes))
-
-		myModel.calcBondStretchNew(u[t-1])
+		myModel.calcBondStretch(u[t-1])
 		damage[t] = myModel.checkBonds()
 		f = myModel.computebondForce()
 
@@ -202,7 +201,7 @@ def sim(sample, myModel, numSteps = 5, numSamples = 1, sigma = 1e-5, loadRate = 
 		u.append(np.zeros((nnodes, 3)))
 		
 		# The nodes that are in myModel.l2g only are updated, i.e. nodes for each process
-		u[t][myModel.l2g,:] = u[t-1][myModel.l2g,:] + dt*f[myModel.l2g] # + noise terms
+		u[t][myModel.l2g,:] = u[t-1][myModel.l2g,:] + dt*f # + noise terms
 		#u[t] = u[t-1][myModel.l2g,:] + dt * f #+ np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
 		#u[t] = u[t-1][myModel.l2g,:] + dt * np.dot(K,f) + noise(L, 3, nnodes) #exponential length squared kernel
 
@@ -214,7 +213,8 @@ def sim(sample, myModel, numSteps = 5, numSamples = 1, sigma = 1e-5, loadRate = 
 		u[t][myModel.rhs,0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
 
 		if(t % print_every == 0) :
-			vtu.writeParallel("U_" + str(t),myModel.comm, myModel.numlocalNodes, myModel.coords[myModel.l2g,:], damage[t][myModel.l2g], u[t][myModel.l2g,:])			
+			vtu.writeParallel("U_" + str(t),myModel.comm, myModel.numlocalNodes, myModel.coords[myModel.l2g,:], damage[t], u[t][myModel.l2g,:])			
+		print('Timestep {} time to communicate ghost particles {} s '.format(t, gt - st))
 		print('Timestep {} complete in {} s '.format(t, time.time() - st))
 	return vtk.write("U_"+"sample"+str(sample)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 
