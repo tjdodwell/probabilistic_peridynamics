@@ -118,7 +118,7 @@ class ParModel:
             
 		f.close()
 
-	def setNetwork(self):
+	def setNetwork(self, horizon):
 		myRank = self.comm.Get_rank()
 		
 		self.net = [] # List to store the network
@@ -138,9 +138,11 @@ class ParModel:
 			else: # This is the case where particle lives on another process but is in a neighouring subdomain, so may be in family
 				check = 0
 				for k in range(0, len(self.NN[myRank])):
-					check += 1
+					if(self.NN[myRank][k] == int(self.partition[i])): # If one of the neighbours of the particle is our rank process
+						check += 1
 				if check > 0: # Number greater than zero indicates that particle is one of the neighbouring subdomains
 					self.neighbour_ids.append(i)
+		
 		self.numlocalNodes = localCount # Store the number of particles directly in subdomains
 		
 		self.localCoords = np.zeros((self.numlocalNodes, 3))
@@ -155,10 +157,10 @@ class ParModel:
 				assert int(totalNodes[0]) == self.nnodes
 			self.comm.Barrier()
 	
-	# Not ideal for now - but do on all processors over all elements - saves dealing with boundary cases
-	#def setVolume(self): # superseded by setNetwork
-
-		self.V = np.zeros(self.nnodes)
+		# Not ideal for now - but do on all processors over all elements - saves dealing with boundary cases
+		#def setVolume(self): # superseded by setNetwork
+		
+		Vols = np.zeros(self.nnodes)
 
 		for ie in range(0,self.nelem):
 
@@ -180,9 +182,164 @@ class ParModel:
 				val *= 0.5 * ( (xj - xi) * (yk - yi) - (xk - xi) * (yj - yi) )
 
 			for j in range(0,n.size):
-				self.V[int(n[j])] += val
+				Vols[int(n[j])] += val
 		
+		self.V = np.zeros(self.nnodes)
+		for i in range(0, self.numlocalNodes):
+			self.V[i] = Vols[self.net[i].id]
+		
+		# -- Setup the family for each particle
+		
+		# For each local cell, loop over each set of local particles
+		# There is more efficient ways to do this, but doesn't really matter since one off calculation
+		
+		# Initiate the connectivity matrix as non sparse
+		conn = np.zeros((self.nnodes, self.nnodes))
+		
+		# Initiate uncracked connectivity matrix
+		conn_0 = np.zeros((self.nnodes, self.nnodes))
+		
+		# Setup the family for each particle
+		self.family = [] # in place of family matrix, have now got connectivity matrix
+		tmpGhost = []
+		#tmpGhostProcessors = [] # Assigned but never used?
+		# For each local cell loop over each set of local particles
+		for i in range(0, self.numlocalNodes): # For each of the local nodes
 			
+			#tmp = [] # temporary list
+			globalId_i = self.net[i].id
+			
+			for j in range(0, self.numlocalNodes): # For each node in the same partition
+				globalId_j = self.net[j].id # j is also in the set of local nodes
+				# Loop over local nodes in same partition
+				if globalId_i != globalId_j: # do not fill diagonals
+					if(func.l2(self.coords[globalId_i,:], self.coords[globalId_j,:]) < horizon):
+						conn_0[globalId_i,globalId_j] = 1
+						conn_0[globalId_j,globalId_i] = 1
+						if (self.isCrack(self.coords[globalId_i,:], self.coords[globalId_j,:]) == False):
+							conn[globalId_i, globalId_j] = 1
+							conn[globalId_j, globalId_i] = 1
+							
+			for k in range(0, len(self.neighbour_ids)): # loop over nodes in the nearest neighbour partitions
+				globalId_k = self.neighbour_ids[k] # k is in the set of nearest neighbour nodes
+				if(func.l2(self.coords[globalId_k,:], self.coords[globalId_k,:]) < horizon):
+					conn_0[globalId_i,globalId_k] = 1 # needed? There is definately an issue here
+					conn_0[globalId_k,globalId_i] = 1
+					if (self.isCrack(self.coords[globalId_i,:], self.coords[globalId_k,:]) == False):
+						#connGhost[i, k] = 1
+						tmpGhost.append(globalId_k)
+						conn[globalId_i, globalId_k] = 1
+						conn[globalId_k, globalId_i] = 1
+		
+		# Initial bond damages
+		count = np.sum(conn, axis =0)
+		self.family = np.sum(conn_0, axis=0)
+		damage = np.divide((self.family - count), self.family)
+		damage.resize(self.nnodes)
+		
+		# return damage for our local nodes only
+		damage_local = np.zeros(self.numlocalNodes)
+		
+		for i in range(self.numlocalNodes):
+			globalId_i = self.net[i].id
+			count = np.sum(conn[globalId_i]) # could be an issue here
+			damage = np.divide((self.family[globalId_i] - count), self.family[globalId_i])
+			damage_local[i] = damage
+			
+		if self.v:
+			print('time, t = 0')
+			print(np.max(damage_local), 'max_damage')
+			print(np.min(damage_local), 'min_damage')
+		
+		# Lower triangular - count bonds only once
+		# make diagonal values 0
+		conn = np.tril(conn, -1)
+		
+		# Convert to sparse matrix
+		self.conn = sparse.csr_matrix(conn)
+		self.conn_0 = sparse.csr_matrix(conn_0)
+		
+		# need to eliminate zeros?
+		#self.conn.eliminate_zeros()
+		
+		if self.v:
+			print('self.conn is', self.conn)
+		
+		# Find a better way to do this with the sparse matrices?
+		self.ghostList = np.unique(tmpGhost) # which is a list of ghost particles global ids
+			
+		self.ghostListProcessors = []
+			
+		for i in range(0, len(self.ghostList)):
+			self.ghostListProcessors.append(int(self.partition[self.ghostList[i]]))
+		
+		self.numGhostRequests_to_send = 0 # Integer value which stores number of ghost requests for displacements at each time step
+		self.numGhostRequests_to_recv = 0 # Integer value which stores numbe of ghost requests that will be received
+		self.GhostRequestProcessorIds_send = [] # Will be a list of length self.numGhostRequests containing the processor number for each communicator
+		self.GhostRequestProcessorIds_recv = [] # Will be a list of length self.numGhostRequests containing the processor number for each communicator
+		self.IdListGhostRequests_send = [] # List of list contain the global ids which will be sent.
+		self.IdListGhostRequests_recv = [] # List of list contain the global ids which will be recv.
+		
+		if(self.comm.Get_size() == 1):
+			# In the case where we have one process, then we have sequential simulation
+			pass
+		else:
+			for i in range(0, self.comm.Get_size()): # Loop over each processor
+				areNN = np.zeros(self.comm.Get_size(), dtype = int) # Container for vector to mark which partitions are nearest neighbours for partition i
+				# Each partition has a corresponding process
+				if myRank == i:
+					for k in range(0, len(self.NN[i])):
+						areNN[self.NN[i][k]] = 1 # Mark as a nearest neighbour for processor i
+				self.comm.Bcast(areNN, root=i) # Communicate to all other processors
+				self.comm.Barrier() # wait here until all processes have reached this point, i.e. that the full areNN is constructed.
+				for k in range(0, len(self.NN[i])):
+					proc_id = int(self.NN[i][k])
+					if myRank == i: # If this is the control processor
+						tmp = [] # Create a list of ghost which live on a given neighbour
+						for j in range(0, self.ghostList.size): # Loop over all ghost particles
+							proc = self.ghostListProcessors[j]
+							if proc == proc_id: # if particle is in processor self.NN[k]
+								tmp.append(self.ghostList[j])
+						# tmp contains list of particles in ghost of i - required from processor self.NN[k]
+						self.numGhostRequests_to_recv += 1
+						self.GhostRequestProcessorIds_recv.append(proc_id)
+						self.comm.send(int(len(tmp)), dest = proc_id, tag = 1) #messages with different tags will be buffered by the network until this processor is ready for them
+						tmpArray = np.zeros(len(tmp), dtype = int)
+						for ii in range(0, tmpArray.size):
+							tmpArray[ii] = int(tmp[ii])
+						self.IdListGhostRequests_recv.append(tmpArray)
+						self.comm.Send(tmpArray, dest = proc_id, tag = 2)
+					elif myRank == proc_id:
+						self.numGhostRequests_to_send += 1
+						self.GhostRequestProcessorIds_send.append(i)
+						numParticles_tmp = self.comm.recv(source = i, tag =1)
+						tmpNumpy  = np.empty(numParticles_tmp, dtype = int)
+						self.comm.Recv(tmpNumpy, source = i, tag = 2)
+						self.IdListGhostRequests_send.append(tmpNumpy)
+				self.comm.Barrier()
+	
+			if(self.testCode): # for writing the Ghost information to file
+				data = [] # Dirty hack as my vtkWriter only works for lists for scalar variables
+				for i in range(0, self.nnodes):
+					data.append(-1) # Initialise by default all particles to -1
+				for i in range(0, self.numlocalNodes):
+					id_ = self.net[i].id
+					data[id_] = myRank # All those in the subdomain set to number of rank
+				for i in range(0, self.numGhostRequests_to_send):
+					for j in range(0, self.IdListGhostRequests_send[i].size):
+						# All those in a Ghost Request list set to value of processor to which they will be sent
+						id_ = self.IdListGhostRequests_send[i][j]
+						data[id_] = self.GhostRequestProcessorIds_send[i]
+				x = np.zeros((self.numlocalNodes, 3))
+				data_local = []
+				
+				for i in range(0, self.numlocalNodes):
+					x[i,:] = self.coords[self.l2g[i],:]
+					data_local.append(data[self.l2g[i]])
+				print('data_local length', len(data_local), 'numlocalnodes', self.numlocalNodes, 'data length', len(data), 'l2g length', len(self.l2g))
+				#vtu.writeParallel("GhostInformation", self.comm, self.numlocalNodes, x, data_local, np.zeros((self.numlocalNodes, 3)))
+				#vtk.write("GhostInformation_send" + str(myRank) + ".vtk", "Partition", self.coords, data, np.zeros((self.nnodes,3)))
+					   
 
 	def communicateGhostParticles(self, u):
 		""" Carries out communication of displacements required at the beginning of each step
@@ -280,12 +437,15 @@ class ParModel:
 							
 			for k in range(0, len(self.neighbour_ids)): # loop over nodes in the nearest neighbour partitions
 				globalId_k = self.neighbour_ids[k] # k is in the set of nearest neighbour nodes
-				if(func.l2(self.coords[globalId_k,:], self.coords[globalId_k,:]) < horizon):
+				if(func.l2(self.coords[globalId_i,:], self.coords[globalId_k,:]) < horizon):
+					# Must fill both triangles of matrix, since we aren't iterating over the neighbour id's in the parent loop
 					conn_0[globalId_i,globalId_k] = 1 # needed? There is definately an issue here
+					#conn_0[globalId_k,globalId_i] = 1
 					if (self.isCrack(self.coords[globalId_i,:], self.coords[globalId_k,:]) == False):
 						#connGhost[i, k] = 1
 						tmpGhost.append(globalId_k)
 						conn[globalId_i, globalId_k] = 1
+						#conn[globalId_k, globalId_i] = 1
 		
 		# Initial bond damages
 		count = np.sum(conn, axis =0)
@@ -358,20 +518,20 @@ class ParModel:
 			for i in range(0, self.nnodes):
 				data.append(-1) # Initialise by default all particles to -1
 			for i in range(0, self.numlocalNodes):
-				id = self.net[i].id
-				data[id] = myRank # All those in the subdomain set to number of rank
+				id_ = self.net[i].id
+				data[id_] = myRank # All those in the subdomain set to number of rank
 			for i in range(0, self.numGhostRequests_to_send):
 				for j in range(0, self.IdListGhostRequests_send[i].size):
 					# All those in a Ghost Request list set to value of processor to which they will be sent
-					id = self.IdListGhostRequests_send[i][j]
-					data[id] = self.GhostRequestProcessorIds_send[i]
+					id_ = self.IdListGhostRequests_send[i][j]
+					data[id_] = self.GhostRequestProcessorIds_send[i]
 			x = np.zeros((self.numlocalNodes, 3))
 			data_local = []
 			
-			for i in range(0, self.numBoundaryNodes):
+			for i in range(0, self.numlocalNodes):
 				x[i,:] = self.coords[self.l2g[i],:]
 				data_local.append(data[self.l2g[i]])
-			#vtu.writeParallel("GhostInformation", self.comm, self.numlocalNodes, x, data_local, np.zeros((self.numlocalNodes, 3)))
+			vtu.writeParallel("GhostInformation", self.comm, self.numlocalNodes, x, data_local, np.zeros((self.numlocalNodes, 3)))
 			#vtk.write("GhostInformation_send" + str(myRank) + ".vtk", "Partition", self.coords, data, np.zeros((self.nnodes,3)))
 					   
 		return damage
@@ -507,20 +667,46 @@ class ParModel:
 		U will contain the displacements from the ghost particles because of communication step at the beginning of the timestep
 		The improvement on calcBondStretch() is not calculating the relative bond distances for every node, just the connected ones
 		"""
+		self.comm.Barrier()
 		st = time.time()
 		
 		cols, rows, data_x, data_y, data_z = [], [], [], [], []
 		
-		for i in range(self.numlocalNodes):
-            # get the the l2g index 
-			globalId_i = self.net[i].id
-			row = self.conn_0.getrow(globalId_i)
+		for i in range(self.nnodes): # and also ghost particles? yes, so need to include ghost particles in this
+			row = self.conn_0.getrow(i)
 			
 			rows.extend(row.indices)
 			cols.extend(np.full((row.nnz), i))
 			data_x.extend(np.full((row.nnz), U[i, 0]))
 			data_y.extend(np.full((row.nnz), U[i, 1]))
 			data_z.extend(np.full((row.nnz), U[i, 2]))
+# =============================================================================
+# 		for i in range(self.numlocalNodes): # and also ghost particles? yes, so need to include ghost particles in this
+#             # get the the l2g index 
+# 			globalId_i = self.net[i].id
+# 			row = self.conn_0.getrow(globalId_i)
+# 			
+# 			rows.extend(row.indices)
+# 			cols.extend(np.full((row.nnz), i))
+# 			data_x.extend(np.full((row.nnz), U[i, 0]))
+# 			data_y.extend(np.full((row.nnz), U[i, 1]))
+# 			data_z.extend(np.full((row.nnz), U[i, 2]))
+# 		
+# 		
+# 		# must also include ghost particles here
+# 		# or just do for all self.nnodes?
+# 		for k in range(len(self.ghostList)):
+# 			# get the l2g index
+# 			globalId_k = self.ghostList[k]
+# 			row = self.conn_0.getrow(globalId_k)
+# 			
+# 			rows.extend(row.indices)
+# 			cols.extend(np.full((row.nnz), U[i, 0]))
+# 			data_x.extend(np.full((row.nnz), U[i, 0]))
+# 			data_y.extend(np.full((row.nnz), U[i, 1]))
+# 			data_z.extend(np.full((row.nnz), U[i, 2]))
+# =============================================================================
+			
 		
 		# Must not be lower triangular
 		lam_x = sparse.csr_matrix((data_x, (rows, cols)), shape = (self.nnodes, self.nnodes))
@@ -662,17 +848,29 @@ class ParModel:
 		
 		# Using lower triangular connectivity matrix, so just mirror it for bond damage calc
 		temp = self.conn + self.conn.transpose()
-		count = temp.sum(axis = 0)
-		damage = np.divide((self.family - count), self.family)
-		damage.resize(self.nnodes)
+# =============================================================================
+# 		count = temp.sum(axis = 0)
+# 		damage = np.divide((self.family - count), self.family)
+# 		damage.resize(self.nnodes)
+# =============================================================================
+		
+		# return damage for our local nodes only
+		damage_local = np.zeros(self.numlocalNodes)
+		
+		for i in range(self.numlocalNodes):
+			globalId_i = self.net[i].id
+			count = np.sum(temp.getrow(globalId_i)) # could be an issue here
+			damage = np.divide((self.family[globalId_i] - count), self.family[globalId_i])
+			damage_local[i] = damage
+		
 		
 		if self.v:
-			print(np.max(damage), 'max_damage')
-			print(np.min(damage), 'min_damage')
+			print(np.max(damage_local), 'max_damage')
+			print(np.min(damage_local), 'min_damage')
 		
 		if self.v:
 			print('time taken to check bonds was {}'.format(-st + time.time()))
-		return damage
+		return damage_local
 		
 		
 	def computebondForce(self):
@@ -725,4 +923,10 @@ class ParModel:
 		if self.v:	
 			print('time taken to compute bond force was {}'.format(-st + time.time()))
 		
-		return F
+		# Want to return simply the local node forces
+		F_local = np.zeros((self.numlocalNodes,3))
+		for i in range(self.numlocalNodes):
+			globalId_i = self.net[i].id
+			F_local[i] = F[globalId_i]
+		
+		return F_local

@@ -74,8 +74,8 @@ class ParModel:
 		# U will contain the displacements from the ghost particles becuase of communication step at beginning of the timestep
 		self.comm.Barrier()
 		for i in range(0, self.numlocalNodes):
-			id = self.net[i].id
-			yi = self.coords[id,:] + U[id,:] # deformed coordinates of particle i
+			id_ = self.net[i].id
+			yi = self.coords[id_,:] + U[id_,:] # deformed coordinates of particle i
 			count = 0;
 			family = self.family[i] # extract family for particle i
 			for k in range(0, len(family)):
@@ -86,7 +86,7 @@ class ParModel:
 					testMe = 1
 				if( broken[i][k] == 0): # if bond is not previously broken
 					yj = self.coords[j,:] + U[j,:] # deformed coordinates of particle j
-					bondLength = func.l2norm(self.coords[id,:] - self.coords[j,:])
+					bondLength = func.l2norm(self.coords[id_,:] - self.coords[j,:])
 					rvec = yj - yi
 					r = func.l2norm(rvec)
 					strain = (r - bondLength) / bondLength
@@ -101,14 +101,14 @@ class ParModel:
 	def computebondForce(self, U, broken):
 		F = np.zeros((self.numlocalNodes,3)) # Container for the forces on each particel in each dimension
 		for i in range(0, self.numlocalNodes): # For each particles in this subdomain
-			id = self.net[i].id
-			yi = self.coords[id,:] + U[id,:]
+			id_ = self.net[i].id
+			yi = self.coords[id_,:] + U[id_,:]
 			family = self.family[i] # This is a list of id's for family members
 			for k in range(0, len(family)):
 				j = self.family[i][k]
 				if(broken[i][k] == 0 ): # Bond between particle i and j has not been broken
 					yj = self.coords[j,:] + U[j,:]
-					bondLength = func.l2norm(self.coords[id,:] - self.coords[j,:])
+					bondLength = func.l2norm(self.coords[id_,:] - self.coords[j,:])
 					rvec = yj - yi
 					r = func.l2norm(rvec)
 					dr = r - bondLength
@@ -309,70 +309,73 @@ class ParModel:
 		self.GhostRequestProcessorIds_recv = [] # Will be a list of length self.numGhostRequests containing the processor number for each communicator
 		self.IdListGhostRequests_send = [] # List of list contain the global ids which will be sent.
 		self.IdListGhostRequests_recv = [] # List of list contain the global ids which will be recv.
-
-
-		for i in range(0, self.comm.Get_size()): # Loop over each processor
-			areNN = np.zeros(self.comm.Get_size(), dtype = int) # Create Vector to mark which are neighest neighbours for processor i
-			if(myRank == i): # this is your turn
+		
+		if(self.comm.Get_size() == 1):
+			# In the case where we have one process, then we have sequential simulation
+			pass
+		else:
+			for i in range(0, self.comm.Get_size()): # Loop over each processor
+				areNN = np.zeros(self.comm.Get_size(), dtype = int) # Create Vector to mark which are neighest neighbours for processor i
+				if(myRank == i): # this is your turn
+					for k in range(0, len(self.NN[i])):
+						areNN[self.NN[i][k]] = 1 # Mark as a neighest neighbour for processor i
+				self.comm.Bcast(areNN, root=i) # Communicate to all other processors
+				self.comm.Barrier()
 				for k in range(0, len(self.NN[i])):
-					areNN[self.NN[i][k]] = 1 # Mark as a neighest neighbour for processor i
-			self.comm.Bcast(areNN, root=i) # Communicate to all other processors
-			self.comm.Barrier()
-			for k in range(0, len(self.NN[i])):
-				proc_id = int(self.NN[i][k])
-				if(myRank == i): # If this is the control processor
-					tmp = [] # Create a list of ghost which live on a give neighbour
-					for j in range(0, self.ghostList.size): # Loop over all ghost particles
-						proc = self.ghostListProcessors[j]
-						if(proc == proc_id): # if particle is in processor self.NN[k]
-							tmp.append(self.ghostList[j])
-					# tmp contains list of particles in ghost of i - required from processor self.NN[k]
-					self.numGhostRequests_to_recv += 1
-					self.GhostRequestProcessorIds_recv.append(proc_id)
-					self.comm.send(int(len(tmp)), dest = proc_id, tag = 1)
-					tmpArray = np.zeros(len(tmp), dtype = int)
-					for ii in range(0, tmpArray.size):
-						tmpArray[ii] = int(tmp[ii])
-					self.IdListGhostRequests_recv.append(tmpArray)
-					self.comm.Send(tmpArray, dest = proc_id, tag = 2)
-				elif(myRank == proc_id):
-					self.numGhostRequests_to_send += 1
-					self.GhostRequestProcessorIds_send.append(i)
-					numParticles_tmp = self.comm.recv(source = i, tag = 1)
-					tmpNumpy = np.empty(numParticles_tmp, dtype=int)
-					self.comm.Recv(tmpNumpy,source = i, tag = 2)
-					self.IdListGhostRequests_send.append(tmpNumpy)
-						# end else if
-					# end if areNN[k] == 1
-				# end for each NN
-			# end if this processor is a nearest neighbour_ids
-			# end for each processor
+					proc_id = int(self.NN[i][k])
+					if(myRank == i): # If this is the control processor
+						tmp = [] # Create a list of ghost which live on a give neighbour
+						for j in range(0, self.ghostList.size): # Loop over all ghost particles
+							proc = self.ghostListProcessors[j]
+							if(proc == proc_id): # if particle is in processor self.NN[k]
+								tmp.append(self.ghostList[j])
+						# tmp contains list of particles in ghost of i - required from processor self.NN[k]
+						self.numGhostRequests_to_recv += 1
+						self.GhostRequestProcessorIds_recv.append(proc_id)
+						self.comm.send(int(len(tmp)), dest = proc_id, tag = 1)
+						tmpArray = np.zeros(len(tmp), dtype = int)
+						for ii in range(0, tmpArray.size):
+							tmpArray[ii] = int(tmp[ii])
+						self.IdListGhostRequests_recv.append(tmpArray)
+						self.comm.Send(tmpArray, dest = proc_id, tag = 2)
+					elif(myRank == proc_id):
+						self.numGhostRequests_to_send += 1
+						self.GhostRequestProcessorIds_send.append(i)
+						numParticles_tmp = self.comm.recv(source = i, tag = 1)
+						tmpNumpy = np.empty(numParticles_tmp, dtype=int)
+						self.comm.Recv(tmpNumpy,source = i, tag = 2)
+						self.IdListGhostRequests_send.append(tmpNumpy)
+							# end else if
+						# end if areNN[k] == 1
+					# end for each NN
+				# end if this processor is a nearest neighbour_ids
+				# end for each processor
+	
+				self.comm.Barrier() # Processors Idle before we move to next processor
 
-			self.comm.Barrier() # Processors Idle before we move to next processor
-
-		if(self.testCode):
-			data = [] # Dirty hack as my quick vtkWriter only works for lists for scalar variables
-			for i in range(0, self.nnodes):
-				data.append(-1) # Initialise by default all particles to -1
-			for i in range(0, self.numlocalNodes):
-				id = self.net[i].id
-				data[id] = myRank # All those in the subdomain set to number of rank
-			for i in range(0, self.numGhostRequests_to_send):
-				for j in range(0,self.IdListGhostRequests_send[i].size):
-					# All those in a Ghost Request list set to value of processor to which they will be sent!
-					id = self.IdListGhostRequests_send[i][j]
-					data[id] = self.GhostRequestProcessorIds_send[i]
-
-			x = np.zeros((self.numlocalNodes,3))
-			data_local = []
-
-			for i in range(0, self.numlocalNodes):
-				x[i,:] = self.coords[self.l2g[i],:]
-				data_local.append(data[self.l2g[i]])
-
-			vtu.writeParallel("GhostInformation", self.comm, self.numlocalNodes, x, data_local, np.zeros((self.numlocalNodes, 3)))
-
-#			vtk.write("GhostInformation_send" + str(myRank)+".vtk","Partition", self.coords, data, np.zeros((self.nnodes, 3)))
+			if(self.testCode):
+				data = [] # Dirty hack as my quick vtkWriter only works for lists for scalar variables
+				for i in range(0, self.nnodes):
+					data.append(-1) # Initialise by default all particles to -1
+				for i in range(0, self.numlocalNodes):
+					id_ = self.net[i].id
+					data[id_] = myRank # All those in the subdomain set to number of rank
+				for i in range(0, self.numGhostRequests_to_send):
+					for j in range(0,self.IdListGhostRequests_send[i].size):
+						# All those in a Ghost Request list set to value of processor to which they will be sent!
+						id_ = self.IdListGhostRequests_send[i][j]
+						data[id_] = self.GhostRequestProcessorIds_send[i]
+	
+				x = np.zeros((self.numlocalNodes,3))
+				data_local = []
+	
+				for i in range(0, self.numlocalNodes):
+					x[i,:] = self.coords[self.l2g[i],:]
+					data_local.append(data[self.l2g[i]])
+				print('data_local length', len(data_local), 'numlocalnodes', self.numlocalNodes, 'data length', len(data), 'l2g length', len(self.l2g))
+				vtu.writeParallel("GhostInformation", self.comm, self.numlocalNodes, x, data_local, np.zeros((self.numlocalNodes, 3)))
+	
+	#			vtk.write("GhostInformation_send" + str(myRank)+".vtk","Partition", self.coords, data, np.zeros((self.nnodes, 3)))
 
 
 	def communicateGhostParticles(self, u):
