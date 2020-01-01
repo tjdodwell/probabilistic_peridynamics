@@ -33,10 +33,10 @@ class ParModel:
 
 		# Material Parameters from classical material model
 		self.horizon = 5.0
-		self.K = 1.00
+		self.k_scalar = 1.00
 		self.s00 = 0.005
 
-		self.c = 18.0 * self.K / (np.pi * (self.horizon**4));
+		self.c = 18.0 * self.k_scalar / (np.pi * (self.horizon**4));
 
 
 		if (self.dim == 3):
@@ -60,8 +60,6 @@ class ParModel:
 			elif (bnd > 0):
 				(self.rhs).append(i)
 
-		#
-
 		self.u = [] # List for Solution at each time step
 		self.damage = [] # List containing damage at each time step
 
@@ -69,9 +67,14 @@ class ParModel:
 
 
 	def checkBonds(self, U, broken, damage):
-		# Check bonds to see if they have been broken in this time step
-		# This is the same as the sequential code apart from we only loop over local particles
-		# U will contain the displacements from the ghost particles becuase of communication step at beginning of the timestep
+		""" Check bonds to see if they have been broken in this time step
+			This is the same as the sequential code apart from we only loop over local particles
+			Input:  'U' Particle displacements. 'U' will contain the displacements from the 
+					ghost particles becuase of communication step at beginning of the timestep
+					'broken' list of lists
+					'damage' list
+			Output: updated 'broken' and 'damage'
+		"""
 		self.comm.Barrier()
 		for i in range(0, self.numlocalNodes):
 			id_ = self.net[i].id
@@ -99,7 +102,11 @@ class ParModel:
 		return broken, damage
 
 	def computebondForce(self, U, broken):
-		F = np.zeros((self.numlocalNodes,3)) # Container for the forces on each particel in each dimension
+		""" Computes the bond force and sums them
+			Input: particle displacements, broken bonds
+			Output: bond force vector for local nodes
+		"""
+		F = np.zeros((self.numlocalNodes,3)) # Container for the forces on each particle in each dimension
 		for i in range(0, self.numlocalNodes): # For each particles in this subdomain
 			id_ = self.net[i].id
 			yi = self.coords[id_,:] + U[id_,:]
@@ -117,9 +124,37 @@ class ParModel:
 					kb = (self.c / bondLength) * self.V[i] * dr
 					F[i,:] += (kb / r) * rvec
 		return F
+	
+	def computebondForceNew(self, U, broken):
+		""" Computes the bond force and sums them to find resultant particle force
+			Input: particle displacements, broken bonds
+			Output: bond force vector for local nodes
+		"""
+		F = np.zeros((self.nnodes, 3))
+		# non local particle forces will be 0, but they won't ever be used
+		
+		for i in range(0, self.numlocalNodes):
+			id_ = self.net[i].id
+			yi = self.coords[id_,:] + U[id_,:]
+			family = self.family[i] # This is a list of id's for family members
+			for k in range(0, len(family)):
+				j = self.family[i][k]
+				if(broken[i][k] == 0 ): # Bond between particle i and j has not been broken
+					yj = self.coords[j,:] + U[j,:]
+					bondLength = func.l2norm(self.coords[id_,:] - self.coords[j,:])
+					rvec = yj - yi
+					r = func.l2norm(rvec)
+					dr = r - bondLength
+					if( dr < 1e-12 ): # Kills an issue with rounding error
+						dr = 0.0
+					kb = (self.c / bondLength) * self.V[i] * dr
+					F[id_,:] += (kb / r) * rvec
+		return F
 
 	def readMesh(self, fileName):
-
+		""" Reads particle coordinates from the mesh, and mesh element connectivities. Domain decomposition is also done here.
+			Input: mesh file name 'test.msh'
+		"""
 		f = open(fileName, "r")
 
 		if f.mode == "r":
@@ -190,7 +225,10 @@ class ParModel:
 		f.close()
 
 	def setNetwork(self, horizon):
-
+		""" Creates local to global id lists, calculates volumes of the particles, creates family lists and lists of ghost particles. 
+			Constructs the covariance matrix, K.
+			Input: Peridynamic horizon distance
+		"""
 		myRank = self.comm.Get_rank();
 
 		self.net = [] # List to store the network
@@ -200,7 +238,8 @@ class ParModel:
 		self.l2g = [] # local to global
 
 		self.g2l = [] # global to local
-
+		
+		
 		localCount = 0
 		for i in range(0, self.nnodes): # For each of the particles
 
@@ -256,7 +295,47 @@ class ParModel:
 		self.V = np.zeros(self.numlocalNodes)
 		for i in range(0, self.numlocalNodes):
 			self.V[i] = Vols[self.net[i].id]
+			
+		# Generate the covariance matrix. Not ideal - but do on all processors
+		# Length scale for the covariance matrix
+		l = 0.05
+		
+		# Scale of the covariance matrix
+		nu = 1e-5
+		
+		# inv length scale parameter
+		inv_length_scale = (np.divide(-1., 2.*pow(l, 2)))
+		
+		X = np.sum(pow(self.coords, 2), axis=1)
+		
+		tiled_X = np.tile(X, (self.nnodes,1))
+		tiled_Xt = np.transpose(tiled_X)
+		
+		outer_product= np.dot(self.coords, np.transpose(self.coords))
+		
+		norms_matrix = (tiled_X - np.multiply(outer_product, 2) + tiled_Xt)
+		
+		# radial basis functions
+		rbf = np.multiply(inv_length_scale, norms_matrix)
+		
+		# Exponential of radial basis functions
+		K = np.exp(rbf)
+		
+		# Multiply by the vertical scale to get covariance matrix, K
+		self.K = np.multiply(pow(nu, 2), K)
+		
+		#Create L matrix for sampling perturbations
+		#epsilon, numerical trick so that M is positive semi definite
+		epsilon = 1e-5
 
+		# add epsilon before scaling by a vertical variance scale, nu
+		I = np.identity(self.nnodes)
+		K_tild = K + np.multiply(epsilon, I)
+		
+		K_tild = np.multiply(pow(nu, 2), K_tild)
+		
+		self.C = np.linalg.cholesky(K_tild)	
+		
 		# -- Setup the family for each particle
 
 		# For each local cell loop over each set of local particles
@@ -264,7 +343,7 @@ class ParModel:
 		self.family = []
 
 		tmpGhost = []
-		tmpGhostProcessors = []
+		#tmpGhostProcessors = []
 
 		for i in range(0, self.numlocalNodes): # For each of the local nodes
 
@@ -312,6 +391,7 @@ class ParModel:
 		
 		if(self.comm.Get_size() == 1):
 			# In the case where we have one process, then we have sequential simulation
+			# TODO: this bypass seems to work, but should be bug checked.
 			pass
 		else:
 			for i in range(0, self.comm.Get_size()): # Loop over each processor
@@ -375,17 +455,18 @@ class ParModel:
 				print('data_local length', len(data_local), 'numlocalnodes', self.numlocalNodes, 'data length', len(data), 'l2g length', len(self.l2g))
 				vtu.writeParallel("GhostInformation", self.comm, self.numlocalNodes, x, data_local, np.zeros((self.numlocalNodes, 3)))
 	
-	#			vtk.write("GhostInformation_send" + str(myRank)+".vtk","Partition", self.coords, data, np.zeros((self.nnodes, 3)))
+				#vtk.write("GhostInformation_send" + str(myRank)+".vtk","Partition", self.coords, data, np.zeros((self.nnodes, 3)))
 
 
 	def communicateGhostParticles(self, u):
-
-		# Code carries out communication of displacements required at the beginning of each step
-		# Carried out by exploiting nearest neighbour communicaiton as set up in setNetwork()
-		# Uses non-blocking communication
-
+		"""
+		Code carries out communication of displacements required at the beginning of each step
+		Carried out by exploiting nearest neighbour communicaiton as set up in setNetwork()
+		Uses non-blocking communication
+		Input: particle displacements
+		"""
 		uNew = u
-
+		
 		# Sending block
 
 		fullCommunication = 1
@@ -412,9 +493,6 @@ class ParModel:
 				req = self.comm.Irecv(tmpDisp, source = 1)
 
 				req.Wait()
-
-
-
 
 		if(fullCommunication == 1):
 
@@ -443,14 +521,4 @@ class ParModel:
 
 			self.comm.Barrier() # Why do I need these? Someone can explain to me!
 
-
-
-
 		return uNew
-
-
-
-
-
-		# vectorAddTime = timer() - start
-		# print("VectorAdd took %f seconds" % vectorAddTime)

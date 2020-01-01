@@ -90,18 +90,26 @@ def multivar_normal(L, num_nodes):
 		zeta = np.transpose(zeta)
 		w_tild = np.dot(L, zeta) #vector
 		return w_tild
+	
 def noise(L, samples, num_nodes):
-		""" takes multiple samples from multivariate normal distribution with covariance matrix whith cholisky factor, L
+		""" Takes multiple samples from multivariate normal distribution with covariance matrix whith Cholesky factor, L
 		"""
 		noise = []
+
 		for i in range(samples):
 			noise.append(multivar_normal(L, num_nodes))
+
 		return np.transpose(noise)
 
-
-def sim(sample, myModel, numSteps = 5, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 1):
+def sim(sample, myModel, numSteps = 400, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 1, noise_mode = 2):
+	
 	print("Peridynamic Simulation -- Starting")
-
+	
+	# MPI stuff
+	comm = MPI.COMM_WORLD
+	rank = comm.Get_rank()
+	comm_Size = comm.Get_size()
+	
 	u = []
 	damage = []
 	# Setup broken flag
@@ -125,38 +133,81 @@ def sim(sample, myModel, numSteps = 5, sigma = 1e-5, loadRate = 0.00001, dt = 1e
 			lhsLocal.append(i)
 		elif(bnd > 0):
 			rhsLocal.append(i)
-	# Number of nodes
+			
+
+	# TODO: Tidy up this bit of the code
+	
+	# Total number of nodes
 	nnodes = myModel.nnodes
+	
 	# Amplification factor
 	sigma = 1e-4
-	# Covariance matrix
-	#M = myModel.COVARIANCE
-	#Create L matrix
-	#TODO: epsilon, numerical trick so that M is positive semi definite
-	#epsilon = 1e-4
-	# Sample a random vector
-	I = np.identity(nnodes)
-	M_tild = I; #M + np.multiply(epsilon, I)
-	M_tild = np.multiply(pow(sigma, 2), M_tild)
-	L = np.linalg.cholesky(M_tild)
 	
-	# For debugging 27/12 write the timestep 0
-	vtu.writeParallel("U_" + str(0),myModel.comm, myModel.numlocalNodes, myModel.coords[myModel.l2g,:], damage[0], u[0][myModel.l2g,:])
+	# Covariance matrix
+	K = myModel.K
+	
+	# Cholesky decomposition of K
+	C = myModel.C
 	
 	
 	for t in range(1, numSteps):
 		time += dt;
 		# Communicate Ghost particles to required processors
 		u[t-1] = myModel.communicateGhostParticles(u[t-1])
+		
 		damage.append(np.zeros(myModel.numlocalNodes))
 		broken, damage[t] = myModel.checkBonds(u[t-1], broken, damage[t-1])
-		f = myModel.computebondForce(u[t-1], broken)
+		f = myModel.computebondForceNew(u[t-1], broken)
+		
 		# Simple Euler update of the Solution + Add the Stochastic Random Noise
-
 		u.append(np.zeros((myModel.nnodes, 3)))
 		
-		# The nodes that are in myModel.l2g only are updated, i.e. nodes for each process
-		u[t][myModel.l2g,:] = u[t-1][myModel.l2g,:] + dt * f +  0.0 * np.random.normal(loc = 0.0, scale = sigma, size = (myModel.numlocalNodes, 3))
+		# Depending on the type of noise we are adding (tbc as maths develops)
+		if noise_mode == 0:
+			
+			u[t][myModel.l2g,:] = u[t-1][myModel.l2g,:] + dt * f[myModel.l2g]
+			
+		elif noise_mode == 1:
+			
+			u[t][myModel.l2g,:] = u[t-1][myModel.l2g,:] + dt * f[myModel.l2g] +  np.random.normal(loc = 0.0, scale = sigma, size = (myModel.numlocalNodes, 3))
+			
+		elif noise_mode == 2:
+			# TODO doesn't seem to be working, either really slow or idling
+			# Generate the noise vector.
+			# for the case when it is NOT independent
+			
+			#initializing variables. mpi4py requires that we pass numpy objects.
+			noise_vector = np.zeros((myModel.nnodes, 3))
+			force_vector = np.zeros((myModel.nnodes, 3))
+
+			# Communication
+			if rank ==0:
+				# Full bond force vector is required for generating forcing term,
+				# as force term is a linear combination of all other forces
+				
+				f = myModel.communicateGhostParticles(f)
+				
+				# Calculate force_vector, using linear combination 
+				force_vector = np.dot(K, f)
+				
+				# noise term
+				noise_vector = noise(C, 3, nnodes)
+				local_noise_vector = noise_vector[myModel.l2g]
+				
+				comm.Send(noise_vector, tag = 1)
+				comm.Send(force_vector, tag = 2)
+				
+			else:
+			
+				# Receieve the noise vector
+				
+				comm.Recv(noise_vector, source = 0, tag = 1)
+				comm.Recv(force_vector, source = 0, tag = 2)
+				
+				local_noise_vector = noise_vector[myModel.l2g]
+				local_force_vector = force_vector[myModel.l2g]
+				
+			u[t][myModel.l2g,:] = u[t-1][myModel.l2g,:] + dt * local_force_vector + local_noise_vector #exponential length squared kernel
 
 		# Apply boundary conditions
 
@@ -178,4 +229,5 @@ def main():
 	no_samples = 1
 	for s in range(no_samples):
 		sim(s,thisModel)
+  
 main()

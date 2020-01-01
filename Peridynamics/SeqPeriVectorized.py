@@ -133,7 +133,7 @@ class SeqModel:
 				
 
 	def setConn(self, horizon):
-		""" sets the sparse connectivity matrix, should only ever be called once
+		""" Sets the sparse connectivity matrix, should only ever be called once
 		"""
 		# Initiate connectivity matrix as non sparse
 		conn = np.zeros((self.nnodes, self.nnodes))
@@ -151,7 +151,6 @@ class SeqModel:
 					elif (self.isCrack(self.coords[i,:], self.coords[j,:]) == False):
 						conn[i, j] = 1
 						
-					
 		# Initial bond damages
 		count = np.sum(conn, axis =0)
 		self.family = np.sum(conn_0, axis=0)
