@@ -131,7 +131,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 
 
-def sim(sample, myModel, numSteps = 100, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 10):
+def sim(sample, myModel, numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 10):
 	print("Peridynamic Simulation -- Starting")
 	
 	#myModel.setConnPar(0.1) # May only need to set connectivity matrix up for each node
@@ -201,9 +201,7 @@ def sim(sample, myModel, numSteps = 100, numSamples = 1, sigma = 1e-5, loadRate 
 		u.append(np.zeros((nnodes, 3)))
 		
 		# The nodes that are in myModel.l2g only are updated, i.e. nodes for each process
-		u[t][myModel.l2g,:] = u[t-1][myModel.l2g,:] + dt*f # + noise terms
-		#u[t] = u[t-1][myModel.l2g,:] + dt * f #+ np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
-		#u[t] = u[t-1][myModel.l2g,:] + dt * np.dot(K,f) + noise(L, 3, nnodes) #exponential length squared kernel
+		u[t][myModel.l2g,:] = u[t-1][myModel.l2g,:] + dt*f[myModel.l2g,:] # + noise terms
 
 		# Apply boundary conditions
 		u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))

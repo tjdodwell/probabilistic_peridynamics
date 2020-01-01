@@ -126,6 +126,7 @@ class ParModel:
 		self.l2g = [] # local to global index list
 		self.g2l = [] # global to local index list
 		localCount = 0
+		localplusghostCount = 0
 		for i in range(0, self.nnodes): # for each of the particles
 			self.g2l.append(-1)
 			if(myRank == int(self.partition[i])): # particle belongs to this processor
@@ -133,6 +134,7 @@ class ParModel:
 				self.net[localCount].setId(i)
 				self.net[localCount].setCoord(self.coords[i])
 				localCount += 1
+				localplusghostCount += 1
 				self.l2g.append(i)
 				self.g2l[i] = localCount
 			else: # This is the case where particle lives on another process but is in a neighouring subdomain, so may be in family
@@ -156,6 +158,8 @@ class ParModel:
 			if myRank == 0:
 				assert int(totalNodes[0]) == self.nnodes
 			self.comm.Barrier()
+			
+		
 	
 		# Not ideal for now - but do on all processors over all elements - saves dealing with boundary cases
 		#def setVolume(self): # superseded by setNetwork
@@ -204,32 +208,57 @@ class ParModel:
 		tmpGhost = []
 		#tmpGhostProcessors = [] # Assigned but never used?
 		# For each local cell loop over each set of local particles
-		for i in range(0, self.numlocalNodes): # For each of the local nodes
-			
-			#tmp = [] # temporary list
-			globalId_i = self.net[i].id
-			
-			for j in range(0, self.numlocalNodes): # For each node in the same partition
-				globalId_j = self.net[j].id # j is also in the set of local nodes
-				# Loop over local nodes in same partition
-				if globalId_i != globalId_j: # do not fill diagonals
-					if(func.l2(self.coords[globalId_i,:], self.coords[globalId_j,:]) < horizon):
-						conn_0[globalId_i,globalId_j] = 1
-						conn_0[globalId_j,globalId_i] = 1
-						if (self.isCrack(self.coords[globalId_i,:], self.coords[globalId_j,:]) == False):
-							conn[globalId_i, globalId_j] = 1
-							conn[globalId_j, globalId_i] = 1
-							
-			for k in range(0, len(self.neighbour_ids)): # loop over nodes in the nearest neighbour partitions
-				globalId_k = self.neighbour_ids[k] # k is in the set of nearest neighbour nodes
-				if(func.l2(self.coords[globalId_k,:], self.coords[globalId_k,:]) < horizon):
-					conn_0[globalId_i,globalId_k] = 1 # needed? There is definately an issue here
-					conn_0[globalId_k,globalId_i] = 1
-					if (self.isCrack(self.coords[globalId_i,:], self.coords[globalId_k,:]) == False):
-						#connGhost[i, k] = 1
-						tmpGhost.append(globalId_k)
-						conn[globalId_i, globalId_k] = 1
-						conn[globalId_k, globalId_i] = 1
+		
+		# Check if nodes are connected, but only if it is a local node or ghost particle
+		# This may take a while
+		for i in range(0, self.nnodes):		
+			for j in range(0, self.nnodes):
+				bool1 = bool2 = -1
+				# if at least one of these nodes is in the local partition
+				if i in self.l2g:
+					bool1 = True
+				if j in self.l2g:
+					bool2 = True
+				
+				bool3 = bool1 or bool2
+				if bool3:
+					
+					if(func.l2(self.coords[i,:], self.coords[j,:]) < horizon):
+						conn_0[i, j] = 1
+						if i == j:
+							pass # do not fill diagonal
+						elif (self.isCrack(self.coords[i,:], self.coords[j,:]) == False):
+							conn[i, j] = 1
+		print('Here')		
+		
+# =============================================================================
+# 		for i in range(0, self.numlocalNodes): # For each of the local nodes
+# 			
+# 			#tmp = [] # temporary list
+# 			globalId_i = self.net[i].id
+# 			
+# 			for j in range(0, self.numlocalNodes): # For each node in the same partition
+# 				globalId_j = self.net[j].id # j is also in the set of local nodes
+# 				# Loop over local nodes in same partition
+# 				if globalId_i != globalId_j: # do not fill diagonals
+# 					if(func.l2(self.coords[globalId_i,:], self.coords[globalId_j,:]) < horizon):
+# 						conn_0[globalId_i,globalId_j] = 1
+# 						conn_0[globalId_j,globalId_i] = 1
+# 						if (self.isCrack(self.coords[globalId_i,:], self.coords[globalId_j,:]) == False):
+# 							conn[globalId_i, globalId_j] = 1
+# 							conn[globalId_j, globalId_i] = 1
+# 							
+# 			for k in range(0, len(self.neighbour_ids)): # loop over nodes in the nearest neighbour partitions
+# 				globalId_k = self.neighbour_ids[k] # k is in the set of nearest neighbour nodes
+# 				if(func.l2(self.coords[globalId_k,:], self.coords[globalId_k,:]) < horizon):
+# 					conn_0[globalId_i,globalId_k] = 1 # needed? There is definately an issue here
+# 					conn_0[globalId_k,globalId_i] = 1
+# 					if (self.isCrack(self.coords[globalId_i,:], self.coords[globalId_k,:]) == False):
+# 						#connGhost[i, k] = 1
+# 						tmpGhost.append(globalId_k)
+# 						conn[globalId_i, globalId_k] = 1
+# 						conn[globalId_k, globalId_i] = 1
+# =============================================================================
 		
 		# Initial bond damages
 		count = np.sum(conn, axis =0)
@@ -237,6 +266,7 @@ class ParModel:
 		damage = np.divide((self.family - count), self.family)
 		damage.resize(self.nnodes)
 		
+		print('Here2')
 		# return damage for our local nodes only
 		damage_local = np.zeros(self.numlocalNodes)
 		
@@ -250,7 +280,7 @@ class ParModel:
 			print('time, t = 0')
 			print(np.max(damage_local), 'max_damage')
 			print(np.min(damage_local), 'min_damage')
-		
+		print('Here3')
 		# Lower triangular - count bonds only once
 		# make diagonal values 0
 		conn = np.tril(conn, -1)
@@ -317,7 +347,7 @@ class ParModel:
 						self.comm.Recv(tmpNumpy, source = i, tag = 2)
 						self.IdListGhostRequests_send.append(tmpNumpy)
 				self.comm.Barrier()
-	
+			print('Here 4')
 			if(self.testCode): # for writing the Ghost information to file
 				data = [] # Dirty hack as my vtkWriter only works for lists for scalar variables
 				for i in range(0, self.nnodes):
@@ -674,12 +704,15 @@ class ParModel:
 		
 		for i in range(self.nnodes): # and also ghost particles? yes, so need to include ghost particles in this
 			row = self.conn_0.getrow(i)
-			
-			rows.extend(row.indices)
-			cols.extend(np.full((row.nnz), i))
-			data_x.extend(np.full((row.nnz), U[i, 0]))
-			data_y.extend(np.full((row.nnz), U[i, 1]))
-			data_z.extend(np.full((row.nnz), U[i, 2]))
+			if row.nnz == 0:
+				pass
+			else:
+				# could be a problem here if there is nothing in the row?
+				rows.extend(row.indices)
+				cols.extend(np.full((row.nnz), i))
+				data_x.extend(np.full((row.nnz), U[i, 0]))
+				data_y.extend(np.full((row.nnz), U[i, 1]))
+				data_z.extend(np.full((row.nnz), U[i, 2]))
 # =============================================================================
 # 		for i in range(self.numlocalNodes): # and also ghost particles? yes, so need to include ghost particles in this
 #             # get the the l2g index 
@@ -923,10 +956,5 @@ class ParModel:
 		if self.v:	
 			print('time taken to compute bond force was {}'.format(-st + time.time()))
 		
-		# Want to return simply the local node forces
-		F_local = np.zeros((self.numlocalNodes,3))
-		for i in range(self.numlocalNodes):
-			globalId_i = self.net[i].id
-			F_local[i] = F[globalId_i]
 		
-		return F_local
+		return F
