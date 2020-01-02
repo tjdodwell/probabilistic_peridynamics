@@ -11,39 +11,38 @@ sys.path.insert(1, '../../PostProcessing')
 sys.path.insert(1, '../../FEM')
 
 import PeriParticle as peri
-from ParPeriVectorized import ParModel as MODEL
+from OpenCLPeriVectorized import SeqModel as MODEL
 import numpy as np
 import scipy.stats as sp
 import vtk as vtk
-import vtu as vtu
 import time
-from mpi4py import MPI
+from timeit import default_timer as timer
 
-#import grid as fem
+import pyopencl as cl
+
+import grid as fem
 
 
-class simpleSquare(MODEL): # Should I pass comm into the arguments here
+class simpleSquare(MODEL):
 
 	# A User defined class for a particular problem which defines all necessary parameters
 
-	def __init__(self, comm):
+	def __init__(self, context):
 		
 		# verbose
 		self.v = True
-		
 		self.dim = 2
-		
-		# domain decomposition and mpi stuff
-		self.comm = comm
-		self.partitionType = 1 # hard coded for now!
-		self.plotPartition = 1
-		self.testCode = 1
 
 		self.meshFileName = 'test.msh'
+
 		self.meshType = 2
 		self.boundaryType = 1
 		self.numBoundaryNodes = 2
 		self.numMeshNodes = 3
+		
+		# OpenCL stuff
+		self.context = context
+		self.queue = cl.CommandQueue(context)
 
 		# Material Parameters from classical material model
 		self.horizon = 0.1
@@ -53,13 +52,12 @@ class simpleSquare(MODEL): # Should I pass comm into the arguments here
 		self.crackLength = 0.3
 
 		self.readMesh(self.meshFileName)
-		self.setNetwork(self.horizon)
-		#self.setVolume() # SS by setNetwork
+		self.setVolume()
 		
 		self.lhs = []
 		self.rhs = []
 
-		# Find the Boundary maybe only needs to be done on one process then communicated in send recv?
+		# Find the Boundary
 		for i in range(0, self.nnodes):
 			bnd = self.findBoundary(self.coords[i][:])
 			if (bnd < 0):
@@ -67,22 +65,20 @@ class simpleSquare(MODEL): # Should I pass comm into the arguments here
 			elif (bnd > 0):
 				(self.rhs).append(i)
 
-# =============================================================================
-# 		# Build Finite Element Grid Overlaying particles
-# 		myGrid = fem.Grid()
-# 
-# 		self.L = []
-# 		self.X0  = [0.0, 0.0] # bottom left
-# 		self.nfem = []
-# 
-# 		for i in range(0, self.dim):
-# 			self.L.append(np.max(self.coords[:,i]))
-# 			self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
-# 
-# 		myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
-# 
-# 		self.p_localCoords, self.p2e = myGrid.particletoCell_structured(self.coords[:,:self.dim])
-# =============================================================================
+		# Build Finite Element Grid Overlaying particles
+		myGrid = fem.Grid()
+
+		self.L = []
+		self.X0  = [0.0, 0.0] # bottom left
+		self.nfem = []
+
+		for i in range(0, self.dim):
+			self.L.append(np.max(self.coords[:,i]))
+			self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
+
+		myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
+
+		self.p_localCoords, self.p2e = myGrid.particletoCell_structured(self.coords[:,:self.dim])
 
 	def findBoundary(self,x):
 		# Function which markes constrain particles
@@ -134,8 +130,8 @@ def noise(L, samples, num_nodes):
 def sim(sample, myModel, numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate = 0.00001, dt = 1e-3, print_every = 10):
 	print("Peridynamic Simulation -- Starting")
 	
-	#myModel.setConnPar(0.1) # May only need to set connectivity matrix up for each node
-	myModel.setH() # it is here.
+	myModel.setConn(0.1)
+	myModel.setH()
 
 	u = []
 
@@ -144,24 +140,10 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate 
 
 	u.append(np.zeros((myModel.nnodes, 3)))
 
-	damage.append(np.zeros(myModel.numlocalNodes))
+	damage.append(np.zeros(myModel.nnodes))
 
-	verb = 0
-	if(myModel.comm.Get_rank()):
-		verb = 1
-	
-	# Need to sort this out - but hack for now need local boundary ids
-	lhsLocal = []
-	rhsLocal = []
-	
-	for i in range(0, myModel.numlocalNodes):
-		# The boundary
-		bnd = myModel.findBoundary(myModel.coords[myModel.l2g[i],:])
-		if bnd < 0:
-			lhsLocal.append(i)
-		elif bnd > 0:
-			rhsLocal.append(i)
-	
+
+	verb = 1
 
 	tim = 0.0;
 
@@ -178,7 +160,6 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate 
 	# Start the clock
 	st = time.time()
 	
-	
 	for t in range(1, numSteps):
 		
 		tim += dt;
@@ -187,11 +168,10 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate 
 			print("Time step = " + str(t) + ", Wall clock time for last time step= " + str(time.time() - st))
 		
 		st = time.time()
-		
-		# Communicate Ghost particles to required processors
-		#u[t-1] = myModel.communicateGhostParticles(u[t-1])
-		gt = time.time()
-		damage.append(np.zeros(myModel.numlocalNodes))
+		# Compute the force with displacement u[t-1]
+
+		damage.append(np.zeros(nnodes))
+
 
 		myModel.calcBondStretch(u[t-1])
 		damage[t] = myModel.checkBonds()
@@ -200,8 +180,9 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate 
 		# Simple Euler update of the Solution + Add the Stochastic Random Noise
 		u.append(np.zeros((nnodes, 3)))
 		
-		# The nodes that are in myModel.l2g only are updated, i.e. nodes for each process
-		u[t][myModel.l2g,:] = u[t-1][myModel.l2g,:] + dt*f # + noise terms
+
+		u[t] = u[t-1] + dt * f #+ np.random.normal(loc = 0.0, scale = sigma, size = (myModel.nnodes, 3)) #Brownian Noise
+		#u[t] = u[t-1] + dt * np.dot(K,f) + noise(C, 3, nnodes) #exponential length squared kernel
 
 		# Apply boundary conditions
 		u[t][myModel.lhs,1:3] = np.zeros((len(myModel.lhs),2))
@@ -210,9 +191,9 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate 
 		u[t][myModel.lhs,0] = -0.5 * t * loadRate * np.ones(len(myModel.rhs))
 		u[t][myModel.rhs,0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
 
-		if(t % print_every == 0) :
-			vtu.writeParallel("U_" + str(t),myModel.comm, myModel.numlocalNodes, myModel.coords[myModel.l2g,:], damage[t], u[t][myModel.l2g,:])			
-		print('Timestep {} time to communicate ghost particles {} s '.format(t, gt - st))
+		if(verb==1 and t % print_every == 0) :
+			vtk.write("U_"+"t"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
+			
 		print('Timestep {} complete in {} s '.format(t, time.time() - st))
 	return vtk.write("U_"+"sample"+str(sample)+".vtk","Solution time step = "+str(t), myModel.coords, damage[t], u[t])
 
@@ -220,15 +201,13 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, sigma = 1e-5, loadRate 
 
 
 def main():
-	""" Stochastic Peridynamics, samples multiple stable states (fully formed cracks)
+	""" Stochastic Peridynamics, takes multiple stable states (fully formed cracks)
 	"""
-	comm = MPI.COMM_WORLD
-	rank = comm.Get_rank()
-	comm_Size = comm.Get_size()
-	st = time.time()
-	thisModel = simpleSquare(comm)
+	st =  time.time()	
+	context = cl.create_some_context()
+	thisModel = simpleSquare(context)
 	no_samples = 1
 	for s in range(no_samples):
-		sim(s, thisModel)
-	print('TOTAL TIME REQUIRED FOR PROCESS {} WAS {}s'.format(rank, time.time() - st))
+		sim(s,thisModel)
+	print('TOTAL TIME REQUIRED {}'.format(time.time() - st))
 main()

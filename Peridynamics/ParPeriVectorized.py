@@ -147,7 +147,6 @@ class ParModel:
 		
 		self.numlocalNodes = localCount # Store the number of particles directly in subdomains
 		
-		self.localCoords = np.zeros((self.numlocalNodes, 3))
 		
 		if(self.testCode):
 			# Check that no nodes have to be lost or added by bug
@@ -228,8 +227,7 @@ class ParModel:
 						if i == j:
 							pass # do not fill diagonal
 						elif (self.isCrack(self.coords[i,:], self.coords[j,:]) == False):
-							conn[i, j] = 1
-		print('Here')		
+							conn[i, j] = 1	
 		
 # =============================================================================
 # 		for i in range(0, self.numlocalNodes): # For each of the local nodes
@@ -266,7 +264,6 @@ class ParModel:
 		damage = np.divide((self.family - count), self.family)
 		damage.resize(self.nnodes)
 		
-		print('Here2')
 		# return damage for our local nodes only
 		damage_local = np.zeros(self.numlocalNodes)
 		
@@ -280,17 +277,16 @@ class ParModel:
 			print('time, t = 0')
 			print(np.max(damage_local), 'max_damage')
 			print(np.min(damage_local), 'min_damage')
-		print('Here3')
 		# Lower triangular - count bonds only once
 		# make diagonal values 0
-		conn = np.tril(conn, -1)
+		#conn = np.tril(conn, -1) #TODO
 		
 		# Convert to sparse matrix
 		self.conn = sparse.csr_matrix(conn)
 		self.conn_0 = sparse.csr_matrix(conn_0)
 		
 		# need to eliminate zeros?
-		#self.conn.eliminate_zeros()
+		self.conn.eliminate_zeros()
 		
 		if self.v:
 			print('self.conn is', self.conn)
@@ -347,7 +343,7 @@ class ParModel:
 						self.comm.Recv(tmpNumpy, source = i, tag = 2)
 						self.IdListGhostRequests_send.append(tmpNumpy)
 				self.comm.Barrier()
-			print('Here 4')
+		
 			if(self.testCode): # for writing the Ghost information to file
 				data = [] # Dirty hack as my vtkWriter only works for lists for scalar variables
 				for i in range(0, self.nnodes):
@@ -366,7 +362,7 @@ class ParModel:
 				for i in range(0, self.numlocalNodes):
 					x[i,:] = self.coords[self.l2g[i],:]
 					data_local.append(data[self.l2g[i]])
-				print('data_local length', len(data_local), 'numlocalnodes', self.numlocalNodes, 'data length', len(data), 'l2g length', len(self.l2g))
+				#print('data_local length', len(data_local), 'numlocalnodes', self.numlocalNodes, 'data length', len(data), 'l2g length', len(self.l2g))
 				#vtu.writeParallel("GhostInformation", self.comm, self.numlocalNodes, x, data_local, np.zeros((self.numlocalNodes, 3)))
 				#vtk.write("GhostInformation_send" + str(myRank) + ".vtk", "Partition", self.coords, data, np.zeros((self.nnodes,3)))
 					   
@@ -667,7 +663,7 @@ class ParModel:
 		
 		K_tild = np.multiply(pow(nu, 2), K_tild)
 		
-		self.L = np.linalg.cholesky(K_tild)
+		self.C = np.linalg.cholesky(K_tild)
 		
 	
 		if self.H_x0.shape != self.H_y0.shape or self.H_x0.shape != self.H_z0.shape:
@@ -702,7 +698,7 @@ class ParModel:
 		
 		cols, rows, data_x, data_y, data_z = [], [], [], [], []
 		
-		for i in range(self.nnodes): # and also ghost particles? yes, so need to include ghost particles in this
+		for i in range(self.nnodes):
 			row = self.conn_0.getrow(i)
 			if row.nnz == 0:
 				pass
@@ -880,7 +876,7 @@ class ParModel:
 		# Bond damages
 		
 		# Using lower triangular connectivity matrix, so just mirror it for bond damage calc
-		temp = self.conn + self.conn.transpose()
+		temp = self.conn #+ self.conn.transpose() #TODO
 # =============================================================================
 # 		count = temp.sum(axis = 0)
 # 		damage = np.divide((self.family - count), self.family)
@@ -920,7 +916,7 @@ class ParModel:
 		force_normd[self.conn.nonzero()] = sparse.csr_matrix(self.strain[self.conn.nonzero()]/self.L[self.conn.nonzero()])
 		
         # Make lower triangular into full matrix
-		force_normd = force_normd + force_normd.transpose()
+		force_normd = force_normd #+ force_normd.transpose() #TODO
 		
 		
 		# Multiply by the direction and scale of each bond (just trigonometry, we have already scaled for bond length in step 2)
@@ -956,5 +952,9 @@ class ParModel:
 		if self.v:	
 			print('time taken to compute bond force was {}'.format(-st + time.time()))
 		
+		F_local = np.zeros((self.numlocalNodes, 3))
+		for i in range(self.numlocalNodes):
+			globalId_i = self.net[i].id
+			F_local[i] = F[globalId_i]
 		
-		return F
+		return F_local
