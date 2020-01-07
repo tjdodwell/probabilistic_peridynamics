@@ -43,23 +43,23 @@ class simpleSquare(MODEL):
 		self.numMeshNodes = 3
 		
 		# Material Parameters from classical material model
-		self.PD_HORIZON = 0.1
-		self.PD_K = 0.05
-		self.PD_S0 = 0.005
-		self.PD_E = (18.00 * self.PD_K) / (np.pi * np.power(self.PD_HORIZON, 4))
+		self.PD_HORIZON = np.double(0.1)
+		self.PD_K = np.double(0.05)
+		self.PD_S0 = np.double(0.005)
+		self.PD_E = np.double((18.00 * self.PD_K) / (np.pi * np.power(self.PD_HORIZON, 4)))
 		
 		# User input parameters
-		self.loadRate = 0.00001
-		self.crackLength = 0.3
-		self.dt = 1e-3
+		self.loadRate = np.double(0.00001)
+		self.crackLength = np.double(0.3)
+		self.dt = np.double(1e-3)
 		
 		# These parameters will eventually be passed to model via command line arguments
 
 		self.readMesh(self.meshFileName)
 		
 		# No. coordinate dimensions
-		self.DPN = 3
-		self.PD_DPN_NODE_NO = int(self.DPN * self.nnodes)
+		self.DPN = np.intc(3)
+		self.PD_DPN_NODE_NO = np.intc(self.DPN * self.nnodes)
 		
 		st = time.time()
 		self.setNetwork(self.PD_HORIZON)
@@ -67,19 +67,19 @@ class simpleSquare(MODEL):
 		#self.setH() #TODO
 		self.setVolume()
 		
-		self.bctypes = np.zeros((self.nnodes, self.DPN))
-		self.bcvalues = np.zeros((self.nnodes, self.DPN))
+		self.bctypes = np.zeros((self.nnodes, self.DPN), dtype= np.intc)
+		self.bcvalues = np.zeros((self.nnodes, self.DPN), dtype= np.double)
 		
 		# Find the boundary nodes
 		# -1 for LHS and +1 for RHS. 0 for NOT ON BOUNDARY
 		for i in range(0, self.nnodes):
 			bnd = self.findBoundary(self.coords[i][:])
-			self.bctypes[i, 0] = bnd
-			self.bctypes[i, 1] = bnd
-			self.bctypes[i, 2] = bnd
-			self.bcvalues[i, 0] = bnd*0.5 * self.dt * self.loadRate
-			self.bcvalues[i, 1] = bnd*0.5 * self.dt * self.loadRate
-			self.bcvalues[i, 2] = bnd*0.5 * self.dt * self.loadRate
+			self.bctypes[i, 0] = np.intc((bnd))
+			self.bctypes[i, 1] = np.intc((bnd))
+			self.bctypes[i, 2] = np.intc((bnd))
+			self.bcvalues[i, 0] = np.float64(bnd* 0.5 * self.loadRate)
+			self.bcvalues[i, 1] = np.float64(bnd* 0.5 * self.loadRate)
+			self.bcvalues[i, 2] = np.float64(bnd* 0.5 * self.loadRate)
 
 # =============================================================================
 # 		# Build Finite Element Grid Overlaying particles
@@ -202,6 +202,7 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, print_every = 10):
 	print(h_horizons)
 	print("shape horizons lengths", h_horizons_lengths.shape)
 	print("shape horizons lengths", h_horizons.shape)
+	print(h_horizons_lengths.dtype, "dtype")
 	
 	# Nodal coordinates
 	h_coords = myModel.coords
@@ -211,6 +212,7 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, print_every = 10):
 	h_bcvalues = myModel.bcvalues
 	
 	print("bctypes", h_bctypes)
+	print("bcvalues", h_bcvalues)
 	
 	# Nodal volumes
 	h_vols = myModel.V
@@ -274,9 +276,9 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, print_every = 10):
 		if(t % print_every == 0):
 			cl_kernel_calculate_damage(queue, (myModel.nnodes,), None, d_damage, d_horizons, d_horizons_lengths)
 			cl.enqueue_copy(queue, h_damage, d_damage)
-			cl.enqueue_copy(queue, h_un, d_un)
+			cl.enqueue_copy(queue, h_un1, d_un1)
 			print("Sum of all damage is", np.sum(h_damage))
-			vtk.write("U_"+"t"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, h_damage, h_un)
+			vtk.write("U_"+"t"+str(t)+".vtk","Solution time step = "+str(t), myModel.coords, h_damage, h_un1)
 			
 		print('Timestep {} complete in {} s '.format(t, time.time() - st))
 		

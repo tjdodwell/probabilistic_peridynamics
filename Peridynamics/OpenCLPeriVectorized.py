@@ -36,12 +36,14 @@ class SeqModel:
 # =============================================================================
 		
 		
-		# Material Parameters from classical material model
-		self.horizon = 0.1
-		self.kscalar = 0.05
-		self.s00 = 0.05
-
-		self.c = 18.0 * self.kscalar / (np.pi * (self.horizon**4));
+# =============================================================================
+# 		# Material Parameters from classical material model
+# 		self.horizon = 0.1
+# 		self.kscalar = 0.05
+# 		self.s00 = 0.05
+# 
+# 		self.c = 18.0 * self.kscalar / (np.pi * (self.horizon**4));
+# =============================================================================
 
 
 		if (self.dim == 3):
@@ -117,7 +119,7 @@ class SeqModel:
 		
 	def setVolume(self):
 
-		self.V = np.zeros(self.nnodes)
+		V = np.zeros(self.nnodes, dtype=np.float64)
 
 		for ie in range(0,self.nelem):
 
@@ -139,14 +141,14 @@ class SeqModel:
 				val *= 0.5 * ( (xj - xi) * (yk - yi) - (xk - xi) * (yj - yi) )
 
 			for j in range(0,n.size):
-				self.V[int(n[j])] += val
-				
+				V[int(n[j])] += val
+		self.V = V.astype(np.float64)
 	def setNetwork(self, horizon):
 		""" Sets the family matrix, and converts to horizons matrix. Calculates horizons_lengths
 		"""
 		
 		self.family = []
-		self.horizons_lengths = np.empty(self.nnodes)
+		self.horizons_lengths = np.zeros(self.nnodes, dtype= int)
 		
 		for i in range(0, self.nnodes):
 			tmp = []
@@ -156,19 +158,19 @@ class SeqModel:
 					l2_sqr = func.l2_sqr(self.coords[i,:], self.coords[j,:])
 					if(np.sqrt(l2_sqr) < horizon):
 						tmp.append(j)
-			self.family.append(np.zeros(len(tmp), dtype = int))
-			self.horizons_lengths[i] = len(tmp)
+			self.family.append(np.zeros(len(tmp), dtype = np.intc))
+			self.horizons_lengths[i] = np.intc((len(tmp)))
 			for j in range(0, len(tmp)):
-				self.family[i][j] = int(tmp[j])
+				self.family[i][j] = np.intc((tmp[j]))
 				
-		self.MAX_HORIZON_LENGTH = len(max(self.family,key = lambda x: len(x)))
+		self.MAX_HORIZON_LENGTH = np.intc((len(max(self.family,key = lambda x: len(x)))))
 				
 
-		horizons = -1 * np.ones([self.nnodes,self.MAX_HORIZON_LENGTH], dtype = int)
+		horizons = -1 * np.ones([self.nnodes,self.MAX_HORIZON_LENGTH])
 		for i,j in enumerate(self.family):
 			horizons[i][0:len(j)] = j
 		
-		self.horizons = horizons
+		self.horizons = horizons.astype(np.intc)
 		
 		
 		# Initiate crack
@@ -178,7 +180,7 @@ class SeqModel:
 			for k in range(0, self.MAX_HORIZON_LENGTH):
 				j = self.horizons[i][k]
 				if(self.isCrack(self.coords[i,:], self.coords[j,:])):
-					self.horizons[i][k] = int(-1)
+					self.horizons[i][k] = np.intc(-1)
 					
 					
 		
