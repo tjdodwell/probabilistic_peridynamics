@@ -45,7 +45,7 @@ followed by
 python3 main_vectorized.py
 `
 
-to run an inital bare bones OpenCL implementation (currently not working)
+to run an inital bare bones OpenCL implementation
 
 Install the dependencies (tutorial above).
 
