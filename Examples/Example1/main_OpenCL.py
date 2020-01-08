@@ -66,7 +66,7 @@ class simpleSquare(MODEL):
 		self.setVolume()
 		
 		self.bctypes = np.zeros((self.nnodes, self.DPN), dtype= np.intc)
-		self.bcvalues = np.zeros((self.nnodes, self.DPN), dtype= np.float32)
+		self.bcvalues = np.zeros((self.nnodes, self.DPN), dtype= np.float64)
 		
 		# Find the boundary nodes
 		# -1 for LHS and +1 for RHS. 0 for NOT ON BOUNDARY
@@ -75,7 +75,7 @@ class simpleSquare(MODEL):
 			self.bctypes[i, 0] = np.intc((bnd))
 			self.bctypes[i, 1] = np.intc((bnd))
 			self.bctypes[i, 2] = np.intc((bnd))
-			self.bcvalues[i, 0] = np.float32(bnd* 0.5 * self.loadRate)
+			self.bcvalues[i, 0] = np.float64(bnd* 0.5 * self.loadRate)
 
 
 	def findBoundary(self,x):
@@ -197,12 +197,12 @@ def sim(sample, myModel, numSteps = 1000, numSamples = 1, print_every = 10):
 	h_vols = myModel.V
 	
 	# Displacements
-	h_un = np.empty((myModel.nnodes, myModel.DPN), dtype = np.float32)
-	h_un1 = np.empty((myModel.nnodes, myModel.DPN), dtype = np.float32)
+	h_un = np.empty((myModel.nnodes, myModel.DPN), dtype = np.float64)
+	h_un1 = np.empty((myModel.nnodes, myModel.DPN), dtype = np.float64)
 	
 	# Forces
-	h_udn = np.empty((myModel.nnodes, myModel.DPN), dtype = np.float32)
-	h_udn1 = np.empty((myModel.nnodes, myModel.DPN), dtype = np.float32)
+	h_udn = np.empty((myModel.nnodes, myModel.DPN), dtype = np.float64)
+	h_udn1 = np.empty((myModel.nnodes, myModel.DPN), dtype = np.float64)
 	
 	# Damage vector
 	h_damage = np.empty(myModel.nnodes).astype(np.float32)
