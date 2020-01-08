@@ -16,9 +16,7 @@ import numpy as np
 import scipy.stats as sp
 import vtk as vtk
 import time
-from timeit import default_timer as timer
 
-import grid as fem
 
 import pyopencl as cl
 import sys
@@ -64,7 +62,7 @@ class simpleSquare(MODEL):
 		st = time.time()
 		self.setNetwork(self.PD_HORIZON)
 		print("Building horizons took {} seconds. Horizon length: {}".format((time.time() -st), self.MAX_HORIZON_LENGTH))
-		#self.setH() #TODO
+		#self.setH() # Will further optimise the code, TODO
 		self.setVolume()
 		
 		self.bctypes = np.zeros((self.nnodes, self.DPN), dtype= np.intc)
@@ -81,22 +79,6 @@ class simpleSquare(MODEL):
 			self.bcvalues[i, 1] = np.float64(bnd* 0.5 * self.loadRate)
 			self.bcvalues[i, 2] = np.float64(bnd* 0.5 * self.loadRate)
 
-# =============================================================================
-# 		# Build Finite Element Grid Overlaying particles
-# 		myGrid = fem.Grid()
-# 
-# 		self.L = []
-# 		self.X0  = [0.0, 0.0] # bottom left
-# 		self.nfem = []
-# 
-# 		for i in range(0, self.dim):
-# 			self.L.append(np.max(self.coords[:,i]))
-# 			self.nfem.append(int(np.ceil(self.L[i] / self.PD_HORIZON)))
-# 
-# 		myGrid.buildStructuredMesh2D(self.L,self.nfem,self.X0,1)
-# 
-# 		self.p_localCoords, self.p2e = myGrid.particletoCell_structured(self.coords[:,:self.dim])
-# =============================================================================
 
 	def findBoundary(self,x):
 		# Function which markes constrain particles
@@ -254,23 +236,22 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, print_every = 10):
 	cl_kernel_check_bonds.set_scalar_arg_dtypes([None, None, None])
 	cl_kernel_calculate_damage.set_scalar_arg_dtypes([None, None, None])
 	
-# =============================================================================
-# 	# Covariance matrix
-# 	K = myModel.K
-# 	
-# 	# Cholesky decomposition of K
-# 	C = myModel.C
-# =============================================================================
-	
 	global_size = int(myModel.DPN * myModel.nnodes)
 	cl_kernel_initial_values(queue, (global_size,), None, d_un, d_udn)
 	for t in range(1, numSteps):
 		
 		st = time.time()
 		
+		# Time marching Part 1
 		cl_kernel_time_marching_1(queue, (myModel.DPN * myModel.nnodes,), None, d_un1, d_un, d_udn, d_bctypes, d_bcvalues)
+		
+		# Time marching Part 2
 		cl_kernel_time_marching_2(queue, (myModel.nnodes,), None, d_un1, d_udn1, d_vols, d_horizons, d_coords)
+		
+		# Time marching Part 3
 		cl_kernel_time_marching_3(queue, (myModel.DPN * myModel.nnodes,), None, d_un, d_udn, d_un1, d_udn1)
+		
+		# Check for broken bonds
 		cl_kernel_check_bonds(queue, (myModel.nnodes, myModel.MAX_HORIZON_LENGTH), None, d_horizons, d_un, d_coords)
 		
 		if(t % print_every == 0):
@@ -293,7 +274,7 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, print_every = 10):
 
 
 def main():
-	""" Stochastic Peridynamics, takes multiple stable states (fully formed cracks)
+	""" Peridynamics Example of a 2D plate under displacement loading, with an pre-existing crack defect.
 	"""
 
 	st =  time.time()	
