@@ -53,7 +53,7 @@ class SeqModel:
 
 			line = f.readline()
 			self.nnodes = int(line.strip())
-			self.coords = np.zeros((self.nnodes, 3), dtype=np.float64)
+			self.coords = np.zeros((self.nnodes, 3), dtype=np.float32)
 
 			for i in range(0, self.nnodes):
 				iline += 1
@@ -100,7 +100,7 @@ class SeqModel:
 		
 	def setVolume(self):
 
-		V = np.zeros(self.nnodes, dtype=np.float64)
+		V = np.zeros(self.nnodes, dtype=np.float32)
 
 		for ie in range(0,self.nelem):
 
@@ -123,7 +123,7 @@ class SeqModel:
 
 			for j in range(0,n.size):
 				V[int(n[j])] += val
-		self.V = V.astype(np.float64)
+		self.V = V.astype(np.float32)
 		
 		
 	def setNetwork(self, horizon):

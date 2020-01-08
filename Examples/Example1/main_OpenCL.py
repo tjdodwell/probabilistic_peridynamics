@@ -66,7 +66,7 @@ class simpleSquare(MODEL):
 		self.setVolume()
 		
 		self.bctypes = np.zeros((self.nnodes, self.DPN), dtype= np.intc)
-		self.bcvalues = np.zeros((self.nnodes, self.DPN), dtype= np.double)
+		self.bcvalues = np.zeros((self.nnodes, self.DPN), dtype= np.float32)
 		
 		# Find the boundary nodes
 		# -1 for LHS and +1 for RHS. 0 for NOT ON BOUNDARY
@@ -75,9 +75,7 @@ class simpleSquare(MODEL):
 			self.bctypes[i, 0] = np.intc((bnd))
 			self.bctypes[i, 1] = np.intc((bnd))
 			self.bctypes[i, 2] = np.intc((bnd))
-			self.bcvalues[i, 0] = np.float64(bnd* 0.5 * self.loadRate)
-			self.bcvalues[i, 1] = np.float64(bnd* 0.5 * self.loadRate)
-			self.bcvalues[i, 2] = np.float64(bnd* 0.5 * self.loadRate)
+			self.bcvalues[i, 0] = np.float32(bnd* 0.5 * self.loadRate)
 
 
 	def findBoundary(self,x):
@@ -144,7 +142,7 @@ def noise(L, samples, num_nodes):
 		return np.transpose(noise)
 
 
-def sim(sample, myModel, numSteps = 400, numSamples = 1, print_every = 10):
+def sim(sample, myModel, numSteps = 1000, numSamples = 1, print_every = 10):
 	print("Peridynamic Simulation -- Starting")
 	
 	# Initializing OpenCL
@@ -193,24 +191,39 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, print_every = 10):
 	h_bctypes = myModel.bctypes
 	h_bcvalues = myModel.bcvalues
 	
-	print("bctypes", h_bctypes)
-	print("bcvalues", h_bcvalues)
+	print(h_bctypes)
 	
 	# Nodal volumes
 	h_vols = myModel.V
 	
 	# Displacements
-	h_un = np.empty((myModel.nnodes, myModel.DPN))
-	h_un1 = np.empty((myModel.nnodes, myModel.DPN))
+	h_un = np.empty((myModel.nnodes, myModel.DPN), dtype = np.float32)
+	h_un1 = np.empty((myModel.nnodes, myModel.DPN), dtype = np.float32)
 	
 	# Forces
-	h_udn = np.empty((myModel.nnodes, myModel.DPN))
-	h_udn1 = np.empty((myModel.nnodes, myModel.DPN))
+	h_udn = np.empty((myModel.nnodes, myModel.DPN), dtype = np.float32)
+	h_udn1 = np.empty((myModel.nnodes, myModel.DPN), dtype = np.float32)
 	
 	# Damage vector
 	h_damage = np.empty(myModel.nnodes).astype(np.float32)
 	
+	
+	# Print the dtypes
+	
+	print("horizons", h_horizons.dtype)
+	print("horizons_length", h_horizons_lengths.dtype)
+	print("bctypes", h_bctypes.dtype)
+	print("bcvalues", h_bcvalues.dtype)
+	print("coords", h_coords.dtype)
+	print("vols", h_vols.dtype)
+	print("un", h_un.dtype)
+	print("un1", h_un1.dtype)
+	print("udn", h_udn.dtype)
+	print("udn1", h_udn1.dtype)
+	print("damage", h_damage.dtype)
+	
 	# Build OpenCL data structures
+	
 	
 	# Read only
 	d_coords = cl.Buffer(context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=h_coords)
@@ -230,7 +243,7 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, print_every = 10):
 	d_damage = cl.Buffer(context, cl.mem_flags.WRITE_ONLY, h_damage.nbytes)
 	# Initialize kernel parameters
 	cl_kernel_initial_values.set_scalar_arg_dtypes([None, None])
-	cl_kernel_time_marching_1.set_scalar_arg_dtypes([None, None, None, None, None])
+	cl_kernel_time_marching_1.set_scalar_arg_dtypes([None, None, None, None, None, None])
 	cl_kernel_time_marching_2.set_scalar_arg_dtypes([None, None, None, None, None])
 	cl_kernel_time_marching_3.set_scalar_arg_dtypes([None, None, None, None])
 	cl_kernel_check_bonds.set_scalar_arg_dtypes([None, None, None])
@@ -243,16 +256,16 @@ def sim(sample, myModel, numSteps = 400, numSamples = 1, print_every = 10):
 		st = time.time()
 		
 		# Time marching Part 1
-		cl_kernel_time_marching_1(queue, (myModel.DPN * myModel.nnodes,), None, d_un1, d_un, d_udn, d_bctypes, d_bcvalues)
+		cl_kernel_time_marching_1(queue, (myModel.DPN * myModel.nnodes,), None, d_udn1, d_un1, d_un, d_udn, d_bctypes, d_bcvalues)
 		
 		# Time marching Part 2
-		cl_kernel_time_marching_2(queue, (myModel.nnodes,), None, d_un1, d_udn1, d_vols, d_horizons, d_coords)
+		cl_kernel_time_marching_2(queue, (myModel.nnodes,), None, d_udn1, d_un1, d_vols, d_horizons, d_coords)
 		
 		# Time marching Part 3
-		cl_kernel_time_marching_3(queue, (myModel.DPN * myModel.nnodes,), None, d_un, d_udn, d_un1, d_udn1)
+		#cl_kernel_time_marching_3(queue, (myModel.DPN * myModel.nnodes,), None, d_un, d_udn, d_un1, d_udn1)
 		
 		# Check for broken bonds
-		cl_kernel_check_bonds(queue, (myModel.nnodes, myModel.MAX_HORIZON_LENGTH), None, d_horizons, d_un, d_coords)
+		cl_kernel_check_bonds(queue, (myModel.nnodes, myModel.MAX_HORIZON_LENGTH), None, d_horizons, d_un1, d_coords)
 		
 		if(t % print_every == 0):
 			cl_kernel_calculate_damage(queue, (myModel.nnodes,), None, d_damage, d_horizons, d_horizons_lengths)

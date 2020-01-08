@@ -19,15 +19,15 @@
 
 __kernel void
 	InitialValues(
-		__global double *Un,
-		__global double *Udn
+		__global float *Un,
+		__global float *Udn
     )
 {
 	const int i = get_global_id(0);
 
 	if (i < PD_DPN_NODE_NO)
 	{
-		Un[i] = Udn[i] = 0.00;
+		Un[i] = Udn[i] = 0.00f;
 	}
 }
 
@@ -37,18 +37,19 @@ __kernel void
 // Update un1
 __kernel void
 	TimeMarching1(
-        __global double *Un1,
-		__global double const *Un,
-		__global double const *Udn,
+        __global float const *Udn1,
+        __global float *Un1,
+		__global float const *Un,
+		__global float const *Udn,
 		__global int const *BCTypes,
-		__global double const *BCValues
+		__global float const *BCValues
 	)
 {
 	const int i = get_global_id(0);
 
 	if (i < PD_DPN_NODE_NO)
 	{
-		Un1[i] = BCTypes[i] == 0 ? Un[i] + PD_DT * (Udn[i]) : Un[i] + BCValues[i];
+		Un1[i] = BCTypes[i] == 0 ? Un1[i] + PD_DT * (Udn1[i]) : Un1[i] + BCValues[i] ;
 	}
 }
 
@@ -56,18 +57,18 @@ __kernel void
 // Calculate force using un1
 __kernel void
 	TimeMarching2(
-        __global double *Udn1,
-        __global double const *Un1,
-        __global double const *Vols,
+        __global float *Udn1,
+        __global float const *Un1,
+        __global float const *Vols,
 		__global int const *Horizons,
-		__global double const *Nodes
+		__global float const *Nodes
 	)
 {
 	const int i = get_global_id(0);
 
-	double f0 = 0.00;
-	double f1 = 0.00;
-	double f2 = 0.00;
+	float f0 = 0.00f;
+	float f1 = 0.00f;
+	float f2 = 0.00f;
 
 	if (i < PD_NODE_NO)
 	{
@@ -77,28 +78,28 @@ __kernel void
 
 			if (n != -1)
 			{
-				const double xi_x = Nodes[DPN * n + 0] - Nodes[DPN * i + 0];  // Optimize later, doesn't need to be done every time
-				const double xi_y = Nodes[DPN * n + 1] - Nodes[DPN * i + 1];
-				const double xi_z = Nodes[DPN * n + 2] - Nodes[DPN * i + 2];
+				const float xi_x = Nodes[DPN * n + 0] - Nodes[DPN * i + 0];  // Optimize later, doesn't need to be done every time
+				const float xi_y = Nodes[DPN * n + 1] - Nodes[DPN * i + 1];
+				const float xi_z = Nodes[DPN * n + 2] - Nodes[DPN * i + 2];
 
 
-				const double xi_eta_x = Un1[DPN * n + 0] - Un1[DPN * i + 0] + xi_x;
-				const double xi_eta_y = Un1[DPN * n + 1] - Un1[DPN * i + 1] + xi_y;
-				const double xi_eta_z = Un1[DPN * n + 2] - Un1[DPN * i + 2] + xi_z;
+				const float xi_eta_x = Un1[DPN * n + 0] - Un1[DPN * i + 0] + xi_x;
+				const float xi_eta_y = Un1[DPN * n + 1] - Un1[DPN * i + 1] + xi_y;
+				const float xi_eta_z = Un1[DPN * n + 2] - Un1[DPN * i + 2] + xi_z;
 
-				const double xi = sqrt(xi_x * xi_x + xi_y * xi_y + xi_z * xi_z);
-				const double y = sqrt(xi_eta_x * xi_eta_x + xi_eta_y * xi_eta_y + xi_eta_z * xi_eta_z);
-                const double y_xi = y - xi;
+				const float xi = sqrt(xi_x * xi_x + xi_y * xi_y + xi_z * xi_z);
+				const float y = sqrt(xi_eta_x * xi_eta_x + xi_eta_y * xi_eta_y + xi_eta_z * xi_eta_z);
+                const float y_xi = y - xi;
 
-				const double cx = xi_eta_x / y;
-				const double cy = xi_eta_y / y;
-				const double cz = xi_eta_z / y;
+				const float cx = xi_eta_x / y;
+				const float cy = xi_eta_y / y;
+				const float cz = xi_eta_z / y;
 
-				const double _E = PD_E;
-                const double _A = Vols[i];
-				const double _L = xi;
+				const float _E = PD_E;
+                const float _A = Vols[i];
+				const float _L = xi;
 
-				const double _EAL = -_E * _A / _L;
+				const float _EAL = _E * _A / _L;
 
                 f0 += _EAL * cx * y_xi;
                 f1 += _EAL * cy * y_xi;
@@ -115,10 +116,10 @@ __kernel void
 // Update Un
 __kernel void
 	TimeMarching3(
-		__global double *restrict Un,
-		__global double *restrict Udn,
-		__global double const *restrict Un1,
-		__global double const *restrict Udn1
+		__global float *restrict Un,
+		__global float *restrict Udn,
+		__global float const *restrict Un1,
+		__global float const *restrict Udn1
 	)
 {
 	const int i = get_global_id(0);
@@ -135,8 +136,8 @@ __kernel void
 __kernel void
 	CheckBonds(
 		__global int *Horizons,
-		__global double const *Un,
-		__global double const *Nodes
+		__global float const *Un1,
+		__global float const *Nodes
 	)
 {
 	const int i = get_global_id(0);
@@ -148,18 +149,18 @@ __kernel void
 
 		if (n != -1)
 		{
-			const double xi_x = Nodes[DPN * n + 0] - Nodes[DPN * i + 0];  // Optimize later
-			const double xi_y = Nodes[DPN * n + 1] - Nodes[DPN * i + 1];
-			const double xi_z = Nodes[DPN * n + 2] - Nodes[DPN * i + 2];
+			const float xi_x = Nodes[DPN * n + 0] - Nodes[DPN * i + 0];  // Optimize later
+			const float xi_y = Nodes[DPN * n + 1] - Nodes[DPN * i + 1];
+			const float xi_z = Nodes[DPN * n + 2] - Nodes[DPN * i + 2];
 
-			const double xi_eta_x = Un[DPN * n + 0] - Un[DPN * i + 0] + xi_x;
-			const double xi_eta_y = Un[DPN * n + 1] - Un[DPN * i + 1] + xi_y;
-			const double xi_eta_z = Un[DPN * n + 2] - Un[DPN * i + 2] + xi_z;
+			const float xi_eta_x = Un1[DPN * n + 0] - Un1[DPN * i + 0] + xi_x;
+			const float xi_eta_y = Un1[DPN * n + 1] - Un1[DPN * i + 1] + xi_y;
+			const float xi_eta_z = Un1[DPN * n + 2] - Un1[DPN * i + 2] + xi_z;
 
-			const double xi = sqrt(xi_x * xi_x + xi_y * xi_y + xi_z * xi_z);
-			const double y = sqrt(xi_eta_x * xi_eta_x + xi_eta_y * xi_eta_y + xi_eta_z * xi_eta_z);
+			const float xi = sqrt(xi_x * xi_x + xi_y * xi_y + xi_z * xi_z);
+			const float y = sqrt(xi_eta_x * xi_eta_x + xi_eta_y * xi_eta_y + xi_eta_z * xi_eta_z);
 
-			const double s = (y - xi) / xi;
+			const float s = (y - xi) / xi;
 
 			// Check for state of the bond
 
