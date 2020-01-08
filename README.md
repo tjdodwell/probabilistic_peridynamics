@@ -47,11 +47,9 @@ python3 main_vectorized.py
 
 to run an inital bare bones OpenCL implementation (currently not working)
 
-`
-Install the dependencies (tutorial above)
-`
+Install the dependencies (tutorial above).
 
-from main directory
+From main directory
 
 `
 cd Examples/Example1
@@ -61,23 +59,18 @@ followed by
 
 `
 python3 main_OpenCL.py
+`
+
+. Kernels that can be found in 
 
 `
-kernels that can be found in 'opencl_peridynamics.cl'
+opencl_peridynamics.cl
+`
+
 based from the C++ source code by F.Mossaiby et. al
 https://figshare.com/articles/Source_code_for_OpenCL_Peridynamics_solver/5097385
 from the article
 https://www.sciencedirect.com/science/article/pii/S0898122117304030
-
-`
-cd Examples/Example1
-`
-
-followed by
-
-`
-python3 main_vectorized.py
-`
 
 ## Defining Geometry of problem
 
