@@ -40,7 +40,7 @@ localCoords, p2e = myGrid.particletoCell_structured(particleCoords)
 
 print(p2e)
 
-print(localCoords)
+#print(localCoords)
 
 # comm = MPI.COMM_WORLD
 # rank = comm.Get_rank()

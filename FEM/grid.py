@@ -43,6 +43,8 @@ class Grid:
 
     def buildStructuredMesh2D(self,L,n,X0,order,verb = 2):
 
+        self.X0 = X0
+
         if(verb > 0):
             print('Building Structured 2D Grid!')
 
@@ -138,3 +140,26 @@ class Grid:
                 phi[3] = (1 - x[0]) * (1 + x[1])
                 phi *= 0.25
         return phi
+
+    def findBoundaryElements(self, boundaryId, overlap):
+
+        elementList = []
+
+        # BoundaryId Define 4 boundaries of a rectangular domain 0 - LHS the counts anti-clockwise
+        for ie in range(0, self.nel): # Loop over all elements
+
+            nodesInElement = self.connectivity[ie][:]
+            if(boundaryId == 0)
+                if(self.coords[nodesInElement[1]][0] < self.X[0] + overlap):
+                    elementList.append(ie)
+            if(boundaryId == 1)
+                if(self.coords[nodesInElement[2]][1] < self.X[1] + overlap):
+                    elementList.append(ie)
+            if(boundaryId == 2)
+                if(self.coords[nodesInElement[0]][0] > self.X[0] + self.L[0] - overlap):
+                    elementList.append(ie)
+            if(boundaryId == 3)
+                if(self.coords[nodesInElement[1]][1] > self.X[1] + self.L[1] - overlap):
+                    elementList.append(ie)
+
+        return elementList
