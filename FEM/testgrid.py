@@ -40,6 +40,12 @@ localCoords, p2e = myGrid.particletoCell_structured(particleCoords)
 
 print(p2e)
 
+elementList, particleList = myGrid.findBoundaryElements(0, 0.15)
+
+print(elementList)
+print("*****")
+print(particleList)
+
 #print(localCoords)
 
 # comm = MPI.COMM_WORLD

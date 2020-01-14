@@ -45,6 +45,8 @@ class Grid:
 
         self.X0 = X0
 
+        self.L = L
+
         if(verb > 0):
             print('Building Structured 2D Grid!')
 
@@ -110,6 +112,9 @@ class Grid:
         numParticles = int(pCoords[:].size / self.dim)
         p2e = np.zeros(numParticles, dtype = int)
         p_localCoords = np.zeros((numParticles, self.dim))
+
+        self.e2p = [ [] for i in range(self.nel) ]
+
         for i in range(0, numParticles): # For each of the particles
             xP = pCoords[i][:] # particle coordinates
             id = np.zeros(self.dim)
@@ -122,11 +127,15 @@ class Grid:
                 p2e[i] = self.n[0] * id[1] + id[0]
             else:
                 p2e[i] = self.n[0] * self.n[1] * id[1] + self.n[0] * id[1] + id[0]
+
+            self.e2p[p2e[i]].append(i)
             # Global to local mapping is easy as structured grid / domain
             node = self.connectivity[p2e[i]][:]
             for j in range(0,self.dim):
                 p_localCoords[i][j] = (2 / self.h[j]) * (pCoords[i][j] - (self.coords[node[0]][j] + 0.5 * self.h[j]))
 
+        self.particle_localCoords = p_localCoords
+        self.p2e = p2e
 
         return p_localCoords, p2e
 
@@ -144,22 +153,29 @@ class Grid:
     def findBoundaryElements(self, boundaryId, overlap):
 
         elementList = []
+        particleList = []
 
         # BoundaryId Define 4 boundaries of a rectangular domain 0 - LHS the counts anti-clockwise
         for ie in range(0, self.nel): # Loop over all elements
 
+            num_bnd_elem = len(elementList) # Record number of current elements in the list
+
             nodesInElement = self.connectivity[ie][:]
-            if(boundaryId == 0)
-                if(self.coords[nodesInElement[1]][0] < self.X[0] + overlap):
+            if(boundaryId == 0):
+                if(self.coords[nodesInElement[1]][0] < self.X0[0] + overlap):
                     elementList.append(ie)
-            if(boundaryId == 1)
-                if(self.coords[nodesInElement[2]][1] < self.X[1] + overlap):
+            if(boundaryId == 1):
+                if(self.coords[nodesInElement[2]][1] < self.X0[1] + overlap):
                     elementList.append(ie)
-            if(boundaryId == 2)
-                if(self.coords[nodesInElement[0]][0] > self.X[0] + self.L[0] - overlap):
+            if(boundaryId == 2):
+                if(self.coords[nodesInElement[0]][0] > self.X0[0] + self.L[0] - overlap):
                     elementList.append(ie)
-            if(boundaryId == 3)
-                if(self.coords[nodesInElement[1]][1] > self.X[1] + self.L[1] - overlap):
+            if(boundaryId == 3):
+                if(self.coords[nodesInElement[1]][1] > self.X0[1] + self.L[1] - overlap):
                     elementList.append(ie)
 
-        return elementList
+            if(num_bnd_elem < len(elementList)): # Element has been added
+                # "ie" is the index of the new element added, ad
+                particleList.append(self.e2p[ie])
+
+        return elementList, particleList
