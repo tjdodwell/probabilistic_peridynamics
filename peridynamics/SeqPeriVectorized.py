@@ -1,5 +1,5 @@
 import numpy as np
-import periFunctions as func
+from . import periFunctions as func
 from scipy import sparse
 import warnings
 import time

@@ -10,7 +10,7 @@ def write(fileName, title, coords, Damage, U):
 
     for i in range(0, len(coords[:, 0])):
         tmp = coords[i, :]
-        f.write("%f %f %f \n" % tmp[0], tmp[1], tmp[2])
+        f.write("{:f} {:f} {:f}\n".format(tmp[0], tmp[1], tmp[2]))
 
     f.write("\n")
     f.write("POINT_DATA %s\n" % int(len(Damage)))
@@ -23,6 +23,6 @@ def write(fileName, title, coords, Damage, U):
     f.write("VECTORS displacements double \n")
     for i in range(0, len(U[:, 0])):
         tmp = U[i, :]
-        f.write("%f %f %f \n" % tmp[0], tmp[1], tmp[2])
+        f.write("{:f} {:f} {:f}\n".format(tmp[0], tmp[1], tmp[2]))
 
     f.close()

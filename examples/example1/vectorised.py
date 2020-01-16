@@ -4,11 +4,11 @@ Created on Sun Nov 10 16:25:58 2019
 @author: Ben Boys
 """
 
-from SeqPeriVectorized import SeqModel as MODEL
+from peridynamics.SeqPeriVectorized import SeqModel as MODEL
 import numpy as np
-import vtk as vtk
+from peridynamics.post_processing import vtk
 import time
-import grid as fem
+from peridynamics.fem import grid as fem
 
 
 class simpleSquare(MODEL):
