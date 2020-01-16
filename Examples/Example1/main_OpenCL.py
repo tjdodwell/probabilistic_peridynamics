@@ -72,9 +72,9 @@ class simpleSquare(MODEL):
         # Function which marks constrain particles
         # Does not live on a boundary
         bnd = 0
-        if (x[0] < 1.5 * self.PD_HORIZON):
+        if x[0] < 1.5 * self.PD_HORIZON:
             bnd = -1
-        elif (x[0] > 1.0 - 1.5 * self.PD_HORIZON):
+        elif x[0] > 1.0 - 1.5 * self.PD_HORIZON:
             bnd = 1
         return bnd
 
@@ -82,11 +82,11 @@ class simpleSquare(MODEL):
         output = 0
         p1 = x
         p2 = y
-        if(x[0] > y[0]):
+        if x[0] > y[0]:
             p2 = x
             p1 = y
         # 1e-6 makes it fall one side of central line of particles
-        if ((p1[0] < 0.5 + 1e-6) and (p2[0] > 0.5 + 1e-6)):
+        if p1[0] < 0.5 + 1e-6 and p2[0] > 0.5 + 1e-6:
             # draw a straight line between them
             m = (p2[1] - p1[1]) / (p2[0] - p1[0])
             c = p1[1] - m * p1[0]
