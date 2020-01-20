@@ -121,7 +121,7 @@ def noise(L, samples, num_nodes):
     return np.transpose(noise)
 
 
-def sim(sample, myModel=simpleSquare(), numSteps=400, numSamples=1, sigma=1e-5,
+def sim(myModel=simpleSquare(), numSteps=400,
         loadRate=0.00001, dt=1e-3, print_every=10):
     print("Peridynamic Simulation -- Starting")
 
@@ -136,7 +136,7 @@ def sim(sample, myModel=simpleSquare(), numSteps=400, numSamples=1, sigma=1e-5,
 
     damage.append(np.zeros(myModel.nnodes))
 
-    verb = 1
+    verb = 0
 
     tim = 0.0
 
@@ -182,18 +182,18 @@ def sim(sample, myModel=simpleSquare(), numSteps=400, numSamples=1, sigma=1e-5,
 
         print('Timestep {} complete in {} s '.format(t, time.time() - st))
 
-    return vtk.write("U_"+"sample"+str(sample)+".vtk",
-                     "Solution time step = "+str(t), myModel.coords, damage[t],
-                     u[t])
-
 
 def main():
     """
     Stochastic Peridynamics, takes multiple stable states (fully formed cracks)
     """
     st = time.time()
-    sim(1)
+    model = simpleSquare()
+    sim(model, numSteps=10)
     print('TOTAL TIME REQUIRED {}'.format(time.time() - st))
+    print(model.coords.shape)
+    print(model.coords)
+    np.save('refactor.npy', model.coords)
 
 
 if __name__ == "__main__":
