@@ -11,20 +11,13 @@ import pytest
 
 @pytest.fixture
 def simple_square():
-    path = pathlib.Path(__file__).parent.absolute()
+    mesh_file = pathlib.Path(__file__).parent.absolute() / "regression.msh"
 
     class simpleSquare(MODEL):
         def __init__(self):
             # verbose
             self.v = False
             self.dim = 2
-
-            self.meshFileName = path / 'regression.msh'
-
-            self.meshType = 2
-            self.boundaryType = 1
-            self.numBoundaryNodes = 2
-            self.numMeshNodes = 3
 
             # Material Parameters from classical material model
             self.horizon = 0.1
@@ -33,7 +26,7 @@ def simple_square():
 
             self.crackLength = 0.3
 
-            self.readMesh(self.meshFileName)
+            self.read_mesh(mesh_file)
             self.setVolume()
 
             self.lhs = []

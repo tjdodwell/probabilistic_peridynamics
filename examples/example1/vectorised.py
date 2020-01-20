@@ -4,11 +4,12 @@ Created on Sun Nov 10 16:25:58 2019
 @author: Ben Boys
 """
 
-from peridynamics.SeqPeriVectorized import SeqModel as MODEL
 import numpy as np
-from peridynamics.post_processing import vtk
-import time
+import pathlib
 from peridynamics.fem import grid as fem
+from peridynamics.post_processing import vtk
+from peridynamics.SeqPeriVectorized import SeqModel as MODEL
+import time
 
 
 class simpleSquare(MODEL):
@@ -20,13 +21,6 @@ class simpleSquare(MODEL):
         self.v = True
         self.dim = 2
 
-        self.meshFileName = 'test.msh'
-
-        self.meshType = 2
-        self.boundaryType = 1
-        self.numBoundaryNodes = 2
-        self.numMeshNodes = 3
-
         # Material Parameters from classical material model
         self.horizon = 0.1
         self.kscalar = 0.05
@@ -34,7 +28,8 @@ class simpleSquare(MODEL):
 
         self.crackLength = 0.3
 
-        self.readMesh(self.meshFileName)
+        mesh_file = pathlib.Path(__file__).parent.absolute() / "test.msh"
+        self.read_mesh(mesh_file)
         self.setVolume()
 
         self.lhs = []

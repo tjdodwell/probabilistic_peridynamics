@@ -1,5 +1,6 @@
-import numpy as np
 from . import periFunctions as func
+import meshio
+import numpy as np
 from scipy import sparse
 import warnings
 import time
@@ -36,67 +37,20 @@ class SeqModel:
             self.numBoundaryNodes = 3
             self.numMeshNodes = 4
 
-    def readMesh(self, fileName):
-        f = open(fileName, "r")
+    def read_mesh(self, mesh_file):
+        mesh = meshio.read(mesh_file)
 
-        if f.mode == "r":
-            iline = 0
+        # Get coordinates, encoded as mesh points
+        self.coords = mesh.points
+        self.nnodes = self.coords.shape[0]
 
-            # Read the Nodes in the Mesh First
-            findNodes = 0
-            while (findNodes == 0):
-                iline += 1
-                line = f.readline()
-                if line.strip() == '$Nodes':
-                    findNodes = 1
+        # Get connectivity, mesh triangle cells
+        self.connectivity = mesh.cells['triangle']
+        self.nelem = self.connectivity.shape[0]
 
-            line = f.readline()
-            self.nnodes = int(line.strip())
-            self.coords = np.zeros((self.nnodes, 3), dtype=np.float64)
-
-            for i in range(0, self.nnodes):
-                iline += 1
-                line = f.readline()
-                rowAsList = line.split()
-                self.coords[i][0] = rowAsList[1]
-                self.coords[i][1] = rowAsList[2]
-                self.coords[i][2] = rowAsList[3]
-
-            # This line will read $EndNodes - Could add assert on this
-            line = f.readline()
-            # This line will read $Elements
-            line = f.readline()
-
-            # Read the Elements from the mesh for the volume calculations
-            # connectivity
-
-            # This gives the total number of elements - but includes all types
-            # of elements
-            line = f.readline()
-            self.totalNel = int(line.strip())
-            self.connectivity = []
-            self.connectivity_bnd = []
-
-            for ie in range(0, self.totalNel):
-                iline += 1
-                line = f.readline()
-                rowAsList = line.split()
-
-                if int(rowAsList[1]) == self.boundaryType:
-                    tmp = np.zeros(self.dim)
-                    for k in range(0, self.dim):
-                        tmp[k] = int(rowAsList[5 + k]) - 1
-                    self.connectivity_bnd.append(tmp)
-
-                elif int(rowAsList[1]) == self.meshType:
-                    tmp = np.zeros(self.dim + 1)
-                    for k in range(0, self.dim + 1):
-                        tmp[k] = int(rowAsList[5 + k]) - 1
-                    self.connectivity.append(tmp)
-
-            self.nelem = len(self.connectivity)
-            self.nelem_bnd = len(self.connectivity_bnd)
-        f.close()
+        # Get boundary connectivity, mesh lines
+        self.connectivity_bnd = mesh.cells['line']
+        self.nelem_bnd = self.connectivity_bnd.shape[0]
 
     def setVolume(self):
         self.V = np.zeros(self.nnodes)
