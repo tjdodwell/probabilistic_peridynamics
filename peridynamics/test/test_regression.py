@@ -1,5 +1,6 @@
 """
-
+A simple regression test simulating a basic model for nine steps using the
+Euler integrator.
 """
 from ..SeqPeriVectorized import SeqModel as MODEL
 from ..fem import grid as fem
@@ -64,7 +65,7 @@ def simple_square():
                 self.coords[:, :self.dim])
 
         def findBoundary(self, x):
-            # Function which markes constrain particles
+            # Function which marks constrain particles
             # Does not live on a boundary
             bnd = 0
             if x[0] < 1.5 * self.horizon:
@@ -114,7 +115,7 @@ def test_regression(simple_square):
     tim = 0.
     dt = 1e-3
     load_rate = 0.00001
-    for t in range(1, 10):
+    for t in range(9):
         tim += dt
 
         # Compute the force with displacement u[t-1]
@@ -124,9 +125,8 @@ def test_regression(simple_square):
         damage[t] = model.checkBonds()
         f = model.computebondForce()
 
-        # Simple Euler update of the Solution + Add the Stochastic Random Noise
+        # Simple Euler update of the Solution
         u.append(np.zeros((nnodes, 3)))
-
         u[t] = u[t-1] + dt * f
 
         # Apply boundary conditions
