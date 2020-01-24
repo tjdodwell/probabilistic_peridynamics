@@ -11,7 +11,8 @@ import pytest
 
 @pytest.fixture
 def simple_square():
-    mesh_file = pathlib.Path(__file__).parent.absolute() / "regression.msh"
+    mesh_file = (
+        pathlib.Path(__file__).parent.absolute() / "data/example_mesh.msh")
 
     class simpleSquare(MODEL):
         def __init__(self):
@@ -130,5 +131,5 @@ def test_regression(simple_square):
         u[t][model.rhs, 0] = 0.5 * t * load_rate * np.ones(len(model.rhs))
 
     path = pathlib.Path(__file__).parent.absolute()
-    expected_coords = np.load(path / "regression_expected_output.npy")
+    expected_coords = np.load(path / "data/regression_expected_output.npy")
     assert np.all(model.coords == expected_coords)

@@ -9,7 +9,8 @@ import pytest
 
 @pytest.fixture
 def basic_model():
-    mesh_file = pathlib.Path(__file__).parent.absolute() / "regression.msh"
+    mesh_file = (
+        pathlib.Path(__file__).parent.absolute() / "data/example_mesh.msh")
     model = Model()
     model.read_mesh(mesh_file)
 
