@@ -1,4 +1,5 @@
 from . import periFunctions as func
+from collections import namedtuple
 import meshio
 import numpy as np
 from scipy import sparse
@@ -6,23 +7,24 @@ import warnings
 import time
 
 
+_MeshElements = namedtuple("MeshElements", ["connectivity", "boundary"])
+_mesh_elements_2d = _MeshElements(connectivity="triangle",
+                                  boundary="line")
+_mesh_elements_3d = _MeshElements(connectivity="tetrahedron",
+                                  boundary="triangle")
+
+
 class SeqModel:
-    def __init__(self):
-        # Scalars
+    def __init__(self, dimensions=2):
+        self.v = False
+        self.dimensions = dimensions
 
-        # self.nnodes defined when instance of readMesh called, cannot
-        # initialise any other matrix until we know the nnodes
-
-        # is this needed here, since it was put in MODEL class, simplesquare?
-        self.v = True
-        self.dim = 2
+        if dimensions == 2:
+            self.mesh_elements = _mesh_elements_2d
+        elif dimensions == 3:
+            self.mesh_elements = _mesh_elements_3d
 
         self.meshFileName = "test.msh"
-
-        self.meshType = 2
-        self.boundaryType = 1
-        self.numBoundaryNodes = 2
-        self.numMeshNodes = 3
 
         # Material Parameters from classical material model
         self.horizon = 0.1
@@ -30,12 +32,6 @@ class SeqModel:
         self.s00 = 0.05
 
         self.c = 18.0 * self.kscalar / (np.pi * (self.horizon**4))
-
-        if self.dim == 3:
-            self.meshType = 4
-            self.boundaryType = 2
-            self.numBoundaryNodes = 3
-            self.numMeshNodes = 4
 
     def read_mesh(self, mesh_file):
         mesh = meshio.read(mesh_file)
@@ -45,11 +41,11 @@ class SeqModel:
         self.nnodes = self.coords.shape[0]
 
         # Get connectivity, mesh triangle cells
-        self.connectivity = mesh.cells['triangle']
+        self.connectivity = mesh.cells[self.mesh_elements.connectivity]
         self.nelem = self.connectivity.shape[0]
 
         # Get boundary connectivity, mesh lines
-        self.connectivity_bnd = mesh.cells['line']
+        self.connectivity_bnd = mesh.cells[self.mesh_elements.boundary]
         self.nelem_bnd = self.connectivity_bnd.shape[0]
 
     def setVolume(self):
@@ -62,7 +58,7 @@ class SeqModel:
             val = 1. / n.size
 
             # Define area of element
-            if (self.dim == 2):
+            if (self.dimensions == 2):
                 xi = self.coords[int(n[0])][0]
                 yi = self.coords[int(n[0])][1]
                 xj = self.coords[int(n[1])][0]

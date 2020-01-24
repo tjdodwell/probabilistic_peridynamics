@@ -16,9 +16,7 @@ def simple_square():
 
     class simpleSquare(MODEL):
         def __init__(self):
-            # verbose
-            self.v = False
-            self.dim = 2
+            super().__init__()
 
             # Material Parameters from classical material model
             self.horizon = 0.1
@@ -49,14 +47,14 @@ def simple_square():
             self.X0 = [0.0, 0.0]
             self.nfem = []
 
-            for i in range(0, self.dim):
+            for i in range(0, self.dimensions):
                 self.L.append(np.max(self.coords[:, i]))
                 self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
 
             myGrid.buildStructuredMesh2D(self.L, self.nfem, self.X0, 1)
 
             self.p_localCoords, self.p2e = myGrid.particletoCell_structured(
-                self.coords[:, :self.dim])
+                self.coords[:, :self.dimensions])
 
         def findBoundary(self, x):
             # Function which marks constrain particles
