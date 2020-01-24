@@ -23,6 +23,8 @@ class SeqModel:
             self.mesh_elements = _mesh_elements_2d
         elif dimensions == 3:
             self.mesh_elements = _mesh_elements_3d
+        else:
+            raise DimensionalityError(dimensions)
 
         self.meshFileName = "test.msh"
 
@@ -461,3 +463,16 @@ class SeqModel:
                 )
 
         return F
+
+
+class DimensionalityError(Exception):
+    """
+    Raised when an invalid dimensionality argument used to construct a model
+    """
+    def __init__(self, dimensions):
+        message = (
+            f"The number of dimensions must be 2 or 3,"
+            " {dimensions} was given."
+            )
+
+        super().__init__(message)
