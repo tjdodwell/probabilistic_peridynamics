@@ -5,26 +5,17 @@ Euler integrator.
 from ..SeqPeriVectorized import SeqModel as MODEL
 from ..fem import grid as fem
 import numpy as np
-import pathlib
 import pytest
 
 
-@pytest.fixture
-def simple_square():
-    path = pathlib.Path(__file__).parent.absolute()
+@pytest.fixture(scope="module")
+def simple_square(data_path):
+    path = data_path
+    mesh_file = path / "example_mesh.msh"
 
     class simpleSquare(MODEL):
         def __init__(self):
-            # verbose
-            self.v = False
-            self.dim = 2
-
-            self.meshFileName = path / 'regression.msh'
-
-            self.meshType = 2
-            self.boundaryType = 1
-            self.numBoundaryNodes = 2
-            self.numMeshNodes = 3
+            super().__init__()
 
             # Material Parameters from classical material model
             self.horizon = 0.1
@@ -33,7 +24,7 @@ def simple_square():
 
             self.crackLength = 0.3
 
-            self.readMesh(self.meshFileName)
+            self.read_mesh(mesh_file)
             self.setVolume()
 
             self.lhs = []
@@ -55,14 +46,14 @@ def simple_square():
             self.X0 = [0.0, 0.0]
             self.nfem = []
 
-            for i in range(0, self.dim):
+            for i in range(0, self.dimensions):
                 self.L.append(np.max(self.coords[:, i]))
                 self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
 
             myGrid.buildStructuredMesh2D(self.L, self.nfem, self.X0, 1)
 
             self.p_localCoords, self.p2e = myGrid.particletoCell_structured(
-                self.coords[:, :self.dim])
+                self.coords[:, :self.dimensions])
 
         def findBoundary(self, x):
             # Function which marks constrain particles
@@ -97,7 +88,8 @@ def simple_square():
     return model
 
 
-def test_regression(simple_square):
+@pytest.fixture(scope="module")
+def regression(simple_square):
     model = simple_square
 
     model.setConn(0.1)
@@ -136,9 +128,35 @@ def test_regression(simple_square):
         u[t][model.lhs, 0] = -0.5 * t * load_rate * np.ones(len(model.rhs))
         u[t][model.rhs, 0] = 0.5 * t * load_rate * np.ones(len(model.rhs))
 
-    path = pathlib.Path(__file__).parent.absolute()
-    expected_displacements = np.load(path / "data/expected_displacements.npy")
-    expected_damage = np.load(path / "data/expected_damage.npy")
+    return model, u[t], damage[t]
 
-    assert np.all(u[t] == expected_displacements)
-    assert np.all(np.array(damage[t]) == expected_damage)
+
+class TestRegression:
+    def test_displacements(self, regression, data_path):
+        _, displacements, *_ = regression
+        path = data_path
+
+        expected_displacements = np.load(
+            path/"expected_displacements.npy"
+            )
+        assert np.all(displacements == expected_displacements)
+
+    def test_damage(self, regression, data_path):
+        _, _, damage = regression
+        path = data_path
+
+        expected_damage = np.load(
+            path/"expected_damage.npy"
+            )
+        assert np.all(np.array(damage) == expected_damage)
+
+    def test_mesh(self, regression, data_path, tmp_path):
+        model, displacements, damage = regression
+        path = data_path
+
+        mesh = tmp_path / "mesh.vtk"
+        model.write_mesh(mesh, damage, displacements)
+
+        expected_mesh = path / "expected_mesh.vtk"
+
+        assert mesh.read_bytes() == expected_mesh.read_bytes()

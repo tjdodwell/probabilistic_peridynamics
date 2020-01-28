@@ -4,11 +4,11 @@ Created on Sun Nov 10 16:25:58 2019
 @author: Ben Boys
 """
 
-from peridynamics.SeqPeriVectorized import SeqModel as MODEL
 import numpy as np
-from peridynamics.post_processing import vtk
-import time
+import pathlib
 from peridynamics.fem import grid as fem
+from peridynamics.SeqPeriVectorized import SeqModel as MODEL
+import time
 
 
 class simpleSquare(MODEL):
@@ -16,16 +16,10 @@ class simpleSquare(MODEL):
     # parameters
 
     def __init__(self):
+        super().__init__()
         # verbose
         self.v = True
         self.dim = 2
-
-        self.meshFileName = 'test.msh'
-
-        self.meshType = 2
-        self.boundaryType = 1
-        self.numBoundaryNodes = 2
-        self.numMeshNodes = 3
 
         # Material Parameters from classical material model
         self.horizon = 0.1
@@ -34,7 +28,8 @@ class simpleSquare(MODEL):
 
         self.crackLength = 0.3
 
-        self.readMesh(self.meshFileName)
+        mesh_file = pathlib.Path(__file__).parent.absolute() / "test.msh"
+        self.read_mesh(mesh_file)
         self.setVolume()
 
         self.lhs = []
@@ -136,7 +131,7 @@ def sim(myModel=simpleSquare(), numSteps=400,
 
     damage.append(np.zeros(myModel.nnodes))
 
-    verb = 0
+    verb = 1
 
     tim = 0.0
 
@@ -146,7 +141,7 @@ def sim(myModel=simpleSquare(), numSteps=400,
     # Start the clock
     st = time.time()
 
-    for t in range(1, numSteps):
+    for t in range(1, numSteps+1):
         tim += dt
 
         if verb > 0:
@@ -176,9 +171,7 @@ def sim(myModel=simpleSquare(), numSteps=400,
         u[t][myModel.rhs, 0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
 
         if verb == 1 and t % print_every == 0:
-            vtk.write("U_"+"t"+str(t)+".vtk",
-                      "Solution time step = "+str(t), myModel.coords,
-                      damage[t], u[t])
+            myModel.write_mesh("U_"+"t"+str(t)+".vtk", damage[t], u[t])
 
         print('Timestep {} complete in {} s '.format(t, time.time() - st))
 
@@ -191,9 +184,6 @@ def main():
     model = simpleSquare()
     sim(model, numSteps=10)
     print('TOTAL TIME REQUIRED {}'.format(time.time() - st))
-    print(model.coords.shape)
-    print(model.coords)
-    np.save('refactor.npy', model.coords)
 
 
 if __name__ == "__main__":

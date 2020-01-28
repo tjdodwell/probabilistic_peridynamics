@@ -1,27 +1,30 @@
-import numpy as np
 from . import periFunctions as func
+from collections import namedtuple
+import meshio
+import numpy as np
 from scipy import sparse
 import warnings
 import time
 
 
+_MeshElements = namedtuple("MeshElements", ["connectivity", "boundary"])
+_mesh_elements_2d = _MeshElements(connectivity="triangle",
+                                  boundary="line")
+_mesh_elements_3d = _MeshElements(connectivity="tetrahedron",
+                                  boundary="triangle")
+
+
 class SeqModel:
-    def __init__(self):
-        # Scalars
+    def __init__(self, dimensions=2):
+        self.v = False
+        self.dimensions = dimensions
 
-        # self.nnodes defined when instance of readMesh called, cannot
-        # initialise any other matrix until we know the nnodes
-
-        # is this needed here, since it was put in MODEL class, simplesquare?
-        self.v = True
-        self.dim = 2
-
-        self.meshFileName = "test.msh"
-
-        self.meshType = 2
-        self.boundaryType = 1
-        self.numBoundaryNodes = 2
-        self.numMeshNodes = 3
+        if dimensions == 2:
+            self.mesh_elements = _mesh_elements_2d
+        elif dimensions == 3:
+            self.mesh_elements = _mesh_elements_3d
+        else:
+            raise DimensionalityError(dimensions)
 
         # Material Parameters from classical material model
         self.horizon = 0.1
@@ -30,73 +33,47 @@ class SeqModel:
 
         self.c = 18.0 * self.kscalar / (np.pi * (self.horizon**4))
 
-        if self.dim == 3:
-            self.meshType = 4
-            self.boundaryType = 2
-            self.numBoundaryNodes = 3
-            self.numMeshNodes = 4
+    def read_mesh(self, mesh_file):
+        mesh = meshio.read(mesh_file)
 
-    def readMesh(self, fileName):
-        f = open(fileName, "r")
+        # Get coordinates, encoded as mesh points
+        self.coords = mesh.points
+        self.nnodes = self.coords.shape[0]
 
-        if f.mode == "r":
-            iline = 0
+        # Get connectivity, mesh triangle cells
+        self.connectivity = mesh.cells[self.mesh_elements.connectivity]
+        self.nelem = self.connectivity.shape[0]
 
-            # Read the Nodes in the Mesh First
-            findNodes = 0
-            while (findNodes == 0):
-                iline += 1
-                line = f.readline()
-                if line.strip() == '$Nodes':
-                    findNodes = 1
+        # Get boundary connectivity, mesh lines
+        self.connectivity_bnd = mesh.cells[self.mesh_elements.boundary]
+        self.nelem_bnd = self.connectivity_bnd.shape[0]
 
-            line = f.readline()
-            self.nnodes = int(line.strip())
-            self.coords = np.zeros((self.nnodes, 3), dtype=np.float64)
+    def write_mesh(self, filename, damage=None, displacements=None,
+                   file_format=None):
+        """
+        Write the model's nodes, connectivity and boundary to a mesh file. Also
+        write damage and displacements as points data.
 
-            for i in range(0, self.nnodes):
-                iline += 1
-                line = f.readline()
-                rowAsList = line.split()
-                self.coords[i][0] = rowAsList[1]
-                self.coords[i][1] = rowAsList[2]
-                self.coords[i][2] = rowAsList[3]
-
-            # This line will read $EndNodes - Could add assert on this
-            line = f.readline()
-            # This line will read $Elements
-            line = f.readline()
-
-            # Read the Elements from the mesh for the volume calculations
-            # connectivity
-
-            # This gives the total number of elements - but includes all types
-            # of elements
-            line = f.readline()
-            self.totalNel = int(line.strip())
-            self.connectivity = []
-            self.connectivity_bnd = []
-
-            for ie in range(0, self.totalNel):
-                iline += 1
-                line = f.readline()
-                rowAsList = line.split()
-
-                if int(rowAsList[1]) == self.boundaryType:
-                    tmp = np.zeros(self.dim)
-                    for k in range(0, self.dim):
-                        tmp[k] = int(rowAsList[5 + k]) - 1
-                    self.connectivity_bnd.append(tmp)
-
-                elif int(rowAsList[1]) == self.meshType:
-                    tmp = np.zeros(self.dim + 1)
-                    for k in range(0, self.dim + 1):
-                        tmp[k] = int(rowAsList[5 + k]) - 1
-                    self.connectivity.append(tmp)
-
-            self.nelem = len(self.connectivity)
-            self.nelem_bnd = len(self.connectivity_bnd)
-        f.close()
+        :arg str filename: Path of the file to write the mesh to.
+        :arg array optional damage: The damage of each node. Default is None.
+        :arg array optional displacments: An array with shape (nnodes, dim)
+            where each row is the displacment of a node. Default is None.
+        :arg str optional file_format: The file format of the mesh file to
+            write. Infered from ``filename`` if None. Default is None.
+        """
+        meshio.write_points_cells(
+            filename,
+            points=self.coords,
+            cells={
+                self.mesh_elements.connectivity: self.connectivity,
+                self.mesh_elements.boundary: self.connectivity_bnd
+                },
+            point_data={
+                "damage": damage,
+                "displacements": displacements
+                },
+            file_format=file_format
+            )
 
     def setVolume(self):
         self.V = np.zeros(self.nnodes)
@@ -108,7 +85,7 @@ class SeqModel:
             val = 1. / n.size
 
             # Define area of element
-            if (self.dim == 2):
+            if (self.dimensions == 2):
                 xi = self.coords[int(n[0])][0]
                 yi = self.coords[int(n[0])][1]
                 xj = self.coords[int(n[1])][0]
@@ -510,3 +487,16 @@ class SeqModel:
                 )
 
         return F
+
+
+class DimensionalityError(Exception):
+    """
+    Raised when an invalid dimensionality argument used to construct a model
+    """
+    def __init__(self, dimensions):
+        message = (
+            f"The number of dimensions must be 2 or 3,"
+            " {dimensions} was given."
+            )
+
+        super().__init__(message)
