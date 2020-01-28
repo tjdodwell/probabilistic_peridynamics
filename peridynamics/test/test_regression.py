@@ -107,7 +107,7 @@ def test_regression(simple_square):
     tim = 0.
     dt = 1e-3
     load_rate = 0.00001
-    for t in range(9):
+    for t in range(1, 11):
         tim += dt
 
         # Compute the force with displacement u[t-1]
@@ -129,5 +129,8 @@ def test_regression(simple_square):
         u[t][model.rhs, 0] = 0.5 * t * load_rate * np.ones(len(model.rhs))
 
     path = pathlib.Path(__file__).parent.absolute()
-    expected_coords = np.load(path / "data/regression_expected_output.npy")
-    assert np.all(model.coords == expected_coords)
+    expected_displacements = np.load(path / "data/expected_displacements.npy")
+    expected_damage = np.load(path / "data/expected_damage.npy")
+
+    assert np.all(u[t] == expected_displacements)
+    assert np.all(np.array(damage[t]) == expected_damage)
