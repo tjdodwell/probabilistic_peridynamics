@@ -50,7 +50,7 @@ def simple_square(data_path):
                 self.L.append(np.max(self.coords[:, i]))
                 self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
 
-            myGrid.buildStructuredMesh2D(self.L, self.nfem, self.X0, 1)
+            myGrid.buildStructuredMesh2D(self.L, self.nfem, self.X0)
 
             self.p_localCoords, self.p2e = myGrid.particletoCell_structured(
                 self.coords[:, :self.dimensions])
