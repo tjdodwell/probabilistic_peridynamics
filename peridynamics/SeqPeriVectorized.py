@@ -48,15 +48,16 @@ class SeqModel:
         self.connectivity_bnd = mesh.cells[self.mesh_elements.boundary]
         self.nelem_bnd = self.connectivity_bnd.shape[0]
 
-    def write_mesh(self, filename, damage, displacements, file_format=None):
+    def write_mesh(self, filename, damage=None, displacements=None,
+                   file_format=None):
         """
         Write the model's nodes, connectivity and boundary to a mesh file. Also
         write damage and displacements as points data.
 
         :arg str filename: Path of the file to write the mesh to.
-        :arg array damage: The damage of each node.
-        :arg array displacments: An array with shape (nnodes, dim) where each
-            row is the displacment of a node.
+        :arg array optional damage: The damage of each node. Default is None.
+        :arg array optional displacments: An array with shape (nnodes, dim)
+            where each row is the displacment of a node. Default is None.
         :arg str optional file_format: The file format of the mesh file to
             write. Infered from ``filename`` if None. Default is None.
         """
