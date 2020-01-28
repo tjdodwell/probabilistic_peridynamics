@@ -138,10 +138,9 @@ class SeqModel:
                     conn_0[i, j] = 1
                     if i == j:
                         # do not fill diagonal
-                        pass
-                    elif (self.isCrack(self.coords[i, :], self.coords[j, :])
-                          is False
-                          ):
+                        continue
+                    elif (not
+                          self.isCrack(self.coords[i, :], self.coords[j, :])):
                         conn[i, j] = 1
 
         # Initial bond damages
