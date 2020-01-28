@@ -26,8 +26,6 @@ class SeqModel:
         else:
             raise DimensionalityError(dimensions)
 
-        self.meshFileName = "test.msh"
-
         # Material Parameters from classical material model
         self.horizon = 0.1
         self.kscalar = 0.05
@@ -49,6 +47,32 @@ class SeqModel:
         # Get boundary connectivity, mesh lines
         self.connectivity_bnd = mesh.cells[self.mesh_elements.boundary]
         self.nelem_bnd = self.connectivity_bnd.shape[0]
+
+    def write_mesh(self, filename, damage, displacements, file_format=None):
+        """
+        Write the model's nodes, connectivity and boundary to a mesh file. Also
+        write damage and displacements as points data.
+
+        :arg str filename: Path of the file to write the mesh to.
+        :arg array damage: The damage of each node.
+        :arg array displacments: An array with shape (nnodes, dim) where each
+            row is the displacment of a node.
+        :arg str optional file_format: The file format of the mesh file to
+            write. Infered from ``filename`` if None. Default is None.
+        """
+        meshio.write_points_cells(
+            filename,
+            points=self.coords,
+            cells={
+                self.mesh_elements.connectivity: self.connectivity,
+                self.mesh_elements.boundary: self.connectivity_bnd
+                },
+            point_data={
+                "damage": damage,
+                "displacements": displacements
+                },
+            file_format=file_format
+            )
 
     def setVolume(self):
         self.V = np.zeros(self.nnodes)

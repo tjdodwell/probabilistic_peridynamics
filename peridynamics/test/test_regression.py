@@ -5,14 +5,7 @@ Euler integrator.
 from ..SeqPeriVectorized import SeqModel as MODEL
 from ..fem import grid as fem
 import numpy as np
-import pathlib
 import pytest
-
-
-@pytest.fixture(scope="session")
-def data_path():
-    path = pathlib.Path(__file__).parent.absolute() / "data"
-    return path
 
 
 @pytest.fixture(scope="module")
@@ -156,3 +149,14 @@ class TestRegression:
             path/"expected_damage.npy"
             )
         assert np.all(np.array(damage) == expected_damage)
+
+    def test_mesh(self, regression, data_path, tmp_path):
+        model, displacements, damage = regression
+        path = data_path
+
+        mesh = tmp_path / "mesh.vtk"
+        model.write_mesh(mesh, damage, displacements)
+
+        expected_mesh = path / "expected_mesh.vtk"
+
+        assert mesh.read_bytes() == expected_mesh.read_bytes()
