@@ -9,10 +9,16 @@ import pathlib
 import pytest
 
 
+@pytest.fixture(scope="session")
+def data_path():
+    path = pathlib.Path(__file__).parent.absolute() / "data"
+    return path
+
+
 @pytest.fixture(scope="module")
-def simple_square():
-    mesh_file = (
-        pathlib.Path(__file__).parent.absolute() / "data/example_mesh.msh")
+def simple_square(data_path):
+    path = data_path
+    mesh_file = path / "example_mesh.msh"
 
     class simpleSquare(MODEL):
         def __init__(self):
@@ -132,19 +138,13 @@ def regression(simple_square):
     return model, u[t], damage[t]
 
 
-@pytest.fixture(scope="session")
-def data_path():
-    path = pathlib.Path(__file__).parent.absolute()
-    return path
-
-
 class TestRegression:
     def test_displacements(self, regression, data_path):
         _, displacements, *_ = regression
         path = data_path
 
         expected_displacements = np.load(
-            path/"data/expected_displacements.npy"
+            path/"expected_displacements.npy"
             )
         assert np.all(displacements == expected_displacements)
 
@@ -153,6 +153,6 @@ class TestRegression:
         path = data_path
 
         expected_damage = np.load(
-            path/"data/expected_damage.npy"
+            path/"expected_damage.npy"
             )
         assert np.all(np.array(damage) == expected_damage)
