@@ -9,7 +9,7 @@ import pathlib
 import pytest
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def simple_square():
     mesh_file = (
         pathlib.Path(__file__).parent.absolute() / "data/example_mesh.msh")
@@ -89,7 +89,8 @@ def simple_square():
     return model
 
 
-def test_regression(simple_square):
+@pytest.fixture(scope="module")
+def regression(simple_square):
     model = simple_square
 
     model.setConn(0.1)
@@ -128,9 +129,30 @@ def test_regression(simple_square):
         u[t][model.lhs, 0] = -0.5 * t * load_rate * np.ones(len(model.rhs))
         u[t][model.rhs, 0] = 0.5 * t * load_rate * np.ones(len(model.rhs))
 
-    path = pathlib.Path(__file__).parent.absolute()
-    expected_displacements = np.load(path / "data/expected_displacements.npy")
-    expected_damage = np.load(path / "data/expected_damage.npy")
+    return model, u[t], damage[t]
 
-    assert np.all(u[t] == expected_displacements)
-    assert np.all(np.array(damage[t]) == expected_damage)
+
+@pytest.fixture(scope="session")
+def data_path():
+    path = pathlib.Path(__file__).parent.absolute()
+    return path
+
+
+class TestRegression:
+    def test_displacements(self, regression, data_path):
+        _, displacements, *_ = regression
+        path = data_path
+
+        expected_displacements = np.load(
+            path/"data/expected_displacements.npy"
+            )
+        assert np.all(displacements == expected_displacements)
+
+    def test_damage(self, regression, data_path):
+        _, _, damage = regression
+        path = data_path
+
+        expected_damage = np.load(
+            path/"data/expected_damage.npy"
+            )
+        assert np.all(np.array(damage) == expected_damage)
