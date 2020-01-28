@@ -4,7 +4,6 @@ import meshio
 import numpy as np
 from scipy import sparse
 import warnings
-import time
 
 
 _MeshElements = namedtuple("MeshElements", ["connectivity", "boundary"])
@@ -16,7 +15,6 @@ _mesh_elements_3d = _MeshElements(connectivity="tetrahedron",
 
 class SeqModel:
     def __init__(self, dimensions=2):
-        self.v = False
         self.dimensions = dimensions
 
         if dimensions == 2:
@@ -126,8 +124,6 @@ class SeqModel:
         damage = np.divide((self.family - count), self.family)
         damage.resize(self.nnodes)
 
-        print('initial damage vector is {}'.format(damage))
-
         # Lower triangular - count bonds only once
         # make diagonal values 0
         conn = np.tril(conn, -1)
@@ -136,9 +132,6 @@ class SeqModel:
         self.conn = sparse.csr_matrix(conn)
         self.conn_0 = sparse.csr_matrix(conn_0)
 
-        if self.v:
-            print('self.conn is HERE', self.conn)
-
         return damage
 
     def setH(self):
@@ -146,7 +139,6 @@ class SeqModel:
         Constructs the covariance matrix, K, failure strains matrix and H
         matrix, which is a sparse matrix containing distances
         """
-        st = time.time()
         coords = self.coords
 
         # Extract the coordinates
@@ -220,35 +212,12 @@ class SeqModel:
                     )
                 )
 
-        if self.v:
-            print(self.L_0, self.L_0.shape, 'here is L_0')
-
-        if self.L_0.shape != self.H_x0.shape:
-            print(
-                'The size of the connectivity matrix is {}'.format(
-                    self.conn.shape
-                    )
-                )
-            warnings.warn(
-                'L_0.size was {}, whilst H_x0.size was {},  they should be the'
-                ' same size'.format(self.L_0.shape, self.H_x0.shape)
-                )
-
         # initiate fail_stretches matrix as a linked list format
         self.fail_strains = np.full((self.nnodes, self.nnodes), self.s00)
         # Make into a sparse matrix
         self.fail_strains = sparse.csr_matrix(self.fail_strains)
 
-        if self.v:
-            print(
-                'Type of fail strains is {} and the shape is {}'.format(
-                    type(self.fail_strains), self.fail_strains.shape)
-                )
-
-        print('Constructed H in {} seconds'.format(time.time() - st))
-
     def calcBondStretchNew(self, U):
-        st = time.time()
 
         cols, rows, data_x, data_y, data_z = [], [], [], [], []
 
@@ -284,13 +253,6 @@ class SeqModel:
 
         self.L = norms_matrix.sqrt()
 
-        if self.v == 2:
-            print('The shape of lamx is {}, {}'.format(lam_x.shape, lam_x))
-            print('The shape of delH_x is {}, {}'.format(delH_x.shape, delH_x))
-            print('The shape of H_x is {}, {}'.format(self.H_x.shape,
-                                                      self.H_x))
-            print('The shape of L is {} {}'.format(self.L.shape, self.L))
-
         del_L = self.L - self.L_0
 
         # Doesn't this kill compressive strains?
@@ -315,15 +277,8 @@ class SeqModel:
                     strain.shape, self.L_0.shape
                     )
                 )
-        if self.v:
-            print(
-                'time taken to calc bond stretch was {}'.format(
-                    -st + time.time()
-                    )
-                )
 
     def calcBondStretch(self, U):
-        st = time.time()
 
         delV_x = U[:, 0]
         lam_x = np.tile(delV_x, (self.nnodes, 1))
@@ -353,11 +308,6 @@ class SeqModel:
 
         self.L = np.sqrt(norms_matrix)
 
-        if self.v == 2:
-            print(' The shape of L is {}, {}'.format(self.L.shape, self.L))
-            print(delH_x, 'ABOVE is delH_x')
-            print(self.H_x, 'ABOVE is H_x')
-
         # del_L = delH_x.power(2) + delH_y.power(2) + delH_z.power(2)
         del_L = self.L - self.L_0
 
@@ -383,17 +333,10 @@ class SeqModel:
                     strain.shape, self.L_0.shape
                     )
                 )
-        if self.v:
-            print(
-                'time taken to calc bond stretch was {}'.format(
-                    -st + time.time()
-                    )
-                )
 
     def checkBonds(self):
         """ Calculates bond damage
         """
-        st = time.time()
         # Make sure only calculating for bonds that exist
 
         # Step 1. initiate as sparse matrix
@@ -420,20 +363,9 @@ class SeqModel:
         damage = np.divide((self.family - count), self.family)
         damage.resize(self.nnodes)
 
-        if self.v == 2:
-            print(np.max(damage), 'max_damage')
-            print(np.min(damage), 'min_damage')
-
-        if self.v:
-            print(
-                'time taken to check bonds was {}'.format(
-                    -st + time.time()
-                    )
-                )
         return damage
 
     def computebondForce(self):
-        st = time.time()
         self.c = 18.0 * self.kscalar / (np.pi * (self.horizon**4))
         # Container for the forces on each particle in each dimension
         F = np.zeros((self.nnodes, 3))
@@ -470,21 +402,9 @@ class SeqModel:
         F_y = self.c * np.multiply(F_y, self.V)
         F_z = self.c * np.multiply(F_z, self.V)
 
-        if self.v == 2:
-            print(F_x, 'The shape of F_x is', F_x.shape, type(F_x))
-            print(self.V, 'The shape of V is', self.V.shape, type(self.V))
-
         F[:, 0] = F_x
         F[:, 1] = F_y
         F[:, 2] = F_z
-
-        assert F.shape == (self.nnodes, 3)
-        if self.v:
-            print(
-                'time taken to compute bond force was {}'.format(
-                    -st + time.time()
-                    )
-                )
 
         return F
 

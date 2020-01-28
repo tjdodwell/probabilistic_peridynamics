@@ -17,8 +17,6 @@ class simpleSquare(MODEL):
 
     def __init__(self):
         super().__init__()
-        # verbose
-        self.v = True
         self.dim = 2
 
         # Material Parameters from classical material model

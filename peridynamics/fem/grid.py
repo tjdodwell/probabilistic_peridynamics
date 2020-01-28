@@ -41,24 +41,15 @@ class Grid:
 
         return self.neighbours, self.Node2Elements
 
-    def buildStructuredMesh2D(self, L, n, X0, order, verb=2):
-        if verb > 0:
-            print('Building Structured 2D Grid!')
-
+    def buildStructuredMesh2D(self, L, n, X0):
         self.n = n
 
         # Function builds a structured finite element mesh in 2D
-        if order == 1:
-            numNodesX = n[0] + 1
-            numNodesY = n[1] + 1
-            self.nodePerElement = 4
-            self.numNodes = numNodesX * numNodesY
-            self.nel = n[0] * n[1]
-
-        else:
-            print('Grids of order 2 or high are not currently supported,'
-                  ' assuming order 1')
-            order == 1
+        numNodesX = n[0] + 1
+        numNodesY = n[1] + 1
+        self.nodePerElement = 4
+        self.numNodes = numNodesX * numNodesY
+        self.nel = n[0] * n[1]
 
         x = np.linspace(X0[0], X0[0] + L[0], numNodesX)
         y = np.linspace(X0[1], X0[1] + L[1], numNodesY)
@@ -93,15 +84,6 @@ class Grid:
                 count += 1
                 ncount += 1
             ncount += 1
-
-        if verb > 1:
-            print('... Grid Built!')
-            print('Number of Nodes ' + str(self.numNodes))
-            print('Number of Elements ' + str(self.nel))
-            for i in range(0, self.numNodes):
-                print(str(self.coords[i][:]))
-            for i in range(0, self.nel):
-                print(str(self.connectivity[i][:]))
 
     def particletoCell_structured(self, pCoords):
         numParticles = int(pCoords[:].size / self.dim)
