@@ -76,25 +76,18 @@ class SeqModel:
     def setVolume(self):
         self.V = np.zeros(self.nnodes)
 
-        for ie in range(0, self.nelem):
-            n = self.connectivity[ie]
-
+        for element in self.connectivity:
             # Compute Area / Volume
-            val = 1. / n.size
+            val = 1. / len(element)
 
             # Define area of element
             if (self.dimensions == 2):
-                xi = self.coords[int(n[0])][0]
-                yi = self.coords[int(n[0])][1]
-                xj = self.coords[int(n[1])][0]
-                yj = self.coords[int(n[1])][1]
-                xk = self.coords[int(n[2])][0]
-                yk = self.coords[int(n[2])][1]
-
+                xi, yi, *_ = self.coords[element[0]]
+                xj, yj, *_ = self.coords[element[1]]
+                xk, yk, *_ = self.coords[element[2]]
                 val *= 0.5 * ((xj - xi) * (yk - yi) - (xk - xi) * (yj - yi))
 
-            for j in range(0, n.size):
-                self.V[int(n[j])] += val
+            self.V[element] += val
 
     def setConn(self, horizon):
         """
