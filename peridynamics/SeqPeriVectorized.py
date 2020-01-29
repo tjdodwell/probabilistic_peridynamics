@@ -198,9 +198,9 @@ class SeqModel:
         K_tild = np.multiply(pow(nu, 2), K_tild)
 
         self.C = np.linalg.cholesky(K_tild)
-        norms_matrix = sparse.csr_matrix(self.H_x0.power(2)
-                                         + self.H_y0.power(2)
-                                         + self.H_z0.power(2))
+        norms_matrix = (
+            self.H_x0.power(2) + self.H_y0.power(2) + self.H_z0.power(2)
+            )
         self.L_0 = norms_matrix.sqrt()
 
         if (self.H_x0.shape != self.H_y0.shape
@@ -255,20 +255,20 @@ class SeqModel:
 
         del_L = self.L - self.L_0
 
-        # Prune values close to zero from del_L sparse matrix
+        # Floor values close to zero from del_L sparse matrix
+        del_L = del_L.tolil()
         del_L[~(del_L >= 1e-12).toarray()] = 0
-        del_L.eliminate_zeros()
+        del_L = del_L.tocsr()
 
         # Step 1. initiate as a sparse matrix
-        strain = sparse.csr_matrix(self.conn.shape)
+        strain = sparse.lil_matrix(self.conn.shape)
 
         # Step 2. elementwise division
-        strain[self.L_0.nonzero()] = sparse.csr_matrix(
+        strain[self.L_0.nonzero()] = (
             del_L[self.L_0.nonzero()]/self.L_0[self.L_0.nonzero()]
             )
 
-        self.strain = sparse.csr_matrix(strain)
-        self.strain.eliminate_zeros()
+        self.strain = strain
 
         if strain.shape != self.L_0.shape:
             warnings.warn(
@@ -283,10 +283,10 @@ class SeqModel:
         # Make sure only calculating for bonds that exist
 
         # Step 1. initiate as sparse matrix
-        bond_healths = sparse.csr_matrix(self.conn.shape)
+        bond_healths = sparse.lil_matrix(self.conn.shape)
 
         # Step 2. Find broken bonds, squared as strains can be negative
-        bond_healths[self.conn.nonzero()] = sparse.csr_matrix(
+        bond_healths[self.conn.nonzero()] = (
                 self.fail_strains.power(2)[self.conn.nonzero()]
                 - self.strain.power(2)[self.conn.nonzero()]
                 )
@@ -295,7 +295,6 @@ class SeqModel:
         bond_healths = bond_healths > 0
 
         self.conn = sparse.csr_matrix(bond_healths)
-        self.conn.eliminate_zeros()
 
         # Bond damages
         # Using lower triangular connectivity matrix, so just mirror it for
@@ -315,14 +314,15 @@ class SeqModel:
 
         # Step 1. Initiate container as a sparse matrix, only need calculate
         # for bonds that exist
-        force_normd = sparse.csr_matrix(self.conn.shape)
+        force_normd = sparse.lil_matrix(self.conn.shape)
 
         # Step 2. find normalised forces
-        force_normd[self.conn.nonzero()] = sparse.csr_matrix(
+        force_normd[self.conn.nonzero()] = (
                 self.strain[self.conn.nonzero()]/self.L[self.conn.nonzero()]
                 )
 
         # Make lower triangular into full matrix
+        force_normd.tocsr()
         force_normd = force_normd + force_normd.transpose()
 
         # Multiply by the direction and scale of each bond (just trigonometry,
