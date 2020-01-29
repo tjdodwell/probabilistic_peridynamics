@@ -3,7 +3,7 @@ A simple regression test simulating a basic model for nine steps using the
 Euler integrator.
 """
 from ..SeqPeriVectorized import SeqModel as MODEL
-from ..fem import grid as fem
+from ..grid import Grid
 import numpy as np
 import pytest
 
@@ -39,7 +39,7 @@ def simple_square(data_path):
                     (self.rhs).append(i)
 
             # Build Finite Element Grid Overlaying particles
-            myGrid = fem.Grid()
+            myGrid = Grid()
 
             self.L = []
             # bottom left
