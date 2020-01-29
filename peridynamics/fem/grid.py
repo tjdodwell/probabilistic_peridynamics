@@ -23,7 +23,7 @@ class Grid:
         for i in range(0, self.numNodes):
             for j in range(0, self.numNodes):
                 if M[i][j] == 1:
-                    self.neighbours[i].append(int(j))
+                    self.neighbours[i].append(j)
 
         # Build list of macroscale elements in which a node lives
         tmpN2E = [[] for i in range(self.numNodes)]
