@@ -277,62 +277,6 @@ class SeqModel:
                     )
                 )
 
-    def calcBondStretch(self, U):
-
-        delV_x = U[:, 0]
-        lam_x = np.tile(delV_x, (self.nnodes, 1))
-
-        delV_y = U[:, 1]
-        lam_y = np.tile(delV_y, (self.nnodes, 1))
-
-        delV_z = U[:, 2]
-        lam_z = np.tile(delV_z, (self.nnodes, 1))
-
-        # dense matrices
-        delH_x = -lam_x + lam_x.transpose()
-        delH_y = -lam_y + lam_y.transpose()
-        delH_z = -lam_z + lam_z.transpose()
-
-        # dense matrices
-        self.H_x = delH_x + self.H_x0
-        self.H_y = delH_y + self.H_y0
-        self.H_z = delH_z + self.H_z0
-
-        # Compute bond length matrix
-        # bond lengths at current time step
-        # Step 1. Initiate as a sparse matrix
-
-        norms_matrix = (np.power(self.H_x, 2) + np.power(self.H_y, 2)
-                        + np.power(self.H_z, 2))
-
-        self.L = np.sqrt(norms_matrix)
-
-        # del_L = delH_x.power(2) + delH_y.power(2) + delH_z.power(2)
-        del_L = self.L - self.L_0
-
-        # Doesn't this kill compressive strains?
-        del_L[del_L < 1e-12] = 0
-
-        # Step 1. initiate as a sparse matrix
-        strain = sparse.csr_matrix(self.conn.shape)
-
-        # Step 2. elementwise division
-        # TODO: investigate indexing with [self.L_0.nonzero()]  instead of
-        # [self.conn.nonzero()]
-        strain[self.conn.nonzero()] = sparse.csr_matrix(
-            del_L[self.conn.nonzero()]/self.L_0[self.conn.nonzero()]
-            )
-
-        self.strain = sparse.csr_matrix(strain)
-        self.strain.eliminate_zeros()
-
-        if strain.shape != self.L_0.shape:
-            warnings.warn(
-                'strain.shape was {}, whilst L_0.shape was {}'.format(
-                    strain.shape, self.L_0.shape
-                    )
-                )
-
     def checkBonds(self):
         """ Calculates bond damage
         """
