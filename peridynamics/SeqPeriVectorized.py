@@ -1,8 +1,8 @@
-from . import periFunctions as func
 from collections import namedtuple
 import meshio
 import numpy as np
 from scipy import sparse
+from scipy.spatial.distance import cdist
 import warnings
 
 
@@ -100,9 +100,10 @@ class SeqModel:
         conn_0 = np.zeros((self.nnodes, self.nnodes))
 
         # Check if nodes are connected
+        distance = cdist(self.coords, self.coords, 'euclidean')
         for i in range(0, self.nnodes):
             for j in range(0, self.nnodes):
-                if func.l2(self.coords[i, :], self.coords[j, :]) < horizon:
+                if distance[i, j] < horizon:
                     conn_0[i, j] = 1
                     if i == j:
                         # do not fill diagonal
