@@ -53,7 +53,7 @@ class simpleSquare(MODEL):
             self.L.append(np.max(self.coords[:, i]))
             self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
 
-        myGrid.buildStructuredMesh2D(self.L, self.nfem, self.X0, 1)
+        myGrid.buildStructuredMesh2D(self.L, self.nfem, self.X0)
 
         self.p_localCoords, self.p2e = myGrid.particletoCell_structured(
             self.coords[:, :self.dim])
@@ -152,9 +152,9 @@ def sim(myModel=simpleSquare(), numSteps=400,
         # Compute the force with displacement u[t-1]
         damage.append(np.zeros(nnodes))
 
-        myModel.calcBondStretchNew(u[t-1])
-        damage[t] = myModel.checkBonds()
-        f = myModel.computebondForce()
+        myModel.calcBondStretchNew(u[t-1], t)
+        damage[t] = myModel.checkBonds(t)
+        f = myModel.computebondForce(t)
 
         # Simple Euler update of the Solution + Add the Stochastic Random Noise
         u.append(np.zeros((nnodes, 3)))
