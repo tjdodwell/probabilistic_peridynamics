@@ -6,7 +6,7 @@ Created on Sun Nov 10 16:25:58 2019
 
 import numpy as np
 import pathlib
-from peridynamics.fem import grid as fem
+from peridynamics.grid import Grid
 from peridynamics.SeqPeriVectorized import SeqModel as MODEL
 import time
 
@@ -42,7 +42,7 @@ class simpleSquare(MODEL):
                 (self.rhs).append(i)
 
         # Build Finite Element Grid Overlaying particles
-        myGrid = fem.Grid()
+        myGrid = Grid()
 
         self.L = []
         # bottom left
