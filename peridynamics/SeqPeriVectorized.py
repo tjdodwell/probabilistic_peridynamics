@@ -255,15 +255,14 @@ class SeqModel:
 
         del_L = self.L - self.L_0
 
-        # Doesn't this kill compressive strains?
-        del_L[del_L < 1e-12] = 0
+        # Prune values close to zero from del_L sparse matrix
+        del_L[~(del_L >= 1e-12).toarray()] = 0
+        del_L.eliminate_zeros()
 
         # Step 1. initiate as a sparse matrix
         strain = sparse.csr_matrix(self.conn.shape)
 
         # Step 2. elementwise division
-        # TODO: investigate indexing with [self.L_0.nonzero()]  instead of
-        # [self.conn.nonzero()]
         strain[self.L_0.nonzero()] = sparse.csr_matrix(
             del_L[self.L_0.nonzero()]/self.L_0[self.L_0.nonzero()]
             )
