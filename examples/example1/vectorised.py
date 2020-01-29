@@ -152,9 +152,9 @@ def sim(myModel=simpleSquare(), numSteps=400,
         # Compute the force with displacement u[t-1]
         damage.append(np.zeros(nnodes))
 
-        myModel.calcBondStretchNew(u[t-1], t)
-        damage[t] = myModel.checkBonds(t)
-        f = myModel.computebondForce(t)
+        myModel.calcBondStretchNew(u[t-1])
+        damage[t] = myModel.checkBonds()
+        f = myModel.computebondForce()
 
         # Simple Euler update of the Solution + Add the Stochastic Random Noise
         u.append(np.zeros((nnodes, 3)))
