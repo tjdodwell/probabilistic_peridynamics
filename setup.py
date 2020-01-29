@@ -6,7 +6,6 @@ setup(
     packages=find_packages(),
     install_requires=[
         'meshio',
-        'numba',
         'numpy',
         'scipy'
         ]
