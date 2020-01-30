@@ -2,7 +2,7 @@
 A simple regression test simulating a basic model for nine steps using the
 Euler integrator.
 """
-from ..SeqPeriVectorized import SeqModel as MODEL
+from ..model import Model
 from ..grid import Grid
 import numpy as np
 import pytest
@@ -13,7 +13,7 @@ def simple_square(data_path):
     path = data_path
     mesh_file = path / "example_mesh.msh"
 
-    class simpleSquare(MODEL):
+    class SimpleSquare(Model):
         def __init__(self):
             super().__init__()
 
@@ -25,14 +25,14 @@ def simple_square(data_path):
             self.crackLength = 0.3
 
             self.read_mesh(mesh_file)
-            self.setVolume()
+            self.set_volume()
 
             self.lhs = []
             self.rhs = []
 
             # Find the Boundary
             for i in range(0, self.nnodes):
-                bnd = self.findBoundary(self.coords[i][:])
+                bnd = self.find_boundary(self.coords[i][:])
                 if bnd < 0:
                     (self.lhs).append(i)
                 elif bnd > 0:
@@ -55,7 +55,7 @@ def simple_square(data_path):
             self.p_localCoords, self.p2e = myGrid.particletoCell_structured(
                 self.coords[:, :self.dimensions])
 
-        def findBoundary(self, x):
+        def find_boundary(self, x):
             # Function which marks constrain particles
             # Does not live on a boundary
             bnd = 0
@@ -65,7 +65,7 @@ def simple_square(data_path):
                 bnd = 1
             return bnd
 
-        def isCrack(self, x, y):
+        def is_crack(self, x, y):
             output = 0
             p1 = x
             p2 = y
@@ -84,7 +84,7 @@ def simple_square(data_path):
                     output = 1
             return output
 
-    model = simpleSquare()
+    model = SimpleSquare()
     return model
 
 
@@ -92,8 +92,8 @@ def simple_square(data_path):
 def regression(simple_square):
     model = simple_square
 
-    model.setConn(0.1)
-    model.setH()
+    model.set_connectivity(0.1)
+    model.set_H()
 
     u = []
     u.append(np.zeros((model.nnodes, 3)))
@@ -113,9 +113,9 @@ def regression(simple_square):
         # Compute the force with displacement u[t-1]
         damage.append(np.zeros(nnodes))
 
-        model.calcBondStretchNew(u[t-1])
-        damage[t] = model.checkBonds()
-        f = model.computebondForce()
+        model.bond_stretch(u[t-1])
+        damage[t] = model.damage()
+        f = model.bond_force()
 
         # Simple Euler update of the Solution
         u.append(np.zeros((nnodes, 3)))
