@@ -3,13 +3,14 @@ Created on Sun Nov 10 16:25:58 2019
 
 @author: Ben Boys
 """
-
+import argparse
 import cProfile
+from io import StringIO
 import numpy as np
 import pathlib
 from peridynamics.grid import Grid
 from peridynamics.SeqPeriVectorized import SeqModel as MODEL
-from pstats import SortKey
+from pstats import SortKey, Stats
 
 
 class simpleSquare(MODEL):
@@ -165,9 +166,24 @@ def main():
     """
     Stochastic Peridynamics, takes multiple stable states (fully formed cracks)
     """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--profile', action='store_const', const=True)
+    args = parser.parse_args()
+
+    if args.profile:
+        profile = cProfile.Profile()
+        profile.enable()
+
     model = simpleSquare()
     sim(model, numSteps=10)
 
+    if args.profile:
+        profile.disable()
+        s = StringIO()
+        stats = Stats(profile, stream=s).sort_stats(SortKey.CUMULATIVE)
+        stats.print_stats()
+        print(s.getvalue())
+
 
 if __name__ == "__main__":
-    cProfile.run('main()', sort=SortKey.CUMULATIVE)
+    main()
