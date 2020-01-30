@@ -7,40 +7,6 @@ class Grid:
         self.nel = 0
         self.numNodes = 0
 
-    def findNeighbours(self):
-        # Simple implementation for now as coarse mesh will be small
-        M = np.zeros((self.numNodes, self.numNodes), dtype=int)
-
-        for ie in range(0, self.nel):
-            nodes = self.connectivity[ie][:]
-            for i in range(0, 4):
-                for j in range(0, 4):
-                    if i != j:
-                        M[nodes[i]][nodes[j]] = 1
-
-        # Build List of Neighbours
-        self.neighbours = [[] for i in range(self.numNodes)]
-        for i in range(0, self.numNodes):
-            for j in range(0, self.numNodes):
-                if M[i][j] == 1:
-                    self.neighbours[i].append(j)
-
-        # Build list of macroscale elements in which a node lives
-        tmpN2E = [[] for i in range(self.numNodes)]
-        # For each elements
-        for ie in range(0, self.nel):
-            nodes = self.connectivity[ie][:]
-            for j in range(0, nodes.size):
-                tmpN2E[nodes[j]].append(ie)
-
-        self.Node2Elements = [[] for i in range(self.numNodes)]
-
-        for i in range(0, self.numNodes):
-            tmpArray = np.array(tmpN2E[i])
-            self.Node2Elements[i] = np.unique(tmpArray)
-
-        return self.neighbours, self.Node2Elements
-
     def buildStructuredMesh2D(self, L, n, X0):
         self.n = n
 
@@ -114,14 +80,3 @@ class Grid:
                     )
 
         return p_localCoords, p2e
-
-    def evalPhi(self, x, order=1):
-        if self.dim == 2:
-            if order == 1:
-                phi = np.zeros(4)
-                phi[0] = (1 - x[0]) * (1 - x[1])
-                phi[1] = (1 + x[0]) * (1 - x[1])
-                phi[2] = (1 + x[0]) * (1 + x[1])
-                phi[3] = (1 - x[0]) * (1 + x[1])
-                phi *= 0.25
-        return phi
