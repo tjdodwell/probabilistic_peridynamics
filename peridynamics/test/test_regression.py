@@ -3,7 +3,6 @@ A simple regression test simulating a basic model for nine steps using the
 Euler integrator.
 """
 from ..model import Model
-from ..grid import Grid
 import numpy as np
 import pytest
 
@@ -38,9 +37,6 @@ def simple_square(data_path):
                 elif bnd > 0:
                     (self.rhs).append(i)
 
-            # Build Finite Element Grid Overlaying particles
-            grid = Grid()
-
             self.L = []
             # bottom left
             self.X0 = [0.0, 0.0]
@@ -49,11 +45,6 @@ def simple_square(data_path):
             for i in range(0, self.dimensions):
                 self.L.append(np.max(self.coords[:, i]))
                 self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
-
-            grid.build_structured_mesh(self.L, self.nfem, self.X0)
-
-            self.p_localCoords, self.p2e = grid.particle_to_cell(
-                self.coords[:, :self.dimensions])
 
         def find_boundary(self, x):
             # Function which marks constrain particles
