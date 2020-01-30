@@ -22,7 +22,7 @@ def simple_square(data_path):
             self.kscalar = 0.05
             self.s00 = 0.005
 
-            self.crackLength = 0.3
+            self.crack_length = 0.3
 
             self.read_mesh(mesh_file)
             self.set_volume()
@@ -39,7 +39,7 @@ def simple_square(data_path):
                     (self.rhs).append(i)
 
             # Build Finite Element Grid Overlaying particles
-            myGrid = Grid()
+            grid = Grid()
 
             self.L = []
             # bottom left
@@ -50,9 +50,9 @@ def simple_square(data_path):
                 self.L.append(np.max(self.coords[:, i]))
                 self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
 
-            myGrid.buildStructuredMesh2D(self.L, self.nfem, self.X0)
+            grid.build_structured_mesh(self.L, self.nfem, self.X0)
 
-            self.p_localCoords, self.p2e = myGrid.particletoCell_structured(
+            self.p_localCoords, self.p2e = grid.particle_to_cell(
                 self.coords[:, :self.dimensions])
 
         def find_boundary(self, x):
@@ -79,8 +79,8 @@ def simple_square(data_path):
                 c = p1[1] - m * p1[0]
                 # height a x = 0.5
                 height = m * 0.5 + c
-                if (height > 0.5 * (1 - self.crackLength)
-                        and height < 0.5 * (1 + self.crackLength)):
+                if (height > 0.5 * (1 - self.crack_length)
+                        and height < 0.5 * (1 + self.crack_length)):
                     output = 1
             return output
 
