@@ -13,7 +13,7 @@ _mesh_elements_3d = _MeshElements(connectivity="tetrahedron",
                                   boundary="triangle")
 
 
-class SeqModel:
+class Model:
     def __init__(self, dimensions=2):
         self.dimensions = dimensions
 
@@ -24,7 +24,7 @@ class SeqModel:
         else:
             raise DimensionalityError(dimensions)
 
-        # Material Parameters from classical material model
+        # Material parameters from classical material model
         self.horizon = 0.1
         self.kscalar = 0.05
         self.s00 = 0.05
@@ -73,11 +73,11 @@ class SeqModel:
             file_format=file_format
             )
 
-    def setVolume(self):
+    def set_volume(self):
         self.V = np.zeros(self.nnodes)
 
         for element in self.connectivity:
-            # Compute Area / Volume
+            # Compute area / volume
             val = 1. / len(element)
 
             # Define area of element
@@ -89,7 +89,7 @@ class SeqModel:
 
             self.V[element] += val
 
-    def setConn(self, horizon):
+    def set_connectivity(self, horizon):
         """
         Sets the sparse connectivity matrix, should only ever be called once
         """
@@ -109,7 +109,7 @@ class SeqModel:
                         # do not fill diagonal
                         continue
                     elif (not
-                          self.isCrack(self.coords[i, :], self.coords[j, :])):
+                          self.is_crack(self.coords[i, :], self.coords[j, :])):
                         conn[i, j] = 1
 
         # Initial bond damages
@@ -128,7 +128,7 @@ class SeqModel:
 
         return damage
 
-    def setH(self):
+    def set_H(self):
         """
         Constructs the covariance matrix, K, failure strains matrix and H
         matrix, which is a sparse matrix containing distances
@@ -186,8 +186,8 @@ class SeqModel:
         epsilon = 1e-5
 
         # add epsilon before scaling by a vertical variance scale, nu
-        Iden = np.identity(self.nnodes)
-        K_tild = K + np.multiply(epsilon, Iden)
+        iden = np.identity(self.nnodes)
+        K_tild = K + np.multiply(epsilon, iden)
 
         K_tild = np.multiply(pow(nu, 2), K_tild)
 
@@ -211,7 +211,7 @@ class SeqModel:
         # Make into a sparse matrix
         self.fail_strains = sparse.csr_matrix(self.fail_strains)
 
-    def calcBondStretchNew(self, U):
+    def bond_stretch(self, U):
 
         cols, rows, data_x, data_y, data_z = [], [], [], [], []
 
@@ -271,7 +271,7 @@ class SeqModel:
                     )
                 )
 
-    def checkBonds(self):
+    def damage(self):
         """ Calculates bond damage
         """
         # Make sure only calculating for bonds that exist
@@ -301,7 +301,7 @@ class SeqModel:
 
         return damage
 
-    def computebondForce(self):
+    def bond_force(self):
         self.c = 18.0 * self.kscalar / (np.pi * (self.horizon**4))
         # Container for the forces on each particle in each dimension
         F = np.zeros((self.nnodes, 3))

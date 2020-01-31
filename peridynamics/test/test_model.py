@@ -1,8 +1,7 @@
 """
 Tests for the model class
 """
-from ..SeqPeriVectorized import SeqModel as Model
-from ..SeqPeriVectorized import DimensionalityError
+from ..model import Model, DimensionalityError
 import numpy as np
 import pytest
 
