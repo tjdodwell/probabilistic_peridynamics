@@ -3,12 +3,14 @@ Created on Sun Nov 10 16:25:58 2019
 
 @author: Ben Boys
 """
-
+import argparse
+import cProfile
+from io import StringIO
 import numpy as np
 import pathlib
 from peridynamics.grid import Grid
 from peridynamics.SeqPeriVectorized import SeqModel as MODEL
-import time
+from pstats import SortKey, Stats
 
 
 class simpleSquare(MODEL):
@@ -129,25 +131,13 @@ def sim(myModel=simpleSquare(), numSteps=400,
 
     damage.append(np.zeros(myModel.nnodes))
 
-    verb = 1
-
     tim = 0.0
 
     # Number of nodes
     nnodes = myModel.nnodes
 
-    # Start the clock
-    st = time.time()
-
     for t in range(1, numSteps+1):
         tim += dt
-
-        if verb > 0:
-            print("Time step = " + str(t)
-                  + ", Wall clock time for last time step= "
-                  + str(time.time() - st))
-
-        st = time.time()
 
         # Compute the force with displacement u[t-1]
         damage.append(np.zeros(nnodes))
@@ -168,20 +158,31 @@ def sim(myModel=simpleSquare(), numSteps=400,
         u[t][myModel.lhs, 0] = -0.5 * t * loadRate * np.ones(len(myModel.rhs))
         u[t][myModel.rhs, 0] = 0.5 * t * loadRate * np.ones(len(myModel.rhs))
 
-        if verb == 1 and t % print_every == 0:
+        if t % print_every == 0:
             myModel.write_mesh("U_"+"t"+str(t)+".vtk", damage[t], u[t])
-
-        print('Timestep {} complete in {} s '.format(t, time.time() - st))
 
 
 def main():
     """
     Stochastic Peridynamics, takes multiple stable states (fully formed cracks)
     """
-    st = time.time()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--profile', action='store_const', const=True)
+    args = parser.parse_args()
+
+    if args.profile:
+        profile = cProfile.Profile()
+        profile.enable()
+
     model = simpleSquare()
     sim(model, numSteps=10)
-    print('TOTAL TIME REQUIRED {}'.format(time.time() - st))
+
+    if args.profile:
+        profile.disable()
+        s = StringIO()
+        stats = Stats(profile, stream=s).sort_stats(SortKey.CUMULATIVE)
+        stats.print_stats()
+        print(s.getvalue())
 
 
 if __name__ == "__main__":
