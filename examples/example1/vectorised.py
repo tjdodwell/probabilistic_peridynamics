@@ -8,7 +8,6 @@ import cProfile
 from io import StringIO
 import numpy as np
 import pathlib
-from peridynamics.grid import Grid
 from peridynamics import Model
 from pstats import SortKey, Stats
 
@@ -42,20 +41,6 @@ class SimpleSquare(Model):
                 (self.lhs).append(i)
             elif bnd > 0:
                 (self.rhs).append(i)
-
-        # Build finite element grid overlaying particles
-        grid = Grid()
-
-        self.L = []
-        # bottom left
-        self.X0 = [0.0, 0.0]
-        self.nfem = []
-
-        for i in range(0, self.dim):
-            self.L.append(np.max(self.coords[:, i]))
-            self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
-
-        grid.build_structured_mesh(self.L, self.nfem, self.X0)
 
     def find_boundary(self, x):
         bnd = 0

@@ -37,15 +37,6 @@ def simple_square(data_path):
                 elif bnd > 0:
                     (self.rhs).append(i)
 
-            self.L = []
-            # bottom left
-            self.X0 = [0.0, 0.0]
-            self.nfem = []
-
-            for i in range(0, self.dimensions):
-                self.L.append(np.max(self.coords[:, i]))
-                self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
-
         def find_boundary(self, x):
             # Function which marks constrain particles
             # Does not live on a boundary
