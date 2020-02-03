@@ -102,43 +102,28 @@ def sim(model, steps=400, load_rate=0.00001, dt=1e-3, print_every=10):
     model.set_connectivity(0.1)
     model.set_H()
 
-    u = []
-
-    damage = []
-
-    u.append(np.zeros((model.nnodes, 3)))
-
-    damage.append(np.zeros(model.nnodes))
+    u = np.zeros((model.nnodes, 3))
 
     tim = 0.0
-
-    # Number of nodes
-    nnodes = model.nnodes
-
     for t in range(1, steps+1):
         tim += dt
 
-        # Compute the force with displacement u[t-1]
-        damage.append(np.zeros(nnodes))
-
-        model.bond_stretch(u[t-1])
-        damage[t] = model.damage()
+        model.bond_stretch(u)
+        damage = model.damage()
         f = model.bond_force()
 
-        # Simple Euler update of the solution + add the stochastic random noise
-        u.append(np.zeros((nnodes, 3)))
-
-        u[t] = u[t-1] + dt * f
+        u_old = u
+        u = u_old + dt * f
 
         # Apply boundary conditions
-        u[t][model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
-        u[t][model.rhs, 1:3] = np.zeros((len(model.rhs), 2))
+        u[model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
+        u[model.rhs, 1:3] = np.zeros((len(model.rhs), 2))
 
-        u[t][model.lhs, 0] = -0.5 * t * load_rate * np.ones(len(model.rhs))
-        u[t][model.rhs, 0] = 0.5 * t * load_rate * np.ones(len(model.rhs))
+        u[model.lhs, 0] = -0.5 * t * load_rate * np.ones(len(model.rhs))
+        u[model.rhs, 0] = 0.5 * t * load_rate * np.ones(len(model.rhs))
 
         if t % print_every == 0:
-            model.write_mesh("U_"+"t"+str(t)+".vtk", damage[t], u[t])
+            model.write_mesh("U_"+"t"+str(t)+".vtk", damage, u)
 
 
 def main():
