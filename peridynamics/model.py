@@ -191,7 +191,6 @@ class Model:
 
         K_tild = np.multiply(pow(nu, 2), K_tild)
 
-        self.C = np.linalg.cholesky(K_tild)
         norms_matrix = (
             self.H_x0.power(2) + self.H_y0.power(2) + self.H_z0.power(2)
             )
