@@ -301,7 +301,6 @@ class Model:
         return damage
 
     def bond_force(self):
-        self.c = 18.0 * self.kscalar / (np.pi * (self.horizon**4))
         # Container for the forces on each particle in each dimension
         F = np.zeros((self.nnodes, 3))
 
