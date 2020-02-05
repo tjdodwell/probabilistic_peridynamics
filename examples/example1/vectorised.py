@@ -8,7 +8,6 @@ import cProfile
 from io import StringIO
 import numpy as np
 import pathlib
-from peridynamics.grid import Grid
 from peridynamics import Model
 from pstats import SortKey, Stats
 
@@ -42,20 +41,6 @@ class SimpleSquare(Model):
                 (self.lhs).append(i)
             elif bnd > 0:
                 (self.rhs).append(i)
-
-        # Build finite element grid overlaying particles
-        grid = Grid()
-
-        self.L = []
-        # bottom left
-        self.X0 = [0.0, 0.0]
-        self.nfem = []
-
-        for i in range(0, self.dim):
-            self.L.append(np.max(self.coords[:, i]))
-            self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
-
-        grid.build_structured_mesh(self.L, self.nfem, self.X0)
 
     def find_boundary(self, x):
         bnd = 0
@@ -117,43 +102,28 @@ def sim(model, steps=400, load_rate=0.00001, dt=1e-3, print_every=10):
     model.set_connectivity(0.1)
     model.set_H()
 
-    u = []
-
-    damage = []
-
-    u.append(np.zeros((model.nnodes, 3)))
-
-    damage.append(np.zeros(model.nnodes))
+    u = np.zeros((model.nnodes, 3))
 
     tim = 0.0
-
-    # Number of nodes
-    nnodes = model.nnodes
-
     for t in range(1, steps+1):
         tim += dt
 
-        # Compute the force with displacement u[t-1]
-        damage.append(np.zeros(nnodes))
-
-        model.bond_stretch(u[t-1])
-        damage[t] = model.damage()
+        model.bond_stretch(u)
+        damage = model.damage()
         f = model.bond_force()
 
-        # Simple Euler update of the solution + add the stochastic random noise
-        u.append(np.zeros((nnodes, 3)))
-
-        u[t] = u[t-1] + dt * f
+        u_old = u
+        u = u_old + dt * f
 
         # Apply boundary conditions
-        u[t][model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
-        u[t][model.rhs, 1:3] = np.zeros((len(model.rhs), 2))
+        u[model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
+        u[model.rhs, 1:3] = np.zeros((len(model.rhs), 2))
 
-        u[t][model.lhs, 0] = -0.5 * t * load_rate * np.ones(len(model.rhs))
-        u[t][model.rhs, 0] = 0.5 * t * load_rate * np.ones(len(model.rhs))
+        u[model.lhs, 0] = -0.5 * t * load_rate * np.ones(len(model.rhs))
+        u[model.rhs, 0] = 0.5 * t * load_rate * np.ones(len(model.rhs))
 
         if t % print_every == 0:
-            model.write_mesh("U_"+"t"+str(t)+".vtk", damage[t], u[t])
+            model.write_mesh("U_"+"t"+str(t)+".vtk", damage, u)
 
 
 def main():

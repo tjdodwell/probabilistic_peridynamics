@@ -37,15 +37,6 @@ def simple_square(data_path):
                 elif bnd > 0:
                     (self.rhs).append(i)
 
-            self.L = []
-            # bottom left
-            self.X0 = [0.0, 0.0]
-            self.nfem = []
-
-            for i in range(0, self.dimensions):
-                self.L.append(np.max(self.coords[:, i]))
-                self.nfem.append(int(np.ceil(self.L[i] / self.horizon)))
-
         def find_boundary(self, x):
             # Function which marks constrain particles
             # Does not live on a boundary
@@ -86,14 +77,7 @@ def regression(simple_square):
     model.set_connectivity(0.1)
     model.set_H()
 
-    u = []
-    u.append(np.zeros((model.nnodes, 3)))
-
-    damage = []
-    damage.append(np.zeros(model.nnodes))
-
-    # Number of nodes
-    nnodes = model.nnodes
+    u = np.zeros((model.nnodes, 3))
 
     tim = 0.
     dt = 1e-3
@@ -101,25 +85,22 @@ def regression(simple_square):
     for t in range(1, 11):
         tim += dt
 
-        # Compute the force with displacement u[t-1]
-        damage.append(np.zeros(nnodes))
-
-        model.bond_stretch(u[t-1])
-        damage[t] = model.damage()
+        model.bond_stretch(u)
+        damage = model.damage()
         f = model.bond_force()
 
         # Simple Euler update of the Solution
-        u.append(np.zeros((nnodes, 3)))
-        u[t] = u[t-1] + dt * f
+        u_old = u
+        u = u_old + dt * f
 
         # Apply boundary conditions
-        u[t][model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
-        u[t][model.rhs, 1:3] = np.zeros((len(model.rhs), 2))
+        u[model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
+        u[model.rhs, 1:3] = np.zeros((len(model.rhs), 2))
 
-        u[t][model.lhs, 0] = -0.5 * t * load_rate * np.ones(len(model.rhs))
-        u[t][model.rhs, 0] = 0.5 * t * load_rate * np.ones(len(model.rhs))
+        u[model.lhs, 0] = -0.5 * t * load_rate * np.ones(len(model.rhs))
+        u[model.rhs, 0] = 0.5 * t * load_rate * np.ones(len(model.rhs))
 
-    return model, u[t], damage[t]
+    return model, u, damage
 
 
 class TestRegression:
