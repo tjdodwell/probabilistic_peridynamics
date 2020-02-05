@@ -21,9 +21,11 @@ class Model:
     a set of initial conditions (coordinates and connectivity).
 
     :Example: ::
+
         >>> from peridynamics import Model
         >>> model = Model()
         >>> model.read_mesh("./example.msh")
+
     """
     def __init__(self, horizon, critical_strain, elastic_modulus,
                  dimensions=2):
