@@ -14,7 +14,26 @@ _mesh_elements_3d = _MeshElements(connectivity="tetrahedron",
 
 
 class Model:
+    """
+    A peridynamics model.
+
+    This class allows users to define a peridynamics system from parameters and
+    a set of initial conditions (coordinates and connectivity).
+
+    :Example: ::
+        >>> from peridynamics import Model
+        >>> model = Model()
+        >>> model.read_mesh("./example.msh")
+    """
     def __init__(self, dimensions=2):
+        """
+        Construct a ``Model`` object.
+
+        :arg optional int dimensions: The dimensionality of the model. The
+            default is 2.
+
+        :returns Model: A new ``Model`` object.
+        """
         self.dimensions = dimensions
 
         if dimensions == 2:
@@ -31,8 +50,15 @@ class Model:
 
         self.c = 18.0 * self.kscalar / (np.pi * (self.horizon**4))
 
-    def read_mesh(self, mesh_file):
-        mesh = meshio.read(mesh_file)
+    def read_mesh(self, filename):
+        """
+        Read the model's nodes, connectivty and boundary from a mesh file.
+
+        :arg str filename: Path of the mesh file to read
+
+        :returns NoneType: None
+        """
+        mesh = meshio.read(filename)
 
         # Get coordinates, encoded as mesh points
         self.coords = mesh.points
@@ -49,8 +75,8 @@ class Model:
     def write_mesh(self, filename, damage=None, displacements=None,
                    file_format=None):
         """
-        Write the model's nodes, connectivity and boundary to a mesh file. Also
-        write damage and displacements as points data.
+        Write the model's nodes, connectivity and boundary to a mesh file.
+        Optionally, write damage and displacements as points data.
 
         :arg str filename: Path of the file to write the mesh to.
         :arg array optional damage: The damage of each node. Default is None.
@@ -58,6 +84,8 @@ class Model:
             where each row is the displacment of a node. Default is None.
         :arg str optional file_format: The file format of the mesh file to
             write. Infered from ``filename`` if None. Default is None.
+
+        :returns NoneType: None
         """
         meshio.write_points_cells(
             filename,
@@ -74,6 +102,11 @@ class Model:
             )
 
     def set_volume(self):
+        """
+        Calculate the volue of each node.
+
+        :returns NoneType: None
+        """
         self.V = np.zeros(self.nnodes)
 
         for element in self.connectivity:
@@ -91,7 +124,13 @@ class Model:
 
     def set_connectivity(self, horizon):
         """
-        Sets the sparse connectivity matrix, should only ever be called once
+        Sets the sparse connectivity matrix, should only ever be called once.
+
+        :arg float horizon: The horizon radius. Nodes within ``horizon`` of
+            another interact with that node and are said to be within its
+            neighbourhood.
+
+        :returns NoneType: None
         """
         # Initiate connectivity matrix as non sparse
         conn = np.zeros((self.nnodes, self.nnodes))
@@ -131,7 +170,9 @@ class Model:
     def set_H(self):
         """
         Constructs the covariance matrix, K, failure strains matrix and H
-        matrix, which is a sparse matrix containing distances
+        matrix, which is a sparse matrix containing distances.
+
+        :returns NoneType: None
         """
         coords = self.coords
 
@@ -210,8 +251,16 @@ class Model:
         # Make into a sparse matrix
         self.fail_strains = sparse.csr_matrix(self.fail_strains)
 
-    def bond_stretch(self, U):
+    def bond_stretch(self, u):
+        """
+        Calculates the strain (bond stretch) of all nodes for a given
+        displacement.
 
+        :arg np.array u: The displacement array with shape
+            (``nnodes``, ``dimension``).
+
+        :returns NoneType: None
+        """
         cols, rows, data_x, data_y, data_z = [], [], [], [], []
 
         for i in range(self.nnodes):
@@ -219,9 +268,9 @@ class Model:
 
             rows.extend(row.indices)
             cols.extend(np.full((row.nnz), i))
-            data_x.extend(np.full((row.nnz), U[i, 0]))
-            data_y.extend(np.full((row.nnz), U[i, 1]))
-            data_z.extend(np.full((row.nnz), U[i, 2]))
+            data_x.extend(np.full((row.nnz), u[i, 0]))
+            data_y.extend(np.full((row.nnz), u[i, 1]))
+            data_z.extend(np.full((row.nnz), u[i, 2]))
 
         # Must not be lower triangular
         lam_x = sparse.csr_matrix((data_x, (rows, cols)),
@@ -271,7 +320,11 @@ class Model:
                 )
 
     def damage(self):
-        """ Calculates bond damage
+        """
+        Calculates bond damage.
+
+        :returns np.array damage: A (``nnodes``, ) array containing the damage
+            for each node.
         """
         # Make sure only calculating for bonds that exist
 
