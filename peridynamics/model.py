@@ -25,15 +25,30 @@ class Model:
         >>> model = Model()
         >>> model.read_mesh("./example.msh")
     """
-    def __init__(self, dimensions=2):
+    def __init__(self, horizon, critical_strain, elastic_modulus,
+                 dimensions=2):
         """
-        Construct a ``Model`` object.
+        Construct a :class:``Model`` object.
 
+        :arg float horizon: The horizon radius. Nodes within ``horizon`` of
+            another interact with that node and are said to be within its
+            neighbourhood.
+        :arg float critical_strain: The critical strain of the model. Bonds
+            which exceed this strain are permanently broken.
+        :arg float elastic_modulus: The appropriate elastic modulus of the
+            material.
         :arg optional int dimensions: The dimensionality of the model. The
             default is 2.
 
-        :returns Model: A new ``Model`` object.
+        :returns Model: A new :class:``Model`` object.
         """
+        self.horizon = horizon
+        self.critical_strain = critical_strain
+
+        self.bond_stiffness = (
+            18.0 * elastic_modulus / (np.pi * self.horizon**4)
+            )
+
         self.dimensions = dimensions
 
         if dimensions == 2:
@@ -43,16 +58,9 @@ class Model:
         else:
             raise DimensionalityError(dimensions)
 
-        # Material parameters from classical material model
-        self.horizon = 0.1
-        self.kscalar = 0.05
-        self.s00 = 0.05
-
-        self.c = 18.0 * self.kscalar / (np.pi * (self.horizon**4))
-
     def read_mesh(self, filename):
         """
-        Read the model's nodes, connectivty and boundary from a mesh file.
+        Read the model's nodes, connectivity and boundary from a mesh file.
 
         :arg str filename: Path of the mesh file to read
 
@@ -80,10 +88,10 @@ class Model:
 
         :arg str filename: Path of the file to write the mesh to.
         :arg array optional damage: The damage of each node. Default is None.
-        :arg array optional displacments: An array with shape (nnodes, dim)
-            where each row is the displacment of a node. Default is None.
+        :arg array optional displacements: An array with shape (nnodes, dim)
+            where each row is the displacement of a node. Default is None.
         :arg str optional file_format: The file format of the mesh file to
-            write. Infered from ``filename`` if None. Default is None.
+            write. Inferred from ``filename`` if None. Default is None.
 
         :returns NoneType: None
         """
@@ -103,7 +111,7 @@ class Model:
 
     def set_volume(self):
         """
-        Calculate the volue of each node.
+        Calculate the value of each node.
 
         :returns NoneType: None
         """
@@ -247,7 +255,8 @@ class Model:
                 )
 
         # initiate fail_stretches matrix as a linked list format
-        self.fail_strains = np.full((self.nnodes, self.nnodes), self.s00)
+        self.fail_strains = np.full((self.nnodes, self.nnodes),
+                                    self.critical_strain)
         # Make into a sparse matrix
         self.fail_strains = sparse.csr_matrix(self.fail_strains)
 
@@ -386,9 +395,9 @@ class Model:
         F_z.resize(self.nnodes)
 
         # Finally multiply by volume and stiffness
-        F_x = self.c * np.multiply(F_x, self.V)
-        F_y = self.c * np.multiply(F_y, self.V)
-        F_z = self.c * np.multiply(F_z, self.V)
+        F_x = self.bond_stiffness * np.multiply(F_x, self.V)
+        F_y = self.bond_stiffness * np.multiply(F_y, self.V)
+        F_z = self.bond_stiffness * np.multiply(F_z, self.V)
 
         F[:, 0] = F_x
         F[:, 1] = F_y
