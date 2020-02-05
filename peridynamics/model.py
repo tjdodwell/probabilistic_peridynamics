@@ -66,7 +66,8 @@ class Model:
 
         :arg str filename: Path of the mesh file to read
 
-        :returns NoneType: None
+        :returns: None
+        :rtype: NoneType
         """
         mesh = meshio.read(filename)
 
@@ -95,7 +96,8 @@ class Model:
         :arg str optional file_format: The file format of the mesh file to
             write. Inferred from ``filename`` if None. Default is None.
 
-        :returns NoneType: None
+        :returns: None
+        :rtype: NoneType
         """
         meshio.write_points_cells(
             filename,
@@ -115,7 +117,8 @@ class Model:
         """
         Calculate the value of each node.
 
-        :returns NoneType: None
+        :returns: None
+        :rtype: NoneType
         """
         self.V = np.zeros(self.nnodes)
 
@@ -140,7 +143,8 @@ class Model:
             another interact with that node and are said to be within its
             neighbourhood.
 
-        :returns NoneType: None
+        :returns: None
+        :rtype: NoneType
         """
         # Initiate connectivity matrix as non sparse
         conn = np.zeros((self.nnodes, self.nnodes))
@@ -182,7 +186,8 @@ class Model:
         Constructs the covariance matrix, K, failure strains matrix and H
         matrix, which is a sparse matrix containing distances.
 
-        :returns NoneType: None
+        :returns: None
+        :rtype: NoneType
         """
         coords = self.coords
 
@@ -270,7 +275,8 @@ class Model:
         :arg np.array u: The displacement array with shape
             (``nnodes``, ``dimension``).
 
-        :returns NoneType: None
+        :returns: None
+        :rtype: NoneType
         """
         cols, rows, data_x, data_y, data_z = [], [], [], [], []
 
