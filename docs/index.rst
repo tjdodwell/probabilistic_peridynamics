@@ -10,8 +10,7 @@ Welcome to Probabilistic Peridynamics's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-.. automodule:: model
-    :members:
+   model
 
 
 
