@@ -11,6 +11,7 @@ Welcome to Probabilistic Peridynamics's documentation!
    :caption: Contents:
 
    model
+   integrators
 
 
 
