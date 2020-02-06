@@ -39,7 +39,7 @@ class Model:
             which exceed this strain are permanently broken.
         :arg float elastic_modulus: The appropriate elastic modulus of the
             material.
-        :arg optional int dimensions: The dimensionality of the model. The
+        :arg int dimensions: The dimensionality of the model. The
             default is 2.
 
         :returns: A new :class:`Model` object.
@@ -94,10 +94,10 @@ class Model:
         Optionally, write damage and displacements as points data.
 
         :arg str filename: Path of the file to write the mesh to.
-        :arg array optional damage: The damage of each node. Default is None.
-        :arg array optional displacements: An array with shape (nnodes, dim)
+        :arg array damage: The damage of each node. Default is None.
+        :arg array displacements: An array with shape (nnodes, dim)
             where each row is the displacement of a node. Default is None.
-        :arg str optional file_format: The file format of the mesh file to
+        :arg str file_format: The file format of the mesh file to
             write. Inferred from `filename` if None. Default is None.
 
         :returns: None
