@@ -9,6 +9,7 @@ from io import StringIO
 import numpy as np
 import pathlib
 from peridynamics import Model
+from peridynamics.integrators import Euler
 from pstats import SortKey, Stats
 
 
@@ -17,13 +18,9 @@ class SimpleSquare(Model):
     # parameters
 
     def __init__(self):
-        super().__init__()
+        super().__init__(horizon=0.1, critical_strain=0.005,
+                         elastic_modulus=0.05)
         self.dim = 2
-
-        # Material parameters from classical material model
-        self.horizon = 0.1
-        self.kscalar = 0.05
-        self.s00 = 0.005
 
         self.crack_length = 0.3
 
@@ -102,6 +99,8 @@ def sim(model, steps=400, load_rate=0.00001, dt=1e-3, print_every=10):
     model.set_connectivity(0.1)
     model.set_H()
 
+    integrator = Euler(dt=1e-3)
+
     u = np.zeros((model.nnodes, 3))
 
     tim = 0.0
@@ -112,8 +111,7 @@ def sim(model, steps=400, load_rate=0.00001, dt=1e-3, print_every=10):
         damage = model.damage()
         f = model.bond_force()
 
-        u_old = u
-        u = u_old + dt * f
+        u = integrator.step(u, f)
 
         # Apply boundary conditions
         u[model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
