@@ -43,6 +43,9 @@ class Model:
             default is 2.
 
         :returns Model: A new :class:``Model`` object.
+
+        :raises DimensionalityError: when an invalid `dimension` argument is
+            provided.
         """
         self.horizon = horizon
         self.critical_strain = critical_strain
