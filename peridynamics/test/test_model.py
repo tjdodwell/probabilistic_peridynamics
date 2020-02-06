@@ -8,27 +8,29 @@ import pytest
 
 @pytest.fixture(scope="module")
 def basic_model_2d(data_path):
-    model = Model()
+    model = Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05)
     model.read_mesh(data_path / "example_mesh.msh")
     return model
 
 
 @pytest.fixture(scope="module")
 def basic_model_3d(data_path):
-    model = Model()
+    model = Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05)
     model.read_mesh(data_path / "example_mesh.msh")
     return model
 
 
 class TestDimension:
     def test_2d(self):
-        model = Model(dimensions=2)
+        model = Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05,
+                      dimensions=2)
 
         assert model.mesh_elements.connectivity == 'triangle'
         assert model.mesh_elements.boundary == 'line'
 
     def test_3d(self):
-        model = Model(dimensions=3)
+        model = Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05,
+                      dimensions=3)
 
         assert model.mesh_elements.connectivity == 'tetrahedron'
         assert model.mesh_elements.boundary == 'triangle'
@@ -36,7 +38,8 @@ class TestDimension:
     @pytest.mark.parametrize("dimensions", [1, 4])
     def test_dimensionality_error(self, dimensions):
         with pytest.raises(DimensionalityError):
-            Model(dimensions=dimensions)
+            Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05,
+                  dimensions=dimensions)
 
 
 class TestRead2D:

@@ -14,12 +14,8 @@ def simple_square(data_path):
 
     class SimpleSquare(Model):
         def __init__(self):
-            super().__init__()
-
-            # Material Parameters from classical material model
-            self.horizon = 0.1
-            self.kscalar = 0.05
-            self.s00 = 0.005
+            super().__init__(horizon=0.1, critical_strain=0.005,
+                             elastic_modulus=0.05)
 
             self.crack_length = 0.3
 

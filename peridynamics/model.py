@@ -14,7 +14,47 @@ _mesh_elements_3d = _MeshElements(connectivity="tetrahedron",
 
 
 class Model:
-    def __init__(self, dimensions=2):
+    """
+    A peridynamics model.
+
+    This class allows users to define a peridynamics system from parameters and
+    a set of initial conditions (coordinates and connectivity).
+
+    :Example: ::
+
+        >>> from peridynamics import Model
+        >>> model = Model()
+        >>> model.read_mesh("./example.msh")
+
+    """
+    def __init__(self, horizon, critical_strain, elastic_modulus,
+                 dimensions=2):
+        """
+        Construct a :class:`Model` object.
+
+        :arg float horizon: The horizon radius. Nodes within `horizon` of
+            another interact with that node and are said to be within its
+            neighbourhood.
+        :arg float critical_strain: The critical strain of the model. Bonds
+            which exceed this strain are permanently broken.
+        :arg float elastic_modulus: The appropriate elastic modulus of the
+            material.
+        :arg int dimensions: The dimensionality of the model. The
+            default is 2.
+
+        :returns: A new :class:`Model` object.
+        :rtype: Model
+
+        :raises DimensionalityError: when an invalid `dimensions` argument is
+            provided.
+        """
+        self.horizon = horizon
+        self.critical_strain = critical_strain
+
+        self.bond_stiffness = (
+            18.0 * elastic_modulus / (np.pi * self.horizon**4)
+            )
+
         self.dimensions = dimensions
 
         if dimensions == 2:
@@ -24,15 +64,16 @@ class Model:
         else:
             raise DimensionalityError(dimensions)
 
-        # Material parameters from classical material model
-        self.horizon = 0.1
-        self.kscalar = 0.05
-        self.s00 = 0.05
+    def read_mesh(self, filename):
+        """
+        Read the model's nodes, connectivity and boundary from a mesh file.
 
-        self.c = 18.0 * self.kscalar / (np.pi * (self.horizon**4))
+        :arg str filename: Path of the mesh file to read
 
-    def read_mesh(self, mesh_file):
-        mesh = meshio.read(mesh_file)
+        :returns: None
+        :rtype: NoneType
+        """
+        mesh = meshio.read(filename)
 
         # Get coordinates, encoded as mesh points
         self.coords = mesh.points
@@ -49,15 +90,18 @@ class Model:
     def write_mesh(self, filename, damage=None, displacements=None,
                    file_format=None):
         """
-        Write the model's nodes, connectivity and boundary to a mesh file. Also
-        write damage and displacements as points data.
+        Write the model's nodes, connectivity and boundary to a mesh file.
+        Optionally, write damage and displacements as points data.
 
         :arg str filename: Path of the file to write the mesh to.
-        :arg array optional damage: The damage of each node. Default is None.
-        :arg array optional displacments: An array with shape (nnodes, dim)
-            where each row is the displacment of a node. Default is None.
-        :arg str optional file_format: The file format of the mesh file to
-            write. Infered from ``filename`` if None. Default is None.
+        :arg array damage: The damage of each node. Default is None.
+        :arg array displacements: An array with shape (nnodes, dim)
+            where each row is the displacement of a node. Default is None.
+        :arg str file_format: The file format of the mesh file to
+            write. Inferred from `filename` if None. Default is None.
+
+        :returns: None
+        :rtype: NoneType
         """
         meshio.write_points_cells(
             filename,
@@ -74,6 +118,12 @@ class Model:
             )
 
     def set_volume(self):
+        """
+        Calculate the value of each node.
+
+        :returns: None
+        :rtype: NoneType
+        """
         self.V = np.zeros(self.nnodes)
 
         for element in self.connectivity:
@@ -91,7 +141,14 @@ class Model:
 
     def set_connectivity(self, horizon):
         """
-        Sets the sparse connectivity matrix, should only ever be called once
+        Sets the sparse connectivity matrix, should only ever be called once.
+
+        :arg float horizon: The horizon radius. Nodes within `horizon` of
+            another interact with that node and are said to be within its
+            neighbourhood.
+
+        :returns: None
+        :rtype: NoneType
         """
         # Initiate connectivity matrix as non sparse
         conn = np.zeros((self.nnodes, self.nnodes))
@@ -131,7 +188,10 @@ class Model:
     def set_H(self):
         """
         Constructs the covariance matrix, K, failure strains matrix and H
-        matrix, which is a sparse matrix containing distances
+        matrix, which is a sparse matrix containing distances.
+
+        :returns: None
+        :rtype: NoneType
         """
         coords = self.coords
 
@@ -206,12 +266,22 @@ class Model:
                 )
 
         # initiate fail_stretches matrix as a linked list format
-        self.fail_strains = np.full((self.nnodes, self.nnodes), self.s00)
+        self.fail_strains = np.full((self.nnodes, self.nnodes),
+                                    self.critical_strain)
         # Make into a sparse matrix
         self.fail_strains = sparse.csr_matrix(self.fail_strains)
 
-    def bond_stretch(self, U):
+    def bond_stretch(self, u):
+        """
+        Calculates the strain (bond stretch) of all nodes for a given
+        displacement.
 
+        :arg np.array u: The displacement array with shape
+            (`nnodes`, `dimension`).
+
+        :returns: None
+        :rtype: NoneType
+        """
         cols, rows, data_x, data_y, data_z = [], [], [], [], []
 
         for i in range(self.nnodes):
@@ -219,9 +289,9 @@ class Model:
 
             rows.extend(row.indices)
             cols.extend(np.full((row.nnz), i))
-            data_x.extend(np.full((row.nnz), U[i, 0]))
-            data_y.extend(np.full((row.nnz), U[i, 1]))
-            data_z.extend(np.full((row.nnz), U[i, 2]))
+            data_x.extend(np.full((row.nnz), u[i, 0]))
+            data_y.extend(np.full((row.nnz), u[i, 1]))
+            data_z.extend(np.full((row.nnz), u[i, 2]))
 
         # Must not be lower triangular
         lam_x = sparse.csr_matrix((data_x, (rows, cols)),
@@ -271,7 +341,11 @@ class Model:
                 )
 
     def damage(self):
-        """ Calculates bond damage
+        """
+        Calculates bond damage.
+
+        :returns np.array damage: A (`nnodes`, ) array containing the damage
+            for each node.
         """
         # Make sure only calculating for bonds that exist
 
@@ -333,9 +407,9 @@ class Model:
         F_z.resize(self.nnodes)
 
         # Finally multiply by volume and stiffness
-        F_x = self.c * np.multiply(F_x, self.V)
-        F_y = self.c * np.multiply(F_y, self.V)
-        F_z = self.c * np.multiply(F_z, self.V)
+        F_x = self.bond_stiffness * np.multiply(F_x, self.V)
+        F_y = self.bond_stiffness * np.multiply(F_y, self.V)
+        F_z = self.bond_stiffness * np.multiply(F_z, self.V)
 
         F[:, 0] = F_x
         F[:, 1] = F_y
