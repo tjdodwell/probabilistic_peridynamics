@@ -3,6 +3,7 @@ A simple regression test simulating a basic model for nine steps using the
 Euler integrator.
 """
 from ..model import Model
+from ..integrators import Euler
 import numpy as np
 import pytest
 
@@ -69,25 +70,22 @@ def simple_square(data_path):
 @pytest.fixture(scope="module")
 def regression(simple_square):
     model = simple_square
-
     model.set_connectivity(0.1)
     model.set_H()
 
+    integrator = Euler(dt=1e-3)
+
     u = np.zeros((model.nnodes, 3))
 
-    tim = 0.
-    dt = 1e-3
     load_rate = 0.00001
     for t in range(1, 11):
-        tim += dt
 
         model.bond_stretch(u)
         damage = model.damage()
         f = model.bond_force()
 
         # Simple Euler update of the Solution
-        u_old = u
-        u = u_old + dt * f
+        u = integrator.step(u, f)
 
         # Apply boundary conditions
         u[model.lhs, 1:3] = np.zeros((len(model.lhs), 2))

@@ -21,7 +21,7 @@ class Euler(object):
 
         :returns: A :class:`Euler` object
         """
-        self.df = dt
+        self.dt = dt
         self.dampening = dampening
 
     def step(self, u, f):
