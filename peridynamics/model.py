@@ -30,9 +30,9 @@ class Model:
     def __init__(self, horizon, critical_strain, elastic_modulus,
                  dimensions=2):
         """
-        Construct a :class:``Model`` object.
+        Construct a :class:`Model` object.
 
-        :arg float horizon: The horizon radius. Nodes within ``horizon`` of
+        :arg float horizon: The horizon radius. Nodes within `horizon` of
             another interact with that node and are said to be within its
             neighbourhood.
         :arg float critical_strain: The critical strain of the model. Bonds
@@ -42,9 +42,10 @@ class Model:
         :arg optional int dimensions: The dimensionality of the model. The
             default is 2.
 
-        :returns Model: A new :class:``Model`` object.
+        :returns: A new :class:`Model` object.
+        :rtype: Model
 
-        :raises DimensionalityError: when an invalid `dimension` argument is
+        :raises DimensionalityError: when an invalid `dimensions` argument is
             provided.
         """
         self.horizon = horizon
@@ -97,7 +98,7 @@ class Model:
         :arg array optional displacements: An array with shape (nnodes, dim)
             where each row is the displacement of a node. Default is None.
         :arg str optional file_format: The file format of the mesh file to
-            write. Inferred from ``filename`` if None. Default is None.
+            write. Inferred from `filename` if None. Default is None.
 
         :returns: None
         :rtype: NoneType
@@ -142,7 +143,7 @@ class Model:
         """
         Sets the sparse connectivity matrix, should only ever be called once.
 
-        :arg float horizon: The horizon radius. Nodes within ``horizon`` of
+        :arg float horizon: The horizon radius. Nodes within `horizon` of
             another interact with that node and are said to be within its
             neighbourhood.
 
@@ -276,7 +277,7 @@ class Model:
         displacement.
 
         :arg np.array u: The displacement array with shape
-            (``nnodes``, ``dimension``).
+            (`nnodes`, `dimension`).
 
         :returns: None
         :rtype: NoneType
@@ -343,7 +344,7 @@ class Model:
         """
         Calculates bond damage.
 
-        :returns np.array damage: A (``nnodes``, ) array containing the damage
+        :returns np.array damage: A (`nnodes`, ) array containing the damage
             for each node.
         """
         # Make sure only calculating for bonds that exist
