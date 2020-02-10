@@ -333,6 +333,13 @@ class Model:
         return damage
 
     def bond_force(self):
+        """
+        Calculate the force due to bonds acting on each node.
+
+        :returns: A (`nnodes`, 3) array of the component of the force in each
+            dimension for each node.
+        :rtype: ndarray
+        """
         # Container for the forces on each particle in each dimension
         F = np.zeros((self.nnodes, 3))
 
