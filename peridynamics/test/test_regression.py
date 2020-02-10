@@ -70,7 +70,7 @@ def simple_square(data_path):
 @pytest.fixture(scope="module")
 def regression(simple_square):
     model = simple_square
-    model.set_connectivity(0.1)
+    model.set_connectivity()
     model.set_H()
 
     integrator = Euler(dt=1e-3)

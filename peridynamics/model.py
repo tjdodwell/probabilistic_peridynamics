@@ -141,13 +141,9 @@ class Model:
 
             self.V[element] += val
 
-    def set_connectivity(self, horizon):
+    def set_connectivity(self):
         """
         Sets the sparse connectivity matrix, should only ever be called once.
-
-        :arg float horizon: The horizon radius. Nodes within `horizon` of
-            another interact with that node and are said to be within its
-            neighbourhood.
 
         :returns: None
         :rtype: NoneType
@@ -162,7 +158,7 @@ class Model:
         distance = cdist(self.coords, self.coords, 'euclidean')
         for i in range(0, self.nnodes):
             for j in range(0, self.nnodes):
-                if distance[i, j] < horizon:
+                if distance[i, j] < self.horizon:
                     conn_0[i, j] = 1
                     if i == j:
                         # do not fill diagonal

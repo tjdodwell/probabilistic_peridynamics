@@ -96,7 +96,7 @@ def noise(L, samples, num_nodes):
 def sim(model, steps=400, load_rate=0.00001, dt=1e-3, print_every=10):
     print("Peridynamic Simulation -- Starting")
 
-    model.set_connectivity(0.1)
+    model.set_connectivity()
     model.set_H()
 
     integrator = Euler(dt=1e-3)
