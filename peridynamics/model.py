@@ -94,9 +94,11 @@ class Model:
         Optionally, write damage and displacements as points data.
 
         :arg str filename: Path of the file to write the mesh to.
-        :arg array damage: The damage of each node. Default is None.
-        :arg array displacements: An array with shape (nnodes, dim)
-            where each row is the displacement of a node. Default is None.
+        :arg damage: The damage of each node. Default is None.
+        :type damage: :class:`numpy.ndarray`
+        :arg displacements: An array with shape (nnodes, dim) where each row is
+            the displacement of a node. Default is None.
+        :type displacements: :class:`numpy.ndarray`
         :arg str file_format: The file format of the mesh file to
             write. Inferred from `filename` if None. Default is None.
 
@@ -234,8 +236,9 @@ class Model:
         Calculates the strain (bond stretch) of all nodes for a given
         displacement.
 
-        :arg np.array u: The displacement array with shape
+        :arg u: The displacement array with shape
             (`nnodes`, `dimension`).
+        :type u: :class:`numpy.ndarray`
 
         :returns: None
         :rtype: NoneType
@@ -302,8 +305,9 @@ class Model:
         """
         Calculates bond damage.
 
-        :returns np.array damage: A (`nnodes`, ) array containing the damage
+        :returns: A (`nnodes`, ) array containing the damage
             for each node.
+        :rtype: :class:`numpy.ndarray`
         """
         # Make sure only calculating for bonds that exist
 
@@ -338,7 +342,7 @@ class Model:
 
         :returns: A (`nnodes`, 3) array of the component of the force in each
             dimension for each node.
-        :rtype: ndarray
+        :rtype: :class:`numpy.ndarray`
         """
         # Container for the forces on each particle in each dimension
         F = np.zeros((self.nnodes, 3))

@@ -28,10 +28,18 @@ author = 'Jim Madge, Tim Dodwell, Ben Boys'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc'
+    'sphinx.ext.autodoc',
+    'sphinx.ext.intersphinx'
 ]
 
+# autodoc configuration
+# Concatenate a class' docstring with the __init__ method docstring
 autoclass_content = 'both'
+
+# intersphinx configuration
+intersphinx_mapping = {
+    'numpy': ('https://docs.scipy.org/doc/numpy/', None)
+    }
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

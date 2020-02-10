@@ -28,12 +28,14 @@ class Euler(object):
         """
         Conduct one iteration of the integrator.
 
-        :arg `np.array` u: A (`nnodes`, 3) array containing the displacments
-            of all nodes.
-        :arg `np.array` f: A (`nnodes`, 3) array containing the components of
-            the force acting on each node.
+        :arg u: A (`nnodes`, 3) array containing the displacements of all
+            nodes.
+        :type u: :class:`numpy.ndarray`
+        :arg f: A (`nnodes`, 3) array containing the components of the force
+            acting on each node.
+        :type f: :class:`numpy.ndarray`
 
         :returns: The new displacements after integration.
-        :rtype: `np.array`
+        :rtype: :class:`numpy.ndarray`
         """
         return u + self.dt * f * self.dampening
