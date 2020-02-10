@@ -187,8 +187,8 @@ class Model:
 
     def set_H(self):
         """
-        Constructs the covariance matrix, K, failure strains matrix and H
-        matrix, which is a sparse matrix containing distances.
+        Constructs the failure strains matrix and H matrix, which is a sparse
+        matrix containing distances.
 
         :returns: None
         :rtype: NoneType
@@ -209,11 +209,6 @@ class Model:
         H_x0 = -lam_x + lam_x.transpose()
         H_y0 = -lam_y + lam_y.transpose()
         H_z0 = -lam_z + lam_z.transpose()
-
-        norms_matrix = (
-            np.power(H_x0, 2) + np.power(H_y0, 2) + np.power(H_z0, 2)
-            )
-        self.L_0 = np.sqrt(norms_matrix)
 
         # Into sparse matrices
         self.H_x0 = sparse.csr_matrix(self.conn_0.multiply(H_x0))
