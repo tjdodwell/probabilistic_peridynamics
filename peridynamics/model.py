@@ -224,10 +224,10 @@ class Model:
         self.L_0 = norms_matrix.sqrt()
 
         # initiate fail_stretches matrix as a linked list format
-        self.fail_strains = np.full((self.nnodes, self.nnodes),
-                                    self.critical_strain)
+        fail_strains = np.full((self.nnodes, self.nnodes),
+                               self.critical_strain)
         # Make into a sparse matrix
-        self.fail_strains = sparse.csr_matrix(self.fail_strains)
+        self.fail_strains = sparse.csr_matrix(fail_strains)
 
     def bond_stretch(self, u):
         """
