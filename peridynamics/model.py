@@ -223,47 +223,10 @@ class Model:
         self.H_y0.eliminate_zeros()
         self.H_z0.eliminate_zeros()
 
-        # Length scale for the covariance matrix
-        scale = 0.05
-
-        # Scale of the covariance matrix
-        nu = 1e-5
-
-        # inv length scale parameter
-        inv_length_scale = (np.divide(-1., 2.*pow(scale, 2)))
-
-        # radial basis functions
-        rbf = np.multiply(inv_length_scale, norms_matrix)
-
-        # Exponential of radial basis functions
-        K = np.exp(rbf)
-
-        # Multiply by the vertical scale to get covariance matrix, K
-        self.K = np.multiply(pow(nu, 2), K)
-
-        # Create L matrix for sampling perturbations
-        # epsilon, numerical trick so that M is positive semi definite
-        epsilon = 1e-5
-
-        # add epsilon before scaling by a vertical variance scale, nu
-        iden = np.identity(self.nnodes)
-        K_tild = K + np.multiply(epsilon, iden)
-
-        K_tild = np.multiply(pow(nu, 2), K_tild)
-
         norms_matrix = (
             self.H_x0.power(2) + self.H_y0.power(2) + self.H_z0.power(2)
             )
         self.L_0 = norms_matrix.sqrt()
-
-        if (self.H_x0.shape != self.H_y0.shape
-                or self.H_x0.shape != self.H_z0.shape):
-            raise Exception(
-                'The sizes of H_x0, H_y0 and H_z0 did not match!'
-                ' The sizes were {}, {}, {}, respectively'.format(
-                    self.H_x0.shape, self.H_y0.shape, self.H_z0.shape
-                    )
-                )
 
         # initiate fail_stretches matrix as a linked list format
         self.fail_strains = np.full((self.nnodes, self.nnodes),
