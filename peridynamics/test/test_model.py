@@ -59,7 +59,6 @@ class TestRead2D:
         model = basic_model_2d
 
         assert model.connectivity.shape == (4096, 3)
-        assert model.nelem == 4096
         assert np.all(
             model.connectivity[100] == np.array([252, 651, 650]))
 
@@ -67,7 +66,6 @@ class TestRead2D:
         model = basic_model_2d
 
         assert model.connectivity_bnd.shape == (128, 2)
-        assert model.nelem_bnd == 128
         assert np.all(
             model.connectivity_bnd[100] == np.array([100, 101]))
 

@@ -81,11 +81,9 @@ class Model:
 
         # Get connectivity, mesh triangle cells
         self.connectivity = mesh.cells[self.mesh_elements.connectivity]
-        self.nelem = self.connectivity.shape[0]
 
         # Get boundary connectivity, mesh lines
         self.connectivity_bnd = mesh.cells[self.mesh_elements.boundary]
-        self.nelem_bnd = self.connectivity_bnd.shape[0]
 
     def write_mesh(self, filename, damage=None, displacements=None,
                    file_format=None):
