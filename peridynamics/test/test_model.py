@@ -8,29 +8,30 @@ import pytest
 
 @pytest.fixture(scope="module")
 def basic_model_2d(data_path):
-    model = Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05)
-    model.read_mesh(data_path / "example_mesh.msh")
+    mesh_file = data_path / "example_mesh.msh"
+    model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
+                  elastic_modulus=0.05)
     return model
 
 
 @pytest.fixture(scope="module")
 def basic_model_3d(data_path):
-    model = Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05)
-    model.read_mesh(data_path / "example_mesh.msh")
+    mesh_file = data_path / "example_mesh.msh"
+    model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
+                  elastic_modulus=0.05, dimensions=3)
     return model
 
 
 class TestDimension:
-    def test_2d(self):
-        model = Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05,
-                      dimensions=2)
+    def test_2d(self, basic_model_2d):
+        model = basic_model_2d
 
         assert model.mesh_elements.connectivity == 'triangle'
         assert model.mesh_elements.boundary == 'line'
 
-    def test_3d(self):
-        model = Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05,
-                      dimensions=3)
+    @pytest.mark.skip(reason="No three dimensional example")
+    def test_3d(self, basic_model_3d):
+        model = basic_model_3d
 
         assert model.mesh_elements.connectivity == 'tetrahedron'
         assert model.mesh_elements.boundary == 'triangle'
@@ -38,13 +39,13 @@ class TestDimension:
     @pytest.mark.parametrize("dimensions", [1, 4])
     def test_dimensionality_error(self, dimensions):
         with pytest.raises(DimensionalityError):
-            Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05,
-                  dimensions=dimensions)
+            Model("abc.msh", horizon=0.1, critical_strain=0.05,
+                  elastic_modulus=0.05, dimensions=dimensions)
 
 
 class TestRead2D:
     """
-    Test the read_mesh method ensuring it correctly interprets the mesh file
+    Test the _read_mesh method ensuring it correctly interprets the mesh file
     for a two dimensional system
     """
     def test_coords(self, basic_model_2d):
@@ -73,7 +74,7 @@ class TestRead2D:
 @pytest.mark.skip(reason="No three dimensional example")
 class TestRead3D:
     """
-    Test the read_mesh method ensuring it correctly interprets the mesh file
+    Test the _read_mesh method ensuring it correctly interprets the mesh file
     for a three dimensional system
     """
     def test_coords(self, basic_model_3d):

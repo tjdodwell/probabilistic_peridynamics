@@ -15,12 +15,10 @@ def simple_square(data_path):
 
     class SimpleSquare(Model):
         def __init__(self):
-            super().__init__(horizon=0.1, critical_strain=0.005,
+            super().__init__(mesh_file, horizon=0.1, critical_strain=0.005,
                              elastic_modulus=0.05)
 
             self.crack_length = 0.3
-
-            self.read_mesh(mesh_file)
             self.set_volume()
 
             self.lhs = []

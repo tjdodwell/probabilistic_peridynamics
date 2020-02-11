@@ -27,8 +27,8 @@ class Model:
         >>> model.read_mesh("./example.msh")
 
     """
-    def __init__(self, horizon, critical_strain, elastic_modulus,
-                 dimensions=2):
+    def __init__(self, mesh_file, horizon, critical_strain, elastic_modulus,
+                 initial_crack=None, dimensions=2):
         """
         Construct a :class:`Model` object.
 
@@ -48,13 +48,7 @@ class Model:
         :raises DimensionalityError: when an invalid `dimensions` argument is
             provided.
         """
-        self.horizon = horizon
-        self.critical_strain = critical_strain
-
-        self.bond_stiffness = (
-            18.0 * elastic_modulus / (np.pi * self.horizon**4)
-            )
-
+        # Set model dimensionality
         self.dimensions = dimensions
 
         if dimensions == 2:
@@ -64,7 +58,17 @@ class Model:
         else:
             raise DimensionalityError(dimensions)
 
-    def read_mesh(self, filename):
+        # Read coordinates and connectivity from mesh file
+        self._read_mesh(mesh_file)
+
+        self.horizon = horizon
+        self.critical_strain = critical_strain
+
+        self.bond_stiffness = (
+            18.0 * elastic_modulus / (np.pi * self.horizon**4)
+            )
+
+    def _read_mesh(self, filename):
         """
         Read the model's nodes, connectivity and boundary from a mesh file.
 
