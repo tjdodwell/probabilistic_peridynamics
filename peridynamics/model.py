@@ -31,7 +31,7 @@ class Model:
         >>>     )
     """
     def __init__(self, mesh_file, horizon, critical_strain, elastic_modulus,
-                 initial_crack=None, dimensions=2):
+                 initial_crack=[], dimensions=2):
         """
         Construct a :class:`Model` object.
 
@@ -44,6 +44,13 @@ class Model:
             which exceed this strain are permanently broken.
         :arg float elastic_modulus: The appropriate elastic modulus of the
             material.
+        :arg initial_crack: The initial crack of the system. The argument may
+            be a list of tuples where each tuple is a pair of integers
+            representing nodes between which to create a crack. Alternatively,
+            the arugment may be a function which takes the (nnodes, 3)
+            :class:`numpy.ndarray` of coordinates as an argument, and returns a
+            list of tuples defining the initial crack. Default is []
+        :type initial_crack: list(tuple(int, int)) or function
         :arg int dimensions: The dimensionality of the model. The
             default is 2.
 
@@ -75,6 +82,9 @@ class Model:
 
         # Calculate the volume for each node
         self.set_volume()
+
+        # Set the connectivity
+        self._set_connectivity(initial_crack)
 
     def _read_mesh(self, filename):
         """
@@ -151,31 +161,40 @@ class Model:
 
             self.V[element] += val
 
-    def set_connectivity(self):
+    def _set_connectivity(self, initial_crack):
         """
         Sets the sparse connectivity matrix, should only ever be called once.
+
+        :arg initial_crack: The initial crack of the system. The argument may
+            be a list of tuples where each tuple is a pair of integers
+            representing nodes between which to create a crack. Alternatively,
+            the arugment may be a function which takes the (nnodes, 3)
+            :class:`numpy.ndarray` of coordinates as an argument, and returns a
+            list of tuples defining the initial crack.
+        :type initial_crack: list(tuple(int, int)) or function
 
         :returns: None
         :rtype: NoneType
         """
-        # Initiate connectivity matrix as non sparse
-        conn = np.zeros((self.nnodes, self.nnodes))
+        if callable(initial_crack):
+            initial_crack = initial_crack(self.coords)
 
-        # Initiate uncracked connectivity matrix
-        conn_0 = np.zeros((self.nnodes, self.nnodes))
-
-        # Check if nodes are connected
+        # Calculate the Euclidean distance between each pair of nodes
         distance = cdist(self.coords, self.coords, 'euclidean')
-        for i in range(0, self.nnodes):
-            for j in range(0, self.nnodes):
-                if distance[i, j] < self.horizon:
-                    conn_0[i, j] = 1
-                    if i == j:
-                        # do not fill diagonal
-                        continue
-                    elif (not
-                          self.is_crack(self.coords[i, :], self.coords[j, :])):
-                        conn[i, j] = 1
+
+        # Construct uncracked connectivity matrix (connectivity determined only
+        # by the horizon)
+        nnodes = self.nnodes
+        conn_0 = np.zeros((nnodes, nnodes))
+        # Connect nodes which are within horizon of each other
+        conn_0[distance < self.horizon] = 1
+
+        # Construct the initial connectivity matrix
+        conn = conn_0.copy()
+        for i, j in initial_crack:
+            conn[i, j] = 0
+        # Nodes are not connected with themselves
+        np.fill_diagonal(conn, 0)
 
         # Initial bond damages
         count = np.sum(conn, axis=0)
