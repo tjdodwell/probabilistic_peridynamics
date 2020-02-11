@@ -19,7 +19,6 @@ def simple_square(data_path):
                              elastic_modulus=0.05)
 
             self.crack_length = 0.3
-            self.set_volume()
 
             self.lhs = []
             self.rhs = []

@@ -73,6 +73,9 @@ class Model:
             18.0 * elastic_modulus / (np.pi * self.horizon**4)
             )
 
+        # Calculate the volume for each node
+        self.set_volume()
+
     def _read_mesh(self, filename):
         """
         Read the model's nodes, connectivity and boundary from a mesh file.
