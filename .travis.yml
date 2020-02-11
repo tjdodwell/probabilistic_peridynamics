@@ -19,4 +19,4 @@ jobs:
       install:
         - pip install .
         - pip install sphinx
-      script: sphinx-build docs build
+      script: sphinx-build -W -b html docs build
