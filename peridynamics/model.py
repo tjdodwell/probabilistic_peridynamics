@@ -23,15 +23,20 @@ class Model:
     :Example: ::
 
         >>> from peridynamics import Model
-        >>> model = Model()
-        >>> model.read_mesh("./example.msh")
-
+        >>> model = Model(
+        >>>     mesh_file="./example.msh",
+        >>>     horizon=0.1,
+        >>>     critical_strain=0.005,
+        >>>     elastic_modulus=0.05
+        >>>     )
     """
     def __init__(self, mesh_file, horizon, critical_strain, elastic_modulus,
                  initial_crack=None, dimensions=2):
         """
         Construct a :class:`Model` object.
 
+        :arg str mesh_file: Path of the mesh file defining the systems nodes
+            and connectivity.
         :arg float horizon: The horizon radius. Nodes within `horizon` of
             another interact with that node and are said to be within its
             neighbourhood.
