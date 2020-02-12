@@ -1,7 +1,7 @@
 """
 Tests for the model class
 """
-from ..model import Model, DimensionalityError
+from ..model import Model, DimensionalityError, initial_crack_helper
 import numpy as np
 import pytest
 
@@ -112,3 +112,30 @@ class TestWrite:
     """
     def test_coords(self, written_model):
         assert 0
+
+
+def test_initial_crack_helper():
+    @initial_crack_helper
+    def initial_crack(icoord, jcoord):
+        critical_distance = 1.0
+        if np.sum((jcoord - icoord)**2) > critical_distance:
+            return True
+        else:
+            return False
+
+    coords = np.array([
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [5.0, 0.0, 0.0]
+        ])
+
+    actual = initial_crack(coords)
+    expected = [
+        (0, 3),
+        (1, 2),
+        (1, 3),
+        (2, 3)
+        ]
+
+    assert expected == actual
