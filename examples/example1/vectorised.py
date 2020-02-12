@@ -69,7 +69,6 @@ def is_crack(x, y):
 
 def sim(model, steps=400, load_rate=0.00001, dt=1e-3, print_every=10):
     print("Peridynamic Simulation -- Starting")
-    model.set_H()
 
     integrator = Euler(dt=1e-3)
 

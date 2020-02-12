@@ -87,6 +87,9 @@ class Model:
         # Set the connectivity
         self._set_connectivity(initial_crack)
 
+        # Set the node distance and failure strain matrices
+        self._set_H()
+
     def _read_mesh(self, filename):
         """
         Read the model's nodes, connectivity and boundary from a mesh file.
@@ -215,7 +218,7 @@ class Model:
 
         return damage
 
-    def set_H(self):
+    def _set_H(self):
         """
         Constructs the failure strains matrix and H matrix, which is a sparse
         matrix containing distances.
