@@ -9,6 +9,7 @@ from io import StringIO
 import numpy as np
 import pathlib
 from peridynamics import Model
+from peridynamics.model import initial_crack_helper
 from peridynamics.integrators import Euler
 from pstats import SortKey, Stats
 
@@ -21,10 +22,8 @@ class SimpleSquare(Model):
 
     def __init__(self):
         super().__init__(mesh_file, horizon=0.1, critical_strain=0.005,
-                         elastic_modulus=0.05)
+                         elastic_modulus=0.05, initial_crack=is_crack)
         self.dim = 2
-
-        self.crack_length = 0.3
 
         self.lhs = []
         self.rhs = []
@@ -45,56 +44,31 @@ class SimpleSquare(Model):
             bnd = 1
         return bnd
 
-    def is_crack(self, x, y):
-        output = 0
-        p1 = x
-        p2 = y
-        if x[0] > y[0]:
-            p2 = x
-            p1 = y
-        # 1e-6 makes it fall one side of central line of particles
-        if p1[0] < 0.5 + 1e-6 and p2[0] > 0.5 + 1e-6:
-            # draw a straight line between them
-            m = (p2[1] - p1[1]) / (p2[0] - p1[0])
-            c = p1[1] - m * p1[0]
-            # height a x = 0.5
-            height = m * 0.5 + c
-            if (height > 0.5 * (1 - self.crack_length)
-                    and height < 0.5 * (1 + self.crack_length)):
-                output = 1
-        return output
 
-
-def multivar_normal(L, num_nodes):
-    """
-    Fn for taking a single multivar normal sample covariance matrix with
-    Cholesky factor, L
-    """
-    zeta = np.random.normal(0, 1, size=num_nodes)
-    zeta = np.transpose(zeta)
-
-    # vector
-    w_tild = np.dot(L, zeta)
-
-    return w_tild
-
-
-def noise(L, samples, num_nodes):
-    """
-    takes multiple samples from multivariate normal distribution with
-    covariance matrix whith Cholesky factor, L
-    """
-    noise = []
-    for i in range(samples):
-        noise.append(multivar_normal(L, num_nodes))
-
-    return np.transpose(noise)
+@initial_crack_helper
+def is_crack(x, y):
+    output = 0
+    crack_length = 0.3
+    p1 = x
+    p2 = y
+    if x[0] > y[0]:
+        p2 = x
+        p1 = y
+    # 1e-6 makes it fall one side of central line of particles
+    if p1[0] < 0.5 + 1e-6 and p2[0] > 0.5 + 1e-6:
+        # draw a straight line between them
+        m = (p2[1] - p1[1]) / (p2[0] - p1[0])
+        c = p1[1] - m * p1[0]
+        # height a x = 0.5
+        height = m * 0.5 + c
+        if (height > 0.5 * (1 - crack_length)
+                and height < 0.5 * (1 + crack_length)):
+            output = 1
+    return output
 
 
 def sim(model, steps=400, load_rate=0.00001, dt=1e-3, print_every=10):
     print("Peridynamic Simulation -- Starting")
-
-    model.set_connectivity()
     model.set_H()
 
     integrator = Euler(dt=1e-3)
