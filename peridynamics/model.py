@@ -82,7 +82,7 @@ class Model:
             )
 
         # Calculate the volume for each node
-        self.set_volume()
+        self._set_volume()
 
         # Set the connectivity
         self._set_connectivity(initial_crack)
@@ -143,7 +143,7 @@ class Model:
             file_format=file_format
             )
 
-    def set_volume(self):
+    def _set_volume(self):
         """
         Calculate the value of each node.
 
