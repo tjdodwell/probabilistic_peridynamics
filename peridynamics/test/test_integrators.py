@@ -14,7 +14,7 @@ class TestEuler(object):
         u = np.zeros(3)
         f = np.array([1.0, 2.0, 3.0])
 
-        u = integrator.step(u, f)
+        u = integrator(u, f)
 
         assert np.all(u == f)
 
@@ -23,7 +23,7 @@ class TestEuler(object):
         u = np.zeros(3)
         f = np.array([1.0, 2.0, 3.0])
 
-        u = integrator.step(u, f)
+        u = integrator(u, f)
 
         assert np.all(u == 2.0*f)
 
@@ -32,6 +32,6 @@ class TestEuler(object):
         u = np.zeros(3)
         f = np.array([1.0, 2.0, 3.0])
 
-        u = integrator.step(u, f)
+        u = integrator(u, f)
 
         assert np.all(u == 2.0*0.7*f)

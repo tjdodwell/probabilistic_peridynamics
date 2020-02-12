@@ -1,4 +1,20 @@
-class Euler(object):
+from abc import ABC, abstractmethod
+
+
+class Integrator(ABC):
+    """
+    Base class for integrators.
+    """
+    @abstractmethod
+    def __call__(self):
+        """
+        All integrators must define a call method which performs one
+        integration step and returns the updated displacements.
+        """
+        pass
+
+
+class Euler(Integrator):
     r"""
     Euler integrator.
 
@@ -24,7 +40,7 @@ class Euler(object):
         self.dt = dt
         self.dampening = dampening
 
-    def step(self, u, f):
+    def __call__(self, u, f):
         """
         Conduct one iteration of the integrator.
 

@@ -62,7 +62,7 @@ def regression(simple_square):
         f = model.bond_force()
 
         # Simple Euler update of the Solution
-        u = integrator.step(u, f)
+        u = integrator(u, f)
 
         # Apply boundary conditions
         u[model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
