@@ -438,9 +438,8 @@ def initial_crack_helper(crack_function):
     """
     def initial_crack(coords):
         crack = []
+        # Iterate over all unique pairs of coordinates with their indicies
         for (i, icoord), (j, jcoord) in combinations(enumerate(coords), 2):
-            if i == j:
-                continue
             if crack_function(icoord, jcoord):
                 crack.append((i, j))
         return crack
