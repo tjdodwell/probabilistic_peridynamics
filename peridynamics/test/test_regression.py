@@ -21,7 +21,6 @@ def simple_square(data_path):
                 continue
             if is_crack(icoord, jcoord):
                 crack.append((i, j))
-                crack.append((j, i))
         return crack
 
     def is_crack(x, y):

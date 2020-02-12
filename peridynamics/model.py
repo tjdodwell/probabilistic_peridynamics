@@ -193,6 +193,7 @@ class Model:
         conn = conn_0.copy()
         for i, j in initial_crack:
             conn[i, j] = 0
+            conn[j, i] = 0
         # Nodes are not connected with themselves
         np.fill_diagonal(conn, 0)
 
