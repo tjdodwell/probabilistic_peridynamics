@@ -2,9 +2,8 @@
 A simple regression test simulating a basic model for nine steps using the
 Euler integrator.
 """
-from ..model import Model
+from ..model import Model, initial_crack_helper
 from ..integrators import Euler
-from itertools import combinations
 import numpy as np
 import pytest
 
@@ -14,15 +13,7 @@ def simple_square(data_path):
     path = data_path
     mesh_file = path / "example_mesh.msh"
 
-    def initial_crack(coords):
-        crack = []
-        for (i, icoord), (j, jcoord) in combinations(enumerate(coords), 2):
-            if i == j:
-                continue
-            if is_crack(icoord, jcoord):
-                crack.append((i, j))
-        return crack
-
+    @initial_crack_helper
     def is_crack(x, y):
         crack_length = 0.3
         output = 0
@@ -46,7 +37,7 @@ def simple_square(data_path):
     class SimpleSquare(Model):
         def __init__(self):
             super().__init__(mesh_file, horizon=0.1, critical_strain=0.005,
-                             elastic_modulus=0.05, initial_crack=initial_crack)
+                             elastic_modulus=0.05, initial_crack=is_crack)
 
             self.lhs = []
             self.rhs = []

@@ -1,4 +1,5 @@
 from collections import namedtuple
+from itertools import combinations
 import meshio
 import numpy as np
 from scipy import sparse
@@ -192,6 +193,7 @@ class Model:
         # Construct the initial connectivity matrix
         conn = conn_0.copy()
         for i, j in initial_crack:
+            # Connectivity is symmetric
             conn[i, j] = 0
             conn[j, i] = 0
         # Nodes are not connected with themselves
@@ -411,6 +413,38 @@ class Model:
         F[:, 2] = F_z
 
         return F
+
+
+def initial_crack_helper(crack_function):
+    """
+    A decorator to help with the construction of an initial crack function.
+
+    crack_function has the form crack_function(icoord, jcoord) where icoord and
+    jcoord are :class:`numpy.ndarray` s representing two node coordinates.
+    crack_function returns a truthy value if there is a crack between the two
+    nodes and a falsy value otherwise.
+
+    This decorator returns a function which takes all node coordinates and
+    returns a list of tuples of the indices pair of nodes which define the
+    crack. This function can therefore be used as the `initial_crack` argument
+    of the :class:`Model`
+
+    :arg function crack_function: The function which determine whether there is
+        a crack between a pair of node coordinates.
+
+    :returns: A function which determines all pairs of nodes with a crack
+        between them.
+    :rtype: function
+    """
+    def initial_crack(coords):
+        crack = []
+        for (i, icoord), (j, jcoord) in combinations(enumerate(coords), 2):
+            if i == j:
+                continue
+            if crack_function(icoord, jcoord):
+                crack.append((i, j))
+        return crack
+    return initial_crack
 
 
 class DimensionalityError(Exception):

@@ -8,6 +8,11 @@ Model Class
 .. autoclass:: Model
    :members:
 
+Decorators
+----------
+
+.. autodecorator:: initial_crack_helper
+
 Exceptions
 ----------
 
