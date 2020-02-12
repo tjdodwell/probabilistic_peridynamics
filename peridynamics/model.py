@@ -1,3 +1,4 @@
+from .integrators import Integrator
 from collections import namedtuple
 from itertools import combinations
 import meshio
@@ -416,6 +417,19 @@ class Model:
         F[:, 2] = F_z
 
         return F
+
+    def simulate(self, steps, integrator, boundary_function=None, u=None):
+        """
+        Simulate the peridynamics model.
+
+        :arg int steps: The number of simulation steps to conduct.
+        :arg  integrator: The integrator to use, see
+            :mod:`peridynamics.integrators` for options.
+        :type integrator: :class:`peridynamics.integrators.Integrator`
+        """
+
+        assert issubclass(integrator, Integrator)
+
 
 
 def initial_crack_helper(crack_function):
