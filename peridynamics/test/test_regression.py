@@ -4,6 +4,7 @@ Euler integrator.
 """
 from ..model import Model
 from ..integrators import Euler
+from itertools import combinations
 import numpy as np
 import pytest
 
@@ -15,16 +16,12 @@ def simple_square(data_path):
 
     def initial_crack(coords):
         crack = []
-        # for x, y in itertools.combinations(coords, 2):
-        #     if is_crack(x, y):
-        #         crack.append((x, y))
-        #         crack.append((y, x))
-        for i, icoord in enumerate(coords):
-            for j, jcoord in enumerate(coords):
-                if i == j:
-                    continue
-                if is_crack(icoord, jcoord):
-                    crack.append((i, j))
+        for (i, icoord), (j, jcoord) in combinations(enumerate(coords), 2):
+            if i == j:
+                continue
+            if is_crack(icoord, jcoord):
+                crack.append((i, j))
+                crack.append((j, i))
         return crack
 
     def is_crack(x, y):
