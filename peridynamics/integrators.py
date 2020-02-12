@@ -4,13 +4,12 @@ from abc import ABC, abstractmethod
 class Integrator(ABC):
     """
     Base class for integrators.
+
+    All integrators must define a call method which performs one
+    integration step and returns the updated displacements.
     """
     @abstractmethod
     def __call__(self):
-        """
-        All integrators must define a call method which performs one
-        integration step and returns the updated displacements.
-        """
         pass
 
 

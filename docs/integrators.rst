@@ -11,3 +11,5 @@ Euler
 
 .. autoclass:: Euler
    :members:
+
+   .. automethod:: __call__
