@@ -4,6 +4,10 @@ Integrators documenation
 Euler
 -----
 
-.. module:: integrators
+.. module:: peridynamics.integrators
+
+.. autoclass:: Integrator
+   :members:
+
 .. autoclass:: Euler
    :members:

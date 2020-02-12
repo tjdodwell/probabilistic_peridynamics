@@ -4,7 +4,7 @@ Model documentation
 Model Class
 -----------
 
-.. module:: model
+.. module:: peridynamics.model
 .. autoclass:: Model
    :members:
 
