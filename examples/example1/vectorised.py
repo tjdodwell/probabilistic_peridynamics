@@ -16,35 +16,6 @@ from pstats import SortKey, Stats
 mesh_file = pathlib.Path(__file__).parent.absolute() / "test.msh"
 
 
-class SimpleSquare(Model):
-    # A user defined class for a particular problem which defines all necessary
-    # parameters
-
-    def __init__(self):
-        super().__init__(mesh_file, horizon=0.1, critical_strain=0.005,
-                         elastic_modulus=0.05, initial_crack=is_crack)
-        self.dim = 2
-
-        self.lhs = []
-        self.rhs = []
-
-        # Find the boundary
-        for i in range(0, self.nnodes):
-            bnd = self.find_boundary(self.coords[i][:])
-            if bnd < 0:
-                (self.lhs).append(i)
-            elif bnd > 0:
-                (self.rhs).append(i)
-
-    def find_boundary(self, x):
-        bnd = 0
-        if x[0] < 1.5 * self.horizon:
-            bnd = -1
-        elif x[0] > 1.0 - 1.5 * self.horizon:
-            bnd = 1
-        return bnd
-
-
 @initial_crack_helper
 def is_crack(x, y):
     output = 0
@@ -107,7 +78,14 @@ def main():
         profile = cProfile.Profile()
         profile.enable()
 
-    model = SimpleSquare()
+    model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
+                  elastic_modulus=0.05, initial_crack=is_crack)
+
+    # Set left-hand side and right-hand side of boundary
+    indices = np.arange(model.nnodes)
+    model.lhs = indices[model.coords[:, 0] < 1.5*model.horizon]
+    model.rhs = indices[model.coords[:, 0] > 1.0 - 1.5*model.horizon]
+
     sim(model, steps=10)
 
     if args.profile:

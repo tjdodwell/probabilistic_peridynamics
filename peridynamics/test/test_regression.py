@@ -34,33 +34,15 @@ def simple_square(data_path):
                 output = 1
         return output
 
-    class SimpleSquare(Model):
-        def __init__(self):
-            super().__init__(mesh_file, horizon=0.1, critical_strain=0.005,
-                             elastic_modulus=0.05, initial_crack=is_crack)
+    # Create model
+    model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
+                  elastic_modulus=0.05, initial_crack=is_crack)
 
-            self.lhs = []
-            self.rhs = []
+    # Set left-hand side and right-hand side of boundary
+    indices = np.arange(model.nnodes)
+    model.lhs = indices[model.coords[:, 0] < 1.5*model.horizon]
+    model.rhs = indices[model.coords[:, 0] > 1.0 - 1.5*model.horizon]
 
-            # Find the Boundary
-            for i in range(0, self.nnodes):
-                bnd = self.find_boundary(self.coords[i][:])
-                if bnd < 0:
-                    (self.lhs).append(i)
-                elif bnd > 0:
-                    (self.rhs).append(i)
-
-        def find_boundary(self, x):
-            # Function which marks constrain particles
-            # Does not live on a boundary
-            bnd = 0
-            if x[0] < 1.5 * self.horizon:
-                bnd = -1
-            elif x[0] > 1.0 - 1.5 * self.horizon:
-                bnd = 1
-            return bnd
-
-    model = SimpleSquare()
     return model
 
 
