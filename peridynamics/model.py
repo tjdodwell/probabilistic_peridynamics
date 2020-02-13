@@ -25,12 +25,75 @@ class Model:
     :Example: ::
 
         >>> from peridynamics import Model
+        >>>
         >>> model = Model(
         >>>     mesh_file="./example.msh",
         >>>     horizon=0.1,
         >>>     critical_strain=0.005,
         >>>     elastic_modulus=0.05
         >>>     )
+
+    To define a crack in the inital configuration, you may supply a list of
+    pairs of particles between which the crack is.
+
+    :Example: ::
+
+        >>> from peridynamics import Model, initial_crack_helper
+        >>>
+        >>> initial_crack = [(1,2), (5,7), (3,9)]
+        >>> model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
+        >>>               elastic_modulus=0.05, initial_crack=initial_crack)
+
+    If it is more convenient to define the crack as a function you may also
+    pass a function to the constructor which takes the array of coordinates as
+    its only argument and returns a list of tuples as described above. The
+    :func:`peridynamics.model.initial_crack_helper` decorator has been provided
+    to easily create a function of the correct form from one which tests a
+    single pair of node coordinates and returns `True` or `False`.
+
+    :Example: ::
+
+        >>> from peridynamics import Model, initial_crack_helper
+        >>>
+        >>> @initial_crack_helper
+        >>> def initial_crack(x, y):
+        >>>     ...
+        >>>     if crack:
+        >>>         return True
+        >>>     else:
+        >>>         return False
+        >>>
+        >>> model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
+        >>>               elastic_modulus=0.05, initial_crack=initial_crack)
+
+    The :meth:`peridynamics.model.Model.simulate` method can be used to conduct
+    a peridynamics simulation. For this an
+    :class:`peridynamics.integrators.Integrator` is required, and optionally a
+    function implementing the boundary conditions.
+
+    :Example: ::
+
+        >>> from peridynamics import Model, initial_crack_helper
+        >>> from peridynamics.integrators import Euler
+        >>>
+        >>> model = Model(...)
+        >>>
+        >>> euler = Euler(dt=1e-3)
+        >>>
+        >>> indices = np.arange(model.nnodes)
+        >>> model.lhs = indices[model.coords[:, 0] < 1.5*model.horizon]
+        >>> model.rhs = indices[model.coords[:, 0] > 1.0 - 1.5*model.horizon]
+        >>>
+        >>> def boundary_function(model, u, step):
+        >>>     u[model.lhs] = 0
+        >>>     u[model.rhs] = 0
+        >>>     u[model.lhs, 0] = -1.0 * step
+        >>>     u[model.rhs, 0] = 1.0 * step
+        >>>
+        >>>     return u
+        >>>
+        >>> u, damage = model.simulate(steps=1000, integrator=euler,
+        >>>                            boundary_function=boundary_function)
     """
     def __init__(self, mesh_file, horizon, critical_strain, elastic_modulus,
                  initial_crack=[], dimensions=2):
