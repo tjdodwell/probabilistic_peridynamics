@@ -38,32 +38,20 @@ def is_crack(x, y):
     return output
 
 
-def sim(model, steps=400, load_rate=0.00001, dt=1e-3, print_every=10):
-    print("Peridynamic Simulation -- Starting")
+def boundary_function(model, u, step):
+    load_rate = 0.00001
 
-    integrator = Euler(dt=1e-3)
+    u[model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
+    u[model.rhs, 1:3] = np.zeros((len(model.rhs), 2))
 
-    u = np.zeros((model.nnodes, 3))
+    u[model.lhs, 0] = (
+        -0.5 * step * load_rate * np.ones(len(model.rhs))
+        )
+    u[model.rhs, 0] = (
+        0.5 * step * load_rate * np.ones(len(model.rhs))
+        )
 
-    tim = 0.0
-    for t in range(1, steps+1):
-        tim += dt
-
-        model.bond_stretch(u)
-        damage = model.damage()
-        f = model.bond_force()
-
-        u = integrator.step(u, f)
-
-        # Apply boundary conditions
-        u[model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
-        u[model.rhs, 1:3] = np.zeros((len(model.rhs), 2))
-
-        u[model.lhs, 0] = -0.5 * t * load_rate * np.ones(len(model.rhs))
-        u[model.rhs, 0] = 0.5 * t * load_rate * np.ones(len(model.rhs))
-
-        if t % print_every == 0:
-            model.write_mesh("U_"+"t"+str(t)+".vtk", damage, u)
+    return u
 
 
 def main():
@@ -86,7 +74,14 @@ def main():
     model.lhs = indices[model.coords[:, 0] < 1.5*model.horizon]
     model.rhs = indices[model.coords[:, 0] > 1.0 - 1.5*model.horizon]
 
-    sim(model, steps=10)
+    integrator = Euler(dt=1e-3)
+
+    u, damage = model.simulate(
+        steps=10,
+        integrator=integrator,
+        boundary_function=boundary_function,
+        write=10
+        )
 
     if args.profile:
         profile.disable()

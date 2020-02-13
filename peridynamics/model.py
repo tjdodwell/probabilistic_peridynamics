@@ -418,7 +418,8 @@ class Model:
 
         return F
 
-    def simulate(self, steps, integrator, boundary_function=None, u=None):
+    def simulate(self, steps, integrator, boundary_function=None, u=None,
+                 write=None):
         """
         Simulate the peridynamics model.
 
@@ -438,6 +439,10 @@ class Model:
         :arg u: The initial displacements for the simulation. If `None` the
             displacements will be initialised to zero. Default `None`.
         :type u: :class:`numpy.ndarray`
+        :arg int write: The frequency, in number of steps, to write the system
+            to a mesh file by calling
+            :meth:`peridynamics.model.Model.write_mesh`. If `None` then no
+            output is written. Default `None`.
         """
 
         assert isinstance(integrator, Integrator)
@@ -462,6 +467,10 @@ class Model:
 
             # Apply boundary conditions
             u = boundary_function(self, u, step)
+
+            if write:
+                if step % write == 0:
+                    self.write_mesh(f"U_{step}.vtk", damage, u)
 
         return u, damage
 
