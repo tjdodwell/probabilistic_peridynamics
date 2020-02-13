@@ -426,10 +426,44 @@ class Model:
         :arg  integrator: The integrator to use, see
             :mod:`peridynamics.integrators` for options.
         :type integrator: :class:`peridynamics.integrators.Integrator`
+        :arg boundary_function: A function to apply the boundary conditions for
+            the simlation. It has the form
+            boundary_function(:class:`peridynamics.model.Model`,
+            :class:`numpy.ndarray`, `int`). The arguments are the model being
+            simulated, the current displacements, and the current step number
+            (beginning from 1). `boundary_function` returns a (nnodes, 3)
+            :class:`numpy.ndarray` of the updated displacements
+            after applying the boundary conditions. Default `None`.
+        :type boundary_function: function
+        :arg u: The initial displacements for the simulation. If `None` the
+            displacements will be initialised to zero. Default `None`.
+        :type u: :class:`numpy.ndarray`
         """
 
-        assert issubclass(integrator, Integrator)
+        assert isinstance(integrator, Integrator)
 
+        # Create initial displacements is none is provided
+        if u is None:
+            u = np.zeros((self.nnodes, 3))
+
+        # Create dummy boundary conditions function is none is provied
+        if boundary_function is None:
+            def boundary_function(model):
+                return model.u
+
+        for step in range(1, steps+1):
+            # Calculate bond stretch, damage and forces on nodes
+            self.bond_stretch(u)
+            damage = self.damage()
+            f = self.bond_force()
+
+            # Conduct one integration step
+            u = integrator(u, f)
+
+            # Apply boundary conditions
+            u = boundary_function(self, u, step)
+
+        return u, damage
 
 
 def initial_crack_helper(crack_function):

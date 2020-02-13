@@ -52,24 +52,26 @@ def regression(simple_square):
 
     integrator = Euler(dt=1e-3)
 
-    u = np.zeros((model.nnodes, 3))
-
     load_rate = 0.00001
-    for t in range(1, 11):
 
-        model.bond_stretch(u)
-        damage = model.damage()
-        f = model.bond_force()
-
-        # Simple Euler update of the Solution
-        u = integrator(u, f)
-
-        # Apply boundary conditions
+    def boundary_function(model, u, step):
         u[model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
         u[model.rhs, 1:3] = np.zeros((len(model.rhs), 2))
 
-        u[model.lhs, 0] = -0.5 * t * load_rate * np.ones(len(model.rhs))
-        u[model.rhs, 0] = 0.5 * t * load_rate * np.ones(len(model.rhs))
+        u[model.lhs, 0] = (
+            -0.5 * step * load_rate * np.ones(len(model.rhs))
+            )
+        u[model.rhs, 0] = (
+            0.5 * step * load_rate * np.ones(len(model.rhs))
+            )
+
+        return u
+
+    u, damage = model.simulate(
+        steps=10,
+        integrator=integrator,
+        boundary_function=boundary_function
+        )
 
     return model, u, damage
 
