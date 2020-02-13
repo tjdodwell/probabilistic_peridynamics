@@ -1,7 +1,8 @@
 """
 Tests for the model class
 """
-from ..model import Model, DimensionalityError, initial_crack_helper
+from ..model import (Model, DimensionalityError, initial_crack_helper,
+                     InvalidIntegrator)
 import numpy as np
 import pytest
 
@@ -112,6 +113,18 @@ class TestWrite:
     """
     def test_coords(self, written_model):
         assert 0
+
+
+class TestSimulate:
+    """
+    Tests for the simulate method.
+
+    Further tests of simulation are in test_regression.py
+    """
+    def invalid_integrator(self, basic_model_2d):
+        model = basic_model_2d
+        with pytest.raises(InvalidIntegrator):
+            model.simulate(10, None)
 
 
 def test_initial_crack_helper():

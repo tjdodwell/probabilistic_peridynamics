@@ -445,7 +445,8 @@ class Model:
             output is written. Default `None`.
         """
 
-        assert isinstance(integrator, Integrator)
+        if not isinstance(integrator, Integrator):
+            raise InvalidIntegrator(integrator)
 
         # Create initial displacements is none is provided
         if u is None:
@@ -514,6 +515,21 @@ class DimensionalityError(Exception):
         message = (
             f"The number of dimensions must be 2 or 3,"
             " {dimensions} was given."
+            )
+
+        super().__init__(message)
+
+
+class InvalidIntegrator(Exception):
+    """
+    Raised when the integrator passed to
+    :meth:`peridynamics.model.Model.simulate` is not an instance of
+    :class:`peridynamics.integrators.Integrator`.
+    """
+    def __init__(self, integrator):
+        message = (
+            f"{integrator} is not an instance of"
+            "peridynamics.integrators.Integrator"
             )
 
         super().__init__(message)
