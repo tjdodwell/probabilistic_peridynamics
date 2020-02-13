@@ -7,7 +7,7 @@ python:
 
 install:
   - pip install .
-  - pip install flake8 pytest sphinx
+  - pip install flake8 pytest
 
 script:
   - flake8
@@ -15,5 +15,8 @@ script:
 
 jobs:
   include:
-    - python: 3.8
-      script: sphinx-build docs build
+    - python: 3.7
+      install:
+        - pip install .
+        - pip install sphinx
+      script: sphinx-build -W -b html docs build

@@ -1,4 +1,6 @@
+from .integrators import Integrator
 from collections import namedtuple
+from itertools import combinations
 import meshio
 import numpy as np
 from scipy import sparse
@@ -23,15 +25,83 @@ class Model:
     :Example: ::
 
         >>> from peridynamics import Model
-        >>> model = Model()
-        >>> model.read_mesh("./example.msh")
+        >>>
+        >>> model = Model(
+        >>>     mesh_file="./example.msh",
+        >>>     horizon=0.1,
+        >>>     critical_strain=0.005,
+        >>>     elastic_modulus=0.05
+        >>>     )
 
+    To define a crack in the inital configuration, you may supply a list of
+    pairs of particles between which the crack is.
+
+    :Example: ::
+
+        >>> from peridynamics import Model, initial_crack_helper
+        >>>
+        >>> initial_crack = [(1,2), (5,7), (3,9)]
+        >>> model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
+        >>>               elastic_modulus=0.05, initial_crack=initial_crack)
+
+    If it is more convenient to define the crack as a function you may also
+    pass a function to the constructor which takes the array of coordinates as
+    its only argument and returns a list of tuples as described above. The
+    :func:`peridynamics.model.initial_crack_helper` decorator has been provided
+    to easily create a function of the correct form from one which tests a
+    single pair of node coordinates and returns `True` or `False`.
+
+    :Example: ::
+
+        >>> from peridynamics import Model, initial_crack_helper
+        >>>
+        >>> @initial_crack_helper
+        >>> def initial_crack(x, y):
+        >>>     ...
+        >>>     if crack:
+        >>>         return True
+        >>>     else:
+        >>>         return False
+        >>>
+        >>> model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
+        >>>               elastic_modulus=0.05, initial_crack=initial_crack)
+
+    The :meth:`peridynamics.model.Model.simulate` method can be used to conduct
+    a peridynamics simulation. For this an
+    :class:`peridynamics.integrators.Integrator` is required, and optionally a
+    function implementing the boundary conditions.
+
+    :Example: ::
+
+        >>> from peridynamics import Model, initial_crack_helper
+        >>> from peridynamics.integrators import Euler
+        >>>
+        >>> model = Model(...)
+        >>>
+        >>> euler = Euler(dt=1e-3)
+        >>>
+        >>> indices = np.arange(model.nnodes)
+        >>> model.lhs = indices[model.coords[:, 0] < 1.5*model.horizon]
+        >>> model.rhs = indices[model.coords[:, 0] > 1.0 - 1.5*model.horizon]
+        >>>
+        >>> def boundary_function(model, u, step):
+        >>>     u[model.lhs] = 0
+        >>>     u[model.rhs] = 0
+        >>>     u[model.lhs, 0] = -1.0 * step
+        >>>     u[model.rhs, 0] = 1.0 * step
+        >>>
+        >>>     return u
+        >>>
+        >>> u, damage = model.simulate(steps=1000, integrator=euler,
+        >>>                            boundary_function=boundary_function)
     """
-    def __init__(self, horizon, critical_strain, elastic_modulus,
-                 dimensions=2):
+    def __init__(self, mesh_file, horizon, critical_strain, elastic_modulus,
+                 initial_crack=[], dimensions=2):
         """
         Construct a :class:`Model` object.
 
+        :arg str mesh_file: Path of the mesh file defining the systems nodes
+            and connectivity.
         :arg float horizon: The horizon radius. Nodes within `horizon` of
             another interact with that node and are said to be within its
             neighbourhood.
@@ -39,6 +109,13 @@ class Model:
             which exceed this strain are permanently broken.
         :arg float elastic_modulus: The appropriate elastic modulus of the
             material.
+        :arg initial_crack: The initial crack of the system. The argument may
+            be a list of tuples where each tuple is a pair of integers
+            representing nodes between which to create a crack. Alternatively,
+            the arugment may be a function which takes the (nnodes, 3)
+            :class:`numpy.ndarray` of coordinates as an argument, and returns a
+            list of tuples defining the initial crack. Default is []
+        :type initial_crack: list(tuple(int, int)) or function
         :arg int dimensions: The dimensionality of the model. The
             default is 2.
 
@@ -48,13 +125,7 @@ class Model:
         :raises DimensionalityError: when an invalid `dimensions` argument is
             provided.
         """
-        self.horizon = horizon
-        self.critical_strain = critical_strain
-
-        self.bond_stiffness = (
-            18.0 * elastic_modulus / (np.pi * self.horizon**4)
-            )
-
+        # Set model dimensionality
         self.dimensions = dimensions
 
         if dimensions == 2:
@@ -64,7 +135,26 @@ class Model:
         else:
             raise DimensionalityError(dimensions)
 
-    def read_mesh(self, filename):
+        # Read coordinates and connectivity from mesh file
+        self._read_mesh(mesh_file)
+
+        self.horizon = horizon
+        self.critical_strain = critical_strain
+
+        self.bond_stiffness = (
+            18.0 * elastic_modulus / (np.pi * self.horizon**4)
+            )
+
+        # Calculate the volume for each node
+        self._set_volume()
+
+        # Set the connectivity
+        self._set_connectivity(initial_crack)
+
+        # Set the node distance and failure strain matrices
+        self._set_H()
+
+    def _read_mesh(self, filename):
         """
         Read the model's nodes, connectivity and boundary from a mesh file.
 
@@ -81,11 +171,9 @@ class Model:
 
         # Get connectivity, mesh triangle cells
         self.connectivity = mesh.cells[self.mesh_elements.connectivity]
-        self.nelem = self.connectivity.shape[0]
 
         # Get boundary connectivity, mesh lines
         self.connectivity_bnd = mesh.cells[self.mesh_elements.boundary]
-        self.nelem_bnd = self.connectivity_bnd.shape[0]
 
     def write_mesh(self, filename, damage=None, displacements=None,
                    file_format=None):
@@ -94,9 +182,11 @@ class Model:
         Optionally, write damage and displacements as points data.
 
         :arg str filename: Path of the file to write the mesh to.
-        :arg array damage: The damage of each node. Default is None.
-        :arg array displacements: An array with shape (nnodes, dim)
-            where each row is the displacement of a node. Default is None.
+        :arg damage: The damage of each node. Default is None.
+        :type damage: :class:`numpy.ndarray`
+        :arg displacements: An array with shape (nnodes, dim) where each row is
+            the displacement of a node. Default is None.
+        :type displacements: :class:`numpy.ndarray`
         :arg str file_format: The file format of the mesh file to
             write. Inferred from `filename` if None. Default is None.
 
@@ -117,7 +207,7 @@ class Model:
             file_format=file_format
             )
 
-    def set_volume(self):
+    def _set_volume(self):
         """
         Calculate the value of each node.
 
@@ -139,35 +229,42 @@ class Model:
 
             self.V[element] += val
 
-    def set_connectivity(self, horizon):
+    def _set_connectivity(self, initial_crack):
         """
         Sets the sparse connectivity matrix, should only ever be called once.
 
-        :arg float horizon: The horizon radius. Nodes within `horizon` of
-            another interact with that node and are said to be within its
-            neighbourhood.
+        :arg initial_crack: The initial crack of the system. The argument may
+            be a list of tuples where each tuple is a pair of integers
+            representing nodes between which to create a crack. Alternatively,
+            the arugment may be a function which takes the (nnodes, 3)
+            :class:`numpy.ndarray` of coordinates as an argument, and returns a
+            list of tuples defining the initial crack.
+        :type initial_crack: list(tuple(int, int)) or function
 
         :returns: None
         :rtype: NoneType
         """
-        # Initiate connectivity matrix as non sparse
-        conn = np.zeros((self.nnodes, self.nnodes))
+        if callable(initial_crack):
+            initial_crack = initial_crack(self.coords)
 
-        # Initiate uncracked connectivity matrix
-        conn_0 = np.zeros((self.nnodes, self.nnodes))
-
-        # Check if nodes are connected
+        # Calculate the Euclidean distance between each pair of nodes
         distance = cdist(self.coords, self.coords, 'euclidean')
-        for i in range(0, self.nnodes):
-            for j in range(0, self.nnodes):
-                if distance[i, j] < horizon:
-                    conn_0[i, j] = 1
-                    if i == j:
-                        # do not fill diagonal
-                        continue
-                    elif (not
-                          self.is_crack(self.coords[i, :], self.coords[j, :])):
-                        conn[i, j] = 1
+
+        # Construct uncracked connectivity matrix (connectivity determined only
+        # by the horizon)
+        nnodes = self.nnodes
+        conn_0 = np.zeros((nnodes, nnodes))
+        # Connect nodes which are within horizon of each other
+        conn_0[distance < self.horizon] = 1
+
+        # Construct the initial connectivity matrix
+        conn = conn_0.copy()
+        for i, j in initial_crack:
+            # Connectivity is symmetric
+            conn[i, j] = 0
+            conn[j, i] = 0
+        # Nodes are not connected with themselves
+        np.fill_diagonal(conn, 0)
 
         # Initial bond damages
         count = np.sum(conn, axis=0)
@@ -185,10 +282,10 @@ class Model:
 
         return damage
 
-    def set_H(self):
+    def _set_H(self):
         """
-        Constructs the covariance matrix, K, failure strains matrix and H
-        matrix, which is a sparse matrix containing distances.
+        Constructs the failure strains matrix and H matrix, which is a sparse
+        matrix containing distances.
 
         :returns: None
         :rtype: NoneType
@@ -210,11 +307,6 @@ class Model:
         H_y0 = -lam_y + lam_y.transpose()
         H_z0 = -lam_z + lam_z.transpose()
 
-        norms_matrix = (
-            np.power(H_x0, 2) + np.power(H_y0, 2) + np.power(H_z0, 2)
-            )
-        self.L_0 = np.sqrt(norms_matrix)
-
         # Into sparse matrices
         self.H_x0 = sparse.csr_matrix(self.conn_0.multiply(H_x0))
         self.H_y0 = sparse.csr_matrix(self.conn_0.multiply(H_y0))
@@ -223,61 +315,25 @@ class Model:
         self.H_y0.eliminate_zeros()
         self.H_z0.eliminate_zeros()
 
-        # Length scale for the covariance matrix
-        scale = 0.05
-
-        # Scale of the covariance matrix
-        nu = 1e-5
-
-        # inv length scale parameter
-        inv_length_scale = (np.divide(-1., 2.*pow(scale, 2)))
-
-        # radial basis functions
-        rbf = np.multiply(inv_length_scale, norms_matrix)
-
-        # Exponential of radial basis functions
-        K = np.exp(rbf)
-
-        # Multiply by the vertical scale to get covariance matrix, K
-        self.K = np.multiply(pow(nu, 2), K)
-
-        # Create L matrix for sampling perturbations
-        # epsilon, numerical trick so that M is positive semi definite
-        epsilon = 1e-5
-
-        # add epsilon before scaling by a vertical variance scale, nu
-        iden = np.identity(self.nnodes)
-        K_tild = K + np.multiply(epsilon, iden)
-
-        K_tild = np.multiply(pow(nu, 2), K_tild)
-
         norms_matrix = (
             self.H_x0.power(2) + self.H_y0.power(2) + self.H_z0.power(2)
             )
         self.L_0 = norms_matrix.sqrt()
 
-        if (self.H_x0.shape != self.H_y0.shape
-                or self.H_x0.shape != self.H_z0.shape):
-            raise Exception(
-                'The sizes of H_x0, H_y0 and H_z0 did not match!'
-                ' The sizes were {}, {}, {}, respectively'.format(
-                    self.H_x0.shape, self.H_y0.shape, self.H_z0.shape
-                    )
-                )
-
         # initiate fail_stretches matrix as a linked list format
-        self.fail_strains = np.full((self.nnodes, self.nnodes),
-                                    self.critical_strain)
+        fail_strains = np.full((self.nnodes, self.nnodes),
+                               self.critical_strain)
         # Make into a sparse matrix
-        self.fail_strains = sparse.csr_matrix(self.fail_strains)
+        self.fail_strains = sparse.csr_matrix(fail_strains)
 
     def bond_stretch(self, u):
         """
         Calculates the strain (bond stretch) of all nodes for a given
         displacement.
 
-        :arg np.array u: The displacement array with shape
+        :arg u: The displacement array with shape
             (`nnodes`, `dimension`).
+        :type u: :class:`numpy.ndarray`
 
         :returns: None
         :rtype: NoneType
@@ -344,8 +400,9 @@ class Model:
         """
         Calculates bond damage.
 
-        :returns np.array damage: A (`nnodes`, ) array containing the damage
+        :returns: A (`nnodes`, ) array containing the damage
             for each node.
+        :rtype: :class:`numpy.ndarray`
         """
         # Make sure only calculating for bonds that exist
 
@@ -375,6 +432,13 @@ class Model:
         return damage
 
     def bond_force(self):
+        """
+        Calculate the force due to bonds acting on each node.
+
+        :returns: A (`nnodes`, 3) array of the component of the force in each
+            dimension for each node.
+        :rtype: :class:`numpy.ndarray`
+        """
         # Container for the forces on each particle in each dimension
         F = np.zeros((self.nnodes, 3))
 
@@ -417,6 +481,94 @@ class Model:
 
         return F
 
+    def simulate(self, steps, integrator, boundary_function=None, u=None,
+                 write=None):
+        """
+        Simulate the peridynamics model.
+
+        :arg int steps: The number of simulation steps to conduct.
+        :arg  integrator: The integrator to use, see
+            :mod:`peridynamics.integrators` for options.
+        :type integrator: :class:`peridynamics.integrators.Integrator`
+        :arg boundary_function: A function to apply the boundary conditions for
+            the simlation. It has the form
+            boundary_function(:class:`peridynamics.model.Model`,
+            :class:`numpy.ndarray`, `int`). The arguments are the model being
+            simulated, the current displacements, and the current step number
+            (beginning from 1). `boundary_function` returns a (nnodes, 3)
+            :class:`numpy.ndarray` of the updated displacements
+            after applying the boundary conditions. Default `None`.
+        :type boundary_function: function
+        :arg u: The initial displacements for the simulation. If `None` the
+            displacements will be initialised to zero. Default `None`.
+        :type u: :class:`numpy.ndarray`
+        :arg int write: The frequency, in number of steps, to write the system
+            to a mesh file by calling
+            :meth:`peridynamics.model.Model.write_mesh`. If `None` then no
+            output is written. Default `None`.
+        """
+
+        if not isinstance(integrator, Integrator):
+            raise InvalidIntegrator(integrator)
+
+        # Create initial displacements is none is provided
+        if u is None:
+            u = np.zeros((self.nnodes, 3))
+
+        # Create dummy boundary conditions function is none is provied
+        if boundary_function is None:
+            def boundary_function(model):
+                return model.u
+
+        for step in range(1, steps+1):
+            # Calculate bond stretch, damage and forces on nodes
+            self.bond_stretch(u)
+            damage = self.damage()
+            f = self.bond_force()
+
+            # Conduct one integration step
+            u = integrator(u, f)
+
+            # Apply boundary conditions
+            u = boundary_function(self, u, step)
+
+            if write:
+                if step % write == 0:
+                    self.write_mesh(f"U_{step}.vtk", damage, u)
+
+        return u, damage
+
+
+def initial_crack_helper(crack_function):
+    """
+    A decorator to help with the construction of an initial crack function.
+
+    crack_function has the form crack_function(icoord, jcoord) where icoord and
+    jcoord are :class:`numpy.ndarray` s representing two node coordinates.
+    crack_function returns a truthy value if there is a crack between the two
+    nodes and a falsy value otherwise.
+
+    This decorator returns a function which takes all node coordinates and
+    returns a list of tuples of the indices pair of nodes which define the
+    crack. This function can therefore be used as the `initial_crack` argument
+    of the :class:`Model`
+
+    :arg function crack_function: The function which determine whether there is
+        a crack between a pair of node coordinates.
+
+    :returns: A function which determines all pairs of nodes with a crack
+        between them.
+    :rtype: function
+    """
+    def initial_crack(coords):
+        crack = []
+        # Iterate over all unique pairs of coordinates with their indicies
+        for (i, icoord), (j, jcoord) in combinations(enumerate(coords), 2):
+            if crack_function(icoord, jcoord):
+                crack.append((i, j))
+        return crack
+    return initial_crack
+
 
 class DimensionalityError(Exception):
     """
@@ -426,6 +578,21 @@ class DimensionalityError(Exception):
         message = (
             f"The number of dimensions must be 2 or 3,"
             " {dimensions} was given."
+            )
+
+        super().__init__(message)
+
+
+class InvalidIntegrator(Exception):
+    """
+    Raised when the integrator passed to
+    :meth:`peridynamics.model.Model.simulate` is not an instance of
+    :class:`peridynamics.integrators.Integrator`.
+    """
+    def __init__(self, integrator):
+        message = (
+            f"{integrator} is not an instance of"
+            "peridynamics.integrators.Integrator"
             )
 
         super().__init__(message)

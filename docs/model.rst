@@ -4,9 +4,14 @@ Model documentation
 Model Class
 -----------
 
-.. module:: model
+.. module:: peridynamics.model
 .. autoclass:: Model
    :members:
+
+Decorators
+----------
+
+.. autodecorator:: initial_crack_helper
 
 Exceptions
 ----------

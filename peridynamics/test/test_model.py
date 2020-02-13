@@ -1,36 +1,38 @@
 """
 Tests for the model class
 """
-from ..model import Model, DimensionalityError
+from ..model import (Model, DimensionalityError, initial_crack_helper,
+                     InvalidIntegrator)
 import numpy as np
 import pytest
 
 
 @pytest.fixture(scope="module")
 def basic_model_2d(data_path):
-    model = Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05)
-    model.read_mesh(data_path / "example_mesh.msh")
+    mesh_file = data_path / "example_mesh.msh"
+    model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
+                  elastic_modulus=0.05)
     return model
 
 
 @pytest.fixture(scope="module")
 def basic_model_3d(data_path):
-    model = Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05)
-    model.read_mesh(data_path / "example_mesh.msh")
+    mesh_file = data_path / "example_mesh.msh"
+    model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
+                  elastic_modulus=0.05, dimensions=3)
     return model
 
 
 class TestDimension:
-    def test_2d(self):
-        model = Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05,
-                      dimensions=2)
+    def test_2d(self, basic_model_2d):
+        model = basic_model_2d
 
         assert model.mesh_elements.connectivity == 'triangle'
         assert model.mesh_elements.boundary == 'line'
 
-    def test_3d(self):
-        model = Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05,
-                      dimensions=3)
+    @pytest.mark.skip(reason="No three dimensional example")
+    def test_3d(self, basic_model_3d):
+        model = basic_model_3d
 
         assert model.mesh_elements.connectivity == 'tetrahedron'
         assert model.mesh_elements.boundary == 'triangle'
@@ -38,13 +40,13 @@ class TestDimension:
     @pytest.mark.parametrize("dimensions", [1, 4])
     def test_dimensionality_error(self, dimensions):
         with pytest.raises(DimensionalityError):
-            Model(horizon=0.1, critical_strain=0.05, elastic_modulus=0.05,
-                  dimensions=dimensions)
+            Model("abc.msh", horizon=0.1, critical_strain=0.05,
+                  elastic_modulus=0.05, dimensions=dimensions)
 
 
 class TestRead2D:
     """
-    Test the read_mesh method ensuring it correctly interprets the mesh file
+    Test the _read_mesh method ensuring it correctly interprets the mesh file
     for a two dimensional system
     """
     def test_coords(self, basic_model_2d):
@@ -59,7 +61,6 @@ class TestRead2D:
         model = basic_model_2d
 
         assert model.connectivity.shape == (4096, 3)
-        assert model.nelem == 4096
         assert np.all(
             model.connectivity[100] == np.array([252, 651, 650]))
 
@@ -67,7 +68,6 @@ class TestRead2D:
         model = basic_model_2d
 
         assert model.connectivity_bnd.shape == (128, 2)
-        assert model.nelem_bnd == 128
         assert np.all(
             model.connectivity_bnd[100] == np.array([100, 101]))
 
@@ -75,7 +75,7 @@ class TestRead2D:
 @pytest.mark.skip(reason="No three dimensional example")
 class TestRead3D:
     """
-    Test the read_mesh method ensuring it correctly interprets the mesh file
+    Test the _read_mesh method ensuring it correctly interprets the mesh file
     for a three dimensional system
     """
     def test_coords(self, basic_model_3d):
@@ -113,3 +113,42 @@ class TestWrite:
     """
     def test_coords(self, written_model):
         assert 0
+
+
+class TestSimulate:
+    """
+    Tests for the simulate method.
+
+    Further tests of simulation are in test_regression.py
+    """
+    def invalid_integrator(self, basic_model_2d):
+        model = basic_model_2d
+        with pytest.raises(InvalidIntegrator):
+            model.simulate(10, None)
+
+
+def test_initial_crack_helper():
+    @initial_crack_helper
+    def initial_crack(icoord, jcoord):
+        critical_distance = 1.0
+        if np.sum((jcoord - icoord)**2) > critical_distance:
+            return True
+        else:
+            return False
+
+    coords = np.array([
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [5.0, 0.0, 0.0]
+        ])
+
+    actual = initial_crack(coords)
+    expected = [
+        (0, 3),
+        (1, 2),
+        (1, 3),
+        (2, 3)
+        ]
+
+    assert expected == actual
