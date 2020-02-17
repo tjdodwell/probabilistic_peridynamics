@@ -276,7 +276,7 @@ class Model:
         conn = np.tril(conn, -1)
 
         # Convert to sparse matrix
-        self.conn = sparse.csr_matrix(conn)
+        self.connectivity = sparse.csr_matrix(conn)
         self.neighbourhood = sparse.csr_matrix(neighbourhood)
 
         return damage
@@ -379,7 +379,7 @@ class Model:
         del_L = del_L.tocsr()
 
         # Step 1. initiate as a sparse matrix
-        strain = sparse.lil_matrix(self.conn.shape)
+        strain = sparse.lil_matrix(self.connectivity.shape)
 
         # Step 2. elementwise division
         strain[self.L_0.nonzero()] = (
@@ -399,23 +399,23 @@ class Model:
         # Make sure only calculating for bonds that exist
 
         # Step 1. initiate as sparse matrix
-        bond_healths = sparse.lil_matrix(self.conn.shape)
+        bond_healths = sparse.lil_matrix(self.connectivity.shape)
 
         # Step 2. Find broken bonds, squared as strains can be negative
-        bond_healths[self.conn.nonzero()] = (
-                self.fail_strains.power(2)[self.conn.nonzero()]
-                - self.strain.power(2)[self.conn.nonzero()]
+        bond_healths[self.connectivity.nonzero()] = (
+                self.fail_strains.power(2)[self.connectivity.nonzero()]
+                - self.strain.power(2)[self.connectivity.nonzero()]
                 )
 
         # Update failed bonds
         bond_healths = bond_healths > 0
 
-        self.conn = sparse.csr_matrix(bond_healths)
+        self.connectivity = sparse.csr_matrix(bond_healths)
 
         # Bond damages
         # Using lower triangular connectivity matrix, so just mirror it for
         # bond damage calc
-        temp = self.conn + self.conn.transpose()
+        temp = self.connectivity + self.connectivity.transpose()
 
         count = temp.sum(axis=0)
         damage = np.divide((self.family - count), self.family)
@@ -436,11 +436,12 @@ class Model:
 
         # Step 1. Initiate container as a sparse matrix, only need calculate
         # for bonds that exist
-        force_normd = sparse.lil_matrix(self.conn.shape)
+        force_normd = sparse.lil_matrix(self.connectivity.shape)
 
         # Step 2. find normalised forces
-        force_normd[self.conn.nonzero()] = (
-                self.strain[self.conn.nonzero()]/self.L[self.conn.nonzero()]
+        force_normd[self.connectivity.nonzero()] = (
+                self.strain[self.connectivity.nonzero()]
+                / self.L[self.connectivity.nonzero()]
                 )
 
         # Make lower triangular into full matrix
