@@ -147,8 +147,15 @@ class Model:
         # Calculate the volume for each node
         self._set_volume()
 
+        # Determine neighbours
+        self.neighbourhood = self._neighbourhood()
+
+        # Set family, the number of neighbours for each node
+        self.family = np.sum(self.neighbourhood, axis=0)
+
         # Set the connectivity
-        self._set_connectivity(initial_crack)
+        self.connectivity = self._connectivity(self.neighbourhood,
+                                               initial_crack)
 
         # Set the node distance and failure strain matrices
         self._set_H()
@@ -228,24 +235,14 @@ class Model:
 
             self.V[element] += val
 
-    def _set_connectivity(self, initial_crack):
+    def _neighbourhood(self):
         """
-        Sets the sparse connectivity matrix, should only ever be called once.
+        Determine the neighbourhood of all nodes.
 
-        :arg initial_crack: The initial crack of the system. The argument may
-            be a list of tuples where each tuple is a pair of integers
-            representing nodes between which to create a crack. Alternatively,
-            the arugment may be a function which takes the (nnodes, 3)
-            :class:`numpy.ndarray` of coordinates as an argument, and returns a
-            list of tuples defining the initial crack.
-        :type initial_crack: list(tuple(int, int)) or function
-
-        :returns: None
-        :rtype: NoneType
+        :returns: The sparse neighbourhood matrix.  Element [i, j] of this
+            martrix is 1 if i is within `horizon` of j and 0 otherwise.
+        :rtype: :class:`scipy.sparse.csr_matrix`
         """
-        if callable(initial_crack):
-            initial_crack = initial_crack(self.coords)
-
         # Calculate the Euclidean distance between each pair of nodes
         distance = cdist(self.coords, self.coords, 'euclidean')
 
@@ -256,8 +253,31 @@ class Model:
         # Connect nodes which are within horizon of each other
         neighbourhood[distance < self.horizon] = 1
 
+        return sparse.csr_matrix(neighbourhood)
+
+    def _connectivity(self, neighbourhood, initial_crack):
+        """
+        Initialises the connectivity.
+
+        :arg neighbourhood: The sparse neighbourhood matrix.
+        :type neighbourhood: :class:`scipy.sparse.csr_matrix`
+        :arg initial_crack: The initial crack of the system. The argument may
+            be a list of tuples where each tuple is a pair of integers
+            representing nodes between which to create a crack. Alternatively,
+            the arugment may be a function which takes the (nnodes, 3)
+            :class:`numpy.ndarray` of coordinates as an argument, and returns a
+            list of tuples defining the initial crack.
+        :type initial_crack: list(tuple(int, int)) or function
+
+        :returns: The sparse connectivity matrix. Element [i, j] of this matrix
+            is 1 if i and j are bonded and 0 otherwise.
+        :rtype: :class:`scipy.sparse.csr_matrix`
+        """
+        if callable(initial_crack):
+            initial_crack = initial_crack(self.coords)
+
         # Construct the initial connectivity matrix
-        conn = neighbourhood.copy()
+        conn = neighbourhood.toarray()
         for i, j in initial_crack:
             # Connectivity is symmetric
             conn[i, j] = 0
@@ -269,12 +289,8 @@ class Model:
         # make diagonal values 0
         conn = np.tril(conn, -1)
 
-        # Set family, the number of neighbours for each node
-        self.family = np.sum(neighbourhood, axis=0)
-
         # Convert to sparse matrix
-        self.connectivity = sparse.csr_matrix(conn)
-        self.neighbourhood = sparse.csr_matrix(neighbourhood)
+        return sparse.csr_matrix(conn)
 
     def _set_H(self):
         """
