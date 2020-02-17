@@ -269,6 +269,9 @@ class Model:
         # make diagonal values 0
         conn = np.tril(conn, -1)
 
+        # Set family, the number of neighbours for each node
+        self.family = np.sum(neighbourhood, axis=0)
+
         # Convert to sparse matrix
         self.connectivity = sparse.csr_matrix(conn)
         self.neighbourhood = sparse.csr_matrix(neighbourhood)
