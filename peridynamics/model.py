@@ -5,7 +5,6 @@ import meshio
 import numpy as np
 from scipy import sparse
 from scipy.spatial.distance import cdist
-import warnings
 
 
 _MeshElements = namedtuple("MeshElements", ["connectivity", "boundary"])
@@ -388,13 +387,6 @@ class Model:
             )
 
         self.strain = strain
-
-        if strain.shape != self.L_0.shape:
-            warnings.warn(
-                'strain.shape was {}, whilst L_0.shape was {}'.format(
-                    strain.shape, self.L_0.shape
-                    )
-                )
 
     def damage(self):
         """
