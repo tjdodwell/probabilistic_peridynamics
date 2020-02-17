@@ -249,15 +249,15 @@ class Model:
         # Calculate the Euclidean distance between each pair of nodes
         distance = cdist(self.coords, self.coords, 'euclidean')
 
-        # Construct uncracked connectivity matrix (connectivity determined only
-        # by the horizon)
+        # Construct the neighbourhood matrix (neighbourhood[i, j] = 1 if i and
+        # j are neighbours)
         nnodes = self.nnodes
-        conn_0 = np.zeros((nnodes, nnodes))
+        neighbourhood = np.zeros((nnodes, nnodes))
         # Connect nodes which are within horizon of each other
-        conn_0[distance < self.horizon] = 1
+        neighbourhood[distance < self.horizon] = 1
 
         # Construct the initial connectivity matrix
-        conn = conn_0.copy()
+        conn = neighbourhood.copy()
         for i, j in initial_crack:
             # Connectivity is symmetric
             conn[i, j] = 0
@@ -267,7 +267,7 @@ class Model:
 
         # Initial bond damages
         count = np.sum(conn, axis=0)
-        self.family = np.sum(conn_0, axis=0)
+        self.family = np.sum(neighbourhood, axis=0)
         damage = np.divide((self.family - count), self.family)
         damage.resize(self.nnodes)
 
@@ -277,7 +277,7 @@ class Model:
 
         # Convert to sparse matrix
         self.conn = sparse.csr_matrix(conn)
-        self.conn_0 = sparse.csr_matrix(conn_0)
+        self.neighbourhood = sparse.csr_matrix(neighbourhood)
 
         return damage
 
@@ -307,9 +307,9 @@ class Model:
         H_z0 = -lam_z + lam_z.transpose()
 
         # Into sparse matrices
-        self.H_x0 = sparse.csr_matrix(self.conn_0.multiply(H_x0))
-        self.H_y0 = sparse.csr_matrix(self.conn_0.multiply(H_y0))
-        self.H_z0 = sparse.csr_matrix(self.conn_0.multiply(H_z0))
+        self.H_x0 = sparse.csr_matrix(self.neighbourhood.multiply(H_x0))
+        self.H_y0 = sparse.csr_matrix(self.neighbourhood.multiply(H_y0))
+        self.H_z0 = sparse.csr_matrix(self.neighbourhood.multiply(H_z0))
         self.H_x0.eliminate_zeros()
         self.H_y0.eliminate_zeros()
         self.H_z0.eliminate_zeros()
@@ -340,7 +340,7 @@ class Model:
         cols, rows, data_x, data_y, data_z = [], [], [], [], []
 
         for i in range(self.nnodes):
-            row = self.conn_0.getrow(i)
+            row = self.neighbourhood.getrow(i)
 
             rows.extend(row.indices)
             cols.extend(np.full((row.nnz), i))
