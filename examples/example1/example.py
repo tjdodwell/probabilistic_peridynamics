@@ -1,8 +1,3 @@
-"""
-Created on Sun Nov 10 16:25:58 2019
-
-@author: Ben Boys
-"""
 import argparse
 import cProfile
 from io import StringIO
@@ -55,9 +50,6 @@ def boundary_function(model, u, step):
 
 
 def main():
-    """
-    Stochastic peridynamics, takes multiple stable states (fully formed cracks)
-    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--profile', action='store_const', const=True)
     args = parser.parse_args()
