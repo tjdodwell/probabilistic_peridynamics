@@ -265,12 +265,6 @@ class Model:
         # Nodes are not connected with themselves
         np.fill_diagonal(conn, 0)
 
-        # Initial bond damages
-        count = np.sum(conn, axis=0)
-        self.family = np.sum(neighbourhood, axis=0)
-        damage = np.divide((self.family - count), self.family)
-        damage.resize(self.nnodes)
-
         # Lower triangular - count bonds only once
         # make diagonal values 0
         conn = np.tril(conn, -1)
@@ -278,8 +272,6 @@ class Model:
         # Convert to sparse matrix
         self.connectivity = sparse.csr_matrix(conn)
         self.neighbourhood = sparse.csr_matrix(neighbourhood)
-
-        return damage
 
     def _set_H(self):
         """
