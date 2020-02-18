@@ -338,10 +338,9 @@ class Model:
         self.H_y0 = sparse.csr_matrix(self.neighbourhood.multiply(H_y0))
         self.H_z0 = sparse.csr_matrix(self.neighbourhood.multiply(H_z0))
 
-        norms_matrix = (
+        self.L_0 = (
             self.H_x0.power(2) + self.H_y0.power(2) + self.H_z0.power(2)
-            )
-        self.L_0 = norms_matrix.sqrt()
+            ).sqrt()
 
         # initiate fail_stretches matrix as a linked list format
         fail_strains = np.full((self.nnodes, self.nnodes),
@@ -376,11 +375,9 @@ class Model:
         self.H_y = delH_y + self.H_y0
         self.H_z = delH_z + self.H_z0
 
-        norms_matrix = (
+        self.L = (
             self.H_x.power(2) + self.H_y.power(2) + self.H_z.power(2)
-            )
-
-        self.L = norms_matrix.sqrt()
+            ).sqrt()
 
         del_L = self.L - self.L_0
 
