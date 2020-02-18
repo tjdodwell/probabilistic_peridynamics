@@ -436,9 +436,6 @@ class Model:
             dimension for each node.
         :rtype: :class:`numpy.ndarray`
         """
-        # Container for the forces on each particle in each dimension
-        F = np.zeros((self.nnodes, 3))
-
         # Step 1. Initiate container as a sparse matrix, only need calculate
         # for bonds that exist
         force_normd = sparse.lil_matrix(self.connectivity.shape)
@@ -473,11 +470,7 @@ class Model:
         F_y = self.bond_stiffness * np.multiply(F_y, self.V)
         F_z = self.bond_stiffness * np.multiply(F_z, self.V)
 
-        F[:, 0] = F_x
-        F[:, 1] = F_y
-        F[:, 2] = F_z
-
-        return F
+        return np.stack((F_x, F_y, F_z), axis=-1)
 
     def simulate(self, steps, integrator, boundary_function=None, u=None,
                  write=None):
