@@ -140,6 +140,7 @@ class Model:
         self.horizon = horizon
         self.critical_strain = critical_strain
 
+        # Determine bond stiffness
         self.bond_stiffness = (
             18.0 * elastic_modulus / (np.pi * self.horizon**4)
             )
@@ -342,12 +343,6 @@ class Model:
             self.H_x0.power(2) + self.H_y0.power(2) + self.H_z0.power(2)
             ).sqrt()
 
-        # initiate fail_stretches matrix as a linked list format
-        fail_strains = np.full((self.nnodes, self.nnodes),
-                               self.critical_strain)
-        # Make into a sparse matrix
-        self.fail_strains = sparse.csr_matrix(fail_strains)
-
     def bond_stretch(self, u):
         """
         Calculates the strain (bond stretch) of all nodes for a given
@@ -410,8 +405,10 @@ class Model:
         bond_healths = sparse.lil_matrix(self.connectivity.shape)
 
         # Step 2. Find broken bonds, squared as strains can be negative
+        nnodes = self.nnodes
+        critical_strains = np.full((nnodes, nnodes), self.critical_strain)
         bond_healths[self.connectivity.nonzero()] = (
-                self.fail_strains.power(2)[self.connectivity.nonzero()]
+                critical_strains[self.connectivity.nonzero()]**2
                 - self.strain.power(2)[self.connectivity.nonzero()]
                 )
 
@@ -427,7 +424,7 @@ class Model:
 
         count = temp.sum(axis=0)
         damage = np.divide((self.family - count), self.family)
-        damage.resize(self.nnodes)
+        damage.resize(nnodes)
 
         return damage
 
