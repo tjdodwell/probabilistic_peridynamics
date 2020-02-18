@@ -329,13 +329,14 @@ class Model:
         # Get displacements in each dimension between nodes
         H_x0, H_y0, H_z0 = self._displacements(self.coords)
 
-        # Into sparse matrices
+        # Convert to spare matrices filtered by the neighbourhood matrix (i.e.
+        # only for particles which interact).
+        #
+        # There is no need to elminate zeros here as the neighbourhood matrix
+        # is already sparse.
         self.H_x0 = sparse.csr_matrix(self.neighbourhood.multiply(H_x0))
         self.H_y0 = sparse.csr_matrix(self.neighbourhood.multiply(H_y0))
         self.H_z0 = sparse.csr_matrix(self.neighbourhood.multiply(H_z0))
-        self.H_x0.eliminate_zeros()
-        self.H_y0.eliminate_zeros()
-        self.H_z0.eliminate_zeros()
 
         norms_matrix = (
             self.H_x0.power(2) + self.H_y0.power(2) + self.H_z0.power(2)
@@ -360,7 +361,11 @@ class Model:
         :returns: None
         :rtype: NoneType
         """
-        # Get 'displacements' between displacements in each dimension
+        # Get 'displacements' between displacements in each dimension, filtered
+        # by the neighbourhood matrix (i.e. only for particles which interact)
+        #
+        # There is no need to elminate zeros here as the neighbourhood matrix
+        # is already sparse.
         delH_x, delH_y, delH_z = self._displacements(u)
         delH_x = sparse.csr_matrix(self.neighbourhood.multiply(delH_x))
         delH_y = sparse.csr_matrix(self.neighbourhood.multiply(delH_y))
