@@ -292,30 +292,42 @@ class Model:
         # Convert to sparse matrix
         return sparse.csr_matrix(conn)
 
+    @staticmethod
+    def _displacements(r):
+        """
+        Dertmine the displacment, in each dimension, between each pair of
+        coordinates.
+
+        :arg r: A (n,3) array of coordinates.
+        :type r: :class:`numpy.ndarray`
+
+        :returns: A tuple of three arrays giving the displacements between
+            each pair of paritlces in the first, second and third dimensions
+            respectively. m[i, j] is the distance from j to i (i.e. i - j).
+        :rtype: tuple(:class:`numpy.ndarray`)
+        """
+        n = len(r)
+        x = np.tile(r[:, 0], (n, 1))
+        y = np.tile(r[:, 1], (n, 1))
+        z = np.tile(r[:, 2], (n, 1))
+
+        d_x = x.T - x
+        d_y = y.T - y
+        d_z = z.T - z
+
+        return d_x, d_y, d_z
+
     def _set_H(self):
         """
-        Constructs the failure strains matrix and H matrix, which is a sparse
-        matrix containing distances.
+        Constructs the failure strains matrix and H matrices (sparse
+        matrices containing displacements in a particular dimension).
 
         :returns: None
         :rtype: NoneType
         """
-        coords = self.coords
 
-        # Extract the coordinates
-        V_x = coords[:, 0]
-        V_y = coords[:, 1]
-        V_z = coords[:, 2]
-
-        # Tiled matrices
-        lam_x = np.tile(V_x, (self.nnodes, 1))
-        lam_y = np.tile(V_y, (self.nnodes, 1))
-        lam_z = np.tile(V_z, (self.nnodes, 1))
-
-        # Dense matrices
-        H_x0 = -lam_x + lam_x.transpose()
-        H_y0 = -lam_y + lam_y.transpose()
-        H_z0 = -lam_z + lam_z.transpose()
+        # Get displacements in each dimension between nodes
+        H_x0, H_y0, H_z0 = self._displacements(self.coords)
 
         # Into sparse matrices
         self.H_x0 = sparse.csr_matrix(self.neighbourhood.multiply(H_x0))
@@ -348,28 +360,11 @@ class Model:
         :returns: None
         :rtype: NoneType
         """
-        cols, rows, data_x, data_y, data_z = [], [], [], [], []
-
-        for i in range(self.nnodes):
-            row = self.neighbourhood.getrow(i)
-
-            rows.extend(row.indices)
-            cols.extend(np.full((row.nnz), i))
-            data_x.extend(np.full((row.nnz), u[i, 0]))
-            data_y.extend(np.full((row.nnz), u[i, 1]))
-            data_z.extend(np.full((row.nnz), u[i, 2]))
-
-        # Must not be lower triangular
-        lam_x = sparse.csr_matrix((data_x, (rows, cols)),
-                                  shape=(self.nnodes, self.nnodes))
-        lam_y = sparse.csr_matrix((data_y, (rows, cols)),
-                                  shape=(self.nnodes, self.nnodes))
-        lam_z = sparse.csr_matrix((data_z, (rows, cols)),
-                                  shape=(self.nnodes, self.nnodes))
-
-        delH_x = -lam_x + lam_x.transpose()
-        delH_y = -lam_y + lam_y.transpose()
-        delH_z = -lam_z + lam_z.transpose()
+        # Get 'displacements' between displacements in each dimension
+        delH_x, delH_y, delH_z = self._displacements(u)
+        delH_x = sparse.csr_matrix(self.neighbourhood.multiply(delH_x))
+        delH_y = sparse.csr_matrix(self.neighbourhood.multiply(delH_y))
+        delH_z = sparse.csr_matrix(self.neighbourhood.multiply(delH_z))
 
         # Sparse matrices
         self.H_x = delH_x + self.H_x0
