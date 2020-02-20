@@ -159,7 +159,7 @@ class Model:
                                                initial_crack)
 
         # Set the node distance and failure strain matrices
-        self.H_x0, self.H_y0, self.H_z0, self.L_0 = self._H_and_L(self.coords)
+        _, _, _, self.L_0 = self._H_and_L(self.coords)
 
     def _read_mesh(self, filename):
         """
