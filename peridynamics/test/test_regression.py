@@ -81,18 +81,14 @@ class TestRegression:
         _, displacements, *_ = regression
         path = data_path
 
-        expected_displacements = np.load(
-            path/"expected_displacements.npy"
-            )
+        expected_displacements = np.load(path/"expected_displacements.npy")
         assert np.all(displacements == expected_displacements)
 
     def test_damage(self, regression, data_path):
         _, _, damage = regression
         path = data_path
 
-        expected_damage = np.load(
-            path/"expected_damage.npy"
-            )
+        expected_damage = np.load(path/"expected_damage.npy")
         assert np.all(np.array(damage) == expected_damage)
 
     def test_mesh(self, regression, data_path, tmp_path):

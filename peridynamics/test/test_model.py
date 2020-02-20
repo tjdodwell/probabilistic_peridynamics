@@ -115,6 +115,12 @@ class TestWrite:
         assert 0
 
 
+class TestVolume:
+    def test_volume_2d(self, basic_model_2d, data_path):
+        expected_volume = np.load(data_path/"expected_volume.npy")
+        assert np.all(basic_model_2d.volume == expected_volume)
+
+
 class TestSimulate:
     """
     Tests for the simulate method.
