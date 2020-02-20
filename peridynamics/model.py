@@ -146,7 +146,7 @@ class Model:
             )
 
         # Calculate the volume for each node
-        self._set_volume()
+        self.volume = self._volume()
 
         # Determine neighbours
         self.neighbourhood = self._neighbourhood()
@@ -214,14 +214,14 @@ class Model:
             file_format=file_format
             )
 
-    def _set_volume(self):
+    def _volume(self):
         """
         Calculate the value of each node.
 
         :returns: None
         :rtype: NoneType
         """
-        self.V = np.zeros(self.nnodes)
+        volume = np.zeros(self.nnodes)
 
         for element in self.mesh_connectivity:
             # Compute area / volume
@@ -234,7 +234,9 @@ class Model:
                 xk, yk, *_ = self.coords[element[2]]
                 val *= 0.5 * ((xj - xi) * (yk - yi) - (xk - xi) * (yj - yi))
 
-            self.V[element] += val
+            volume[element] += val
+
+        return volume
 
     def _neighbourhood(self):
         """
@@ -466,9 +468,9 @@ class Model:
         F_z.resize(self.nnodes)
 
         # Finally multiply by volume and stiffness
-        F_x = self.bond_stiffness * np.multiply(F_x, self.V)
-        F_y = self.bond_stiffness * np.multiply(F_y, self.V)
-        F_z = self.bond_stiffness * np.multiply(F_z, self.V)
+        F_x = self.bond_stiffness * np.multiply(F_x, self.volume)
+        F_y = self.bond_stiffness * np.multiply(F_y, self.volume)
+        F_z = self.bond_stiffness * np.multiply(F_z, self.volume)
 
         return np.stack((F_x, F_y, F_z), axis=-1)
 
