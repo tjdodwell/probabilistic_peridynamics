@@ -336,7 +336,6 @@ class Model:
         #
         # There is no need to elminate zeros here as the neighbourhood matrix
         # is already sparse.
-        H_x, H_y, H_z = self._displacements(r)
         H_x = sparse.csr_matrix(self.neighbourhood.multiply(H_x))
         H_y = sparse.csr_matrix(self.neighbourhood.multiply(H_y))
         H_z = sparse.csr_matrix(self.neighbourhood.multiply(H_z))
