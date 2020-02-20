@@ -245,18 +245,18 @@ class Model:
         Determine the neighbourhood of all nodes.
 
         :returns: The sparse neighbourhood matrix.  Element [i, j] of this
-            martrix is 1 if i is within `horizon` of j and 0 otherwise.
+            martrix is True if i is within `horizon` of j and False otherwise.
         :rtype: :class:`scipy.sparse.csr_matrix`
         """
         # Calculate the Euclidean distance between each pair of nodes
         distance = cdist(self.coords, self.coords, 'euclidean')
 
-        # Construct the neighbourhood matrix (neighbourhood[i, j] = 1 if i and
-        # j are neighbours)
+        # Construct the neighbourhood matrix (neighbourhood[i, j] = True if i
+        # and j are neighbours)
         nnodes = self.nnodes
-        neighbourhood = np.zeros((nnodes, nnodes))
+        neighbourhood = np.zeros((nnodes, nnodes), dtype=np.bool)
         # Connect nodes which are within horizon of each other
-        neighbourhood[distance < self.horizon] = 1
+        neighbourhood[distance < self.horizon] = True
 
         return sparse.csr_matrix(neighbourhood)
 
@@ -285,13 +285,13 @@ class Model:
         conn = neighbourhood.toarray()
         for i, j in initial_crack:
             # Connectivity is symmetric
-            conn[i, j] = 0
-            conn[j, i] = 0
+            conn[i, j] = False
+            conn[j, i] = False
         # Nodes are not connected with themselves
-        np.fill_diagonal(conn, 0)
+        np.fill_diagonal(conn, False)
 
         # Lower triangular - count bonds only once
-        # make diagonal values 0
+        # make diagonal values False
         conn = np.tril(conn, -1)
 
         # Convert to sparse matrix
@@ -372,6 +372,9 @@ class Model:
         """
         Calculates bond damage.
 
+        :arg strain: The strain of each bond.
+        :type strain: :class:`scipy.sparse.lil_matrix`
+
         :returns: A (`nnodes`, ) array containing the damage
             for each node.
         :rtype: :class:`numpy.ndarray`
@@ -384,13 +387,10 @@ class Model:
         # Step 2. Find broken bonds, squared as strains can be negative
         nnodes = self.nnodes
         critical_strains = np.full((nnodes, nnodes), self.critical_strain)
-        bond_healths[self.connectivity.nonzero()] = (
-                critical_strains[self.connectivity.nonzero()]**2
-                - strain.power(2)[self.connectivity.nonzero()]
-                )
-
-        # Update failed bonds
-        bond_healths = bond_healths > 0
+        connected = self.connectivity.nonzero()
+        bond_healths[connected] = (
+            critical_strains[connected] - abs(strain[connected])
+            ) > 0
 
         self.connectivity = sparse.csr_matrix(bond_healths)
 

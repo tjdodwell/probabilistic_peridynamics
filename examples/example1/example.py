@@ -69,10 +69,10 @@ def main():
     integrator = Euler(dt=1e-3)
 
     u, damage = model.simulate(
-        steps=10,
+        steps=100,
         integrator=integrator,
         boundary_function=boundary_function,
-        write=10
+        write=1000
         )
 
     if args.profile:
