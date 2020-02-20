@@ -177,10 +177,10 @@ class Model:
         self.nnodes = self.coords.shape[0]
 
         # Get connectivity, mesh triangle cells
-        self.mesh_connectivity = mesh.cells[self.mesh_elements.connectivity]
+        self.mesh_connectivity = mesh.cells_dict[self.mesh_elements.connectivity]
 
         # Get boundary connectivity, mesh lines
-        self.mesh_boundary = mesh.cells[self.mesh_elements.boundary]
+        self.mesh_boundary = mesh.cells_dict[self.mesh_elements.boundary]
 
     def write_mesh(self, filename, damage=None, displacements=None,
                    file_format=None):
@@ -203,10 +203,10 @@ class Model:
         meshio.write_points_cells(
             filename,
             points=self.coords,
-            cells={
-                self.mesh_elements.connectivity: self.mesh_connectivity,
-                self.mesh_elements.boundary: self.mesh_boundary
-                },
+            cells=[
+                (self.mesh_elements.connectivity, self.mesh_connectivity),
+                (self.mesh_elements.boundary, self.mesh_boundary)
+                ],
             point_data={
                 "damage": damage,
                 "displacements": displacements
