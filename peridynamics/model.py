@@ -159,7 +159,7 @@ class Model:
                                                initial_crack)
 
         # Set the node distance and failure strain matrices
-        self._set_H()
+        self.H_x0, self.H_y0, self.H_z0, self.L_0 = self._H_and_L(self.coords)
 
     def _read_mesh(self, filename):
         """
@@ -322,30 +322,28 @@ class Model:
 
         return d_x, d_y, d_z
 
-    def _set_H(self):
+    def _H_and_L(self, r):
         """
-        Constructs the failure strains matrix and H matrices (sparse
-        matrices containing displacements in a particular dimension).
-
-        :returns: None
-        :rtype: NoneType
+        Constructs the H matrices (sparse matrices containing
+        displacements in a particular dimension) and the L matrix (a sparse
+        matrix containing the eudlidean distance).
         """
-
-        # Get displacements in each dimension between nodes
-        H_x0, H_y0, H_z0 = self._displacements(self.coords)
+        # Get displacements in each dimension between coordinate
+        H_x, H_y, H_z = self._displacements(r)
 
         # Convert to spare matrices filtered by the neighbourhood matrix (i.e.
         # only for particles which interact).
         #
         # There is no need to elminate zeros here as the neighbourhood matrix
         # is already sparse.
-        self.H_x0 = sparse.csr_matrix(self.neighbourhood.multiply(H_x0))
-        self.H_y0 = sparse.csr_matrix(self.neighbourhood.multiply(H_y0))
-        self.H_z0 = sparse.csr_matrix(self.neighbourhood.multiply(H_z0))
+        H_x, H_y, H_z = self._displacements(r)
+        H_x = sparse.csr_matrix(self.neighbourhood.multiply(H_x))
+        H_y = sparse.csr_matrix(self.neighbourhood.multiply(H_y))
+        H_z = sparse.csr_matrix(self.neighbourhood.multiply(H_z))
 
-        self.L_0 = (
-            self.H_x0.power(2) + self.H_y0.power(2) + self.H_z0.power(2)
-            ).sqrt()
+        L = (H_x.power(2) + H_y.power(2) + H_z.power(2)).sqrt()
+
+        return H_x, H_y, H_z, L
 
     def bond_stretch(self, u):
         """
@@ -359,24 +357,9 @@ class Model:
         :returns: None
         :rtype: NoneType
         """
-        # Get 'displacements' between displacements in each dimension, filtered
-        # by the neighbourhood matrix (i.e. only for particles which interact)
-        #
-        # There is no need to elminate zeros here as the neighbourhood matrix
-        # is already sparse.
-        dH_x, dH_y, dH_z = self._displacements(u)
-        dH_x = sparse.csr_matrix(self.neighbourhood.multiply(dH_x))
-        dH_y = sparse.csr_matrix(self.neighbourhood.multiply(dH_y))
-        dH_z = sparse.csr_matrix(self.neighbourhood.multiply(dH_z))
-
-        # Sparse matrices
-        self.H_x = dH_x + self.H_x0
-        self.H_y = dH_y + self.H_y0
-        self.H_z = dH_z + self.H_z0
-
-        self.L = (
-            self.H_x.power(2) + self.H_y.power(2) + self.H_z.power(2)
-            ).sqrt()
+        # Get current distance between nodes (i.e. accounting for
+        # displacements)
+        self.H_x, self.H_y, self.H_z, self.L = self._H_and_L(self.coords+u)
 
         dL = self.L - self.L_0
 
@@ -516,6 +499,9 @@ class Model:
                 return model.u
 
         for step in range(1, steps+1):
+            # Calculate distances between nodes
+            # dH_x, dH_y, dH_z, dL = self._H_and_L(u)
+
             # Calculate bond stretch, damage and forces on nodes
             self.bond_stretch(u)
             damage = self.damage()

@@ -82,7 +82,7 @@ class TestRegression:
         path = data_path
 
         expected_displacements = np.load(path/"expected_displacements.npy")
-        assert np.all(displacements == expected_displacements)
+        assert np.allclose(displacements, expected_displacements)
 
     def test_damage(self, regression, data_path):
         _, _, damage = regression
@@ -97,6 +97,7 @@ class TestRegression:
 
         mesh = tmp_path / "mesh.vtk"
         model.write_mesh(mesh, damage, displacements)
+        model.write_mesh("./mesh.vtk", damage, displacements)
 
         expected_mesh = path / "expected_mesh.vtk"
 
