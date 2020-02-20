@@ -275,7 +275,7 @@ class Model:
         :type initial_crack: list(tuple(int, int)) or function
 
         :returns: The sparse connectivity matrix. Element [i, j] of this matrix
-            is 1 if i and j are bonded and 0 otherwise.
+            is True if i and j are bonded and False otherwise.
         :rtype: :class:`scipy.sparse.csr_matrix`
         """
         if callable(initial_crack):
@@ -394,13 +394,13 @@ class Model:
 
         self.connectivity = sparse.csr_matrix(bond_healths)
 
-        # Bond damages
-        # Using lower triangular connectivity matrix, so just mirror it for
-        # bond damage calc
-        temp = self.connectivity + self.connectivity.transpose()
+        connectivity = self.connectivity
+        family = self.family
+        # Sum all unbroken bonds for each node
+        unbroken_bonds = (connectivity + connectivity.transpose()).sum(axis=0)
 
-        count = temp.sum(axis=0)
-        damage = np.divide((self.family - count), self.family)
+        # Calculate damage for each node
+        damage = np.divide((family - unbroken_bonds), family)
         damage.resize(nnodes)
 
         return damage
