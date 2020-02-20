@@ -345,40 +345,32 @@ class Model:
 
         return H_x, H_y, H_z, L
 
-    def bond_stretch(self, u):
+    def _strain(self, u, L):
         """
         Calculates the strain (bond stretch) of all nodes for a given
         displacement.
 
-        :arg u: The displacement array with shape
-            (`nnodes`, `dimension`).
+        :arg u: The displacement array with shape (`nnodes`, `dimension`).
         :type u: :class:`numpy.ndarray`
+        :arg L: The euclidean distance between each pair of nodes.
+        :type L: :class:`scipy.sparse.csr_matrix`
 
-        :returns: None
-        :rtype: NoneType
+        :returns: The strain between each pair of nodes.
+        :rtype: :class:`scipy.sparse.lil_matrix`
         """
-        # Get current distance between nodes (i.e. accounting for
-        # displacements)
-        self.H_x, self.H_y, self.H_z, self.L = self._H_and_L(self.coords+u)
 
-        dL = self.L - self.L_0
+        # Calculate difference in bond lengths from the initial state
+        dL = L - self.L_0
 
-        # Floor values close to zero from dL sparse matrix
-        dL = dL.tolil()
-        dL[~(dL >= 1e-12).toarray()] = 0
-        dL = dL.tocsr()
-
-        # Step 1. initiate as a sparse matrix
+        # Calculate strain
         strain = sparse.lil_matrix(self.connectivity.shape)
-
-        # Step 2. elementwise division
         strain[self.L_0.nonzero()] = (
             dL[self.L_0.nonzero()]/self.L_0[self.L_0.nonzero()]
             )
 
-        self.strain = strain
+        return strain
 
-    def damage(self):
+    def damage(self, strain):
         """
         Calculates bond damage.
 
@@ -396,7 +388,7 @@ class Model:
         critical_strains = np.full((nnodes, nnodes), self.critical_strain)
         bond_healths[self.connectivity.nonzero()] = (
                 critical_strains[self.connectivity.nonzero()]**2
-                - self.strain.power(2)[self.connectivity.nonzero()]
+                - strain.power(2)[self.connectivity.nonzero()]
                 )
 
         # Update failed bonds
@@ -415,7 +407,7 @@ class Model:
 
         return damage
 
-    def bond_force(self):
+    def bond_force(self, strain, L, H_x, H_y, H_z):
         """
         Calculate the force due to bonds acting on each node.
 
@@ -429,9 +421,9 @@ class Model:
 
         # Step 2. find normalised forces
         force_normd[self.connectivity.nonzero()] = (
-                self.strain[self.connectivity.nonzero()]
-                / self.L[self.connectivity.nonzero()]
-                )
+            strain[self.connectivity.nonzero()]
+            / L[self.connectivity.nonzero()]
+            )
 
         # Make lower triangular into full matrix
         force_normd.tocsr()
@@ -439,9 +431,9 @@ class Model:
 
         # Multiply by the direction and scale of each bond (just trigonometry,
         # we have already scaled for bond length in step 2)
-        bond_force_x = force_normd.multiply(self.H_x)
-        bond_force_y = force_normd.multiply(self.H_y)
-        bond_force_z = force_normd.multiply(self.H_z)
+        bond_force_x = force_normd.multiply(H_x)
+        bond_force_y = force_normd.multiply(H_y)
+        bond_force_z = force_normd.multiply(H_z)
 
         # now sum along the rows to calculate resultant force on nodes
         F_x = np.array(bond_force_x.sum(axis=0))
@@ -499,13 +491,14 @@ class Model:
                 return model.u
 
         for step in range(1, steps+1):
-            # Calculate distances between nodes
-            # dH_x, dH_y, dH_z, dL = self._H_and_L(u)
+            # Get current distance between nodes (i.e. accounting for
+            # displacements)
+            H_x, H_y, H_z, L = self._H_and_L(self.coords+u)
 
             # Calculate bond stretch, damage and forces on nodes
-            self.bond_stretch(u)
-            damage = self.damage()
-            f = self.bond_force()
+            strain = self._strain(u, L)
+            damage = self.damage(strain)
+            f = self.bond_force(strain, L, H_x, H_y, H_z)
 
             # Conduct one integration step
             u = integrator(u, f)
