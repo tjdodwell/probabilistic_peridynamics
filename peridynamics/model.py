@@ -398,10 +398,11 @@ class Model:
         family = self.family
         # Sum all unbroken bonds for each node
         unbroken_bonds = (connectivity + connectivity.transpose()).sum(axis=0)
+        # Convert matrix object to array
+        unbroken_bonds = np.squeeze(np.array(unbroken_bonds))
 
         # Calculate damage for each node
         damage = np.divide((family - unbroken_bonds), family)
-        damage.resize(nnodes)
 
         return damage
 
