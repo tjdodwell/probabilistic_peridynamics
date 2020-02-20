@@ -362,33 +362,33 @@ class Model:
         #
         # There is no need to elminate zeros here as the neighbourhood matrix
         # is already sparse.
-        delH_x, delH_y, delH_z = self._displacements(u)
-        delH_x = sparse.csr_matrix(self.neighbourhood.multiply(delH_x))
-        delH_y = sparse.csr_matrix(self.neighbourhood.multiply(delH_y))
-        delH_z = sparse.csr_matrix(self.neighbourhood.multiply(delH_z))
+        dH_x, dH_y, dH_z = self._displacements(u)
+        dH_x = sparse.csr_matrix(self.neighbourhood.multiply(dH_x))
+        dH_y = sparse.csr_matrix(self.neighbourhood.multiply(dH_y))
+        dH_z = sparse.csr_matrix(self.neighbourhood.multiply(dH_z))
 
         # Sparse matrices
-        self.H_x = delH_x + self.H_x0
-        self.H_y = delH_y + self.H_y0
-        self.H_z = delH_z + self.H_z0
+        self.H_x = dH_x + self.H_x0
+        self.H_y = dH_y + self.H_y0
+        self.H_z = dH_z + self.H_z0
 
         self.L = (
             self.H_x.power(2) + self.H_y.power(2) + self.H_z.power(2)
             ).sqrt()
 
-        del_L = self.L - self.L_0
+        dL = self.L - self.L_0
 
-        # Floor values close to zero from del_L sparse matrix
-        del_L = del_L.tolil()
-        del_L[~(del_L >= 1e-12).toarray()] = 0
-        del_L = del_L.tocsr()
+        # Floor values close to zero from dL sparse matrix
+        dL = dL.tolil()
+        dL[~(dL >= 1e-12).toarray()] = 0
+        dL = dL.tocsr()
 
         # Step 1. initiate as a sparse matrix
         strain = sparse.lil_matrix(self.connectivity.shape)
 
         # Step 2. elementwise division
         strain[self.L_0.nonzero()] = (
-            del_L[self.L_0.nonzero()]/self.L_0[self.L_0.nonzero()]
+            dL[self.L_0.nonzero()]/self.L_0[self.L_0.nonzero()]
             )
 
         self.strain = strain
