@@ -177,7 +177,9 @@ class Model:
         self.nnodes = self.coords.shape[0]
 
         # Get connectivity, mesh triangle cells
-        self.mesh_connectivity = mesh.cells_dict[self.mesh_elements.connectivity]
+        self.mesh_connectivity = mesh.cells_dict[
+            self.mesh_elements.connectivity
+            ]
 
         # Get boundary connectivity, mesh lines
         self.mesh_boundary = mesh.cells_dict[self.mesh_elements.boundary]
