@@ -100,4 +100,7 @@ class TestRegression:
 
         expected_mesh = path / "expected_mesh.vtk"
 
-        assert mesh.read_bytes() == expected_mesh.read_bytes()
+        assert (
+            mesh.read_bytes().split(b"\n")[2:] ==
+            expected_mesh.read_bytes().split(b"\n")[2:]
+            )
