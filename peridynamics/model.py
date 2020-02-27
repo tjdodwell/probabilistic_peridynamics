@@ -379,22 +379,20 @@ class Model:
             for each node.
         :rtype: :class:`numpy.ndarray`
         """
-        # Make sure only calculating for bonds that exist
+        connectivity = self.connectivity
 
-        # Step 1. initiate as sparse matrix
-        bond_healths = sparse.lil_matrix(self.connectivity.shape)
+        bond_healths = sparse.lil_matrix(connectivity.shape)
 
-        # Step 2. Find broken bonds, squared as strains can be negative
+        # Find broken bonds
         nnodes = self.nnodes
         critical_strains = np.full((nnodes, nnodes), self.critical_strain)
-        connected = self.connectivity.nonzero()
+        connected = connectivity.nonzero()
         bond_healths[connected] = (
             critical_strains[connected] - abs(strain[connected])
             ) > 0
 
-        self.connectivity = sparse.csr_matrix(bond_healths)
+        connectivity = sparse.csr_matrix(bond_healths)
 
-        connectivity = self.connectivity
         family = self.family
         # Sum all unbroken bonds for each node
         unbroken_bonds = (connectivity + connectivity.transpose()).sum(axis=0)
@@ -414,14 +412,16 @@ class Model:
             dimension for each node.
         :rtype: :class:`numpy.ndarray`
         """
+        connectivity = self.connectivity
+
         # Step 1. Initiate container as a sparse matrix, only need calculate
         # for bonds that exist
-        force_normd = sparse.lil_matrix(self.connectivity.shape)
+        force_normd = sparse.lil_matrix(connectivity.shape)
 
         # Step 2. find normalised forces
-        force_normd[self.connectivity.nonzero()] = (
-            strain[self.connectivity.nonzero()]
-            / L[self.connectivity.nonzero()]
+        force_normd[connectivity.nonzero()] = (
+            strain[connectivity.nonzero()]
+            / L[connectivity.nonzero()]
             )
 
         # Make lower triangular into full matrix
