@@ -362,7 +362,8 @@ class Model:
         dL = L - self.L_0
 
         # Calculate strain
-        strain = sparse.lil_matrix(self.connectivity.shape)
+        nnodes = self.nnodes
+        strain = sparse.lil_matrix((nnodes, nnodes))
         non_zero = self.L_0.nonzero()
         strain[non_zero] = (dL[non_zero]/self.L_0[non_zero])
 
