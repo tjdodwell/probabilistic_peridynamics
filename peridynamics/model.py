@@ -326,19 +326,25 @@ class Model:
         """
         Constructs the H matrices (sparse matrices containing
         displacements in a particular dimension) and the L matrix (a sparse
-        matrix containing the eudlidean distance).
+        matrix containing the Euclidean distance). Elements for particles which
+        are not connected are 0.
+
+        :returns: (H_x, H_y, H_z, L) A tuple of sparse matrix. H_x, H_y and H_z
+            are the matrices of displacements between pairs of particles in the
+            x, y and z dimensions respectively. L is the Euclidean distance
+            between pairs of particles.
+        :rtype: tuple(:class:`scipy.sparse.csr_matrix`)
         """
         # Get displacements in each dimension between coordinate
         H_x, H_y, H_z = self._displacements(r)
 
-        # Convert to spare matrices filtered by the neighbourhood matrix (i.e.
+        # Convert to spare matrices filtered by the connectivity matrix (i.e.
         # only for particles which interact).
-        #
-        # There is no need to elminate zeros here as the neighbourhood matrix
-        # is already sparse.
-        H_x = sparse.csr_matrix(self.neighbourhood.multiply(H_x))
-        H_y = sparse.csr_matrix(self.neighbourhood.multiply(H_y))
-        H_z = sparse.csr_matrix(self.neighbourhood.multiply(H_z))
+        a = self.connectivity
+        a = a + a.transpose()
+        H_x = sparse.csr_matrix(a.multiply(H_x))
+        H_y = sparse.csr_matrix(a.multiply(H_y))
+        H_z = sparse.csr_matrix(a.multiply(H_z))
 
         L = (H_x.power(2) + H_y.power(2) + H_z.power(2)).sqrt()
 
