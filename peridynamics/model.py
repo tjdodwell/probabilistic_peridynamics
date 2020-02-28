@@ -154,9 +154,10 @@ class Model:
         # Set family, the number of neighbours for each node
         self.family = np.sum(self.neighbourhood, axis=0)
 
-        # Set the connectivity
-        self.connectivity = self._connectivity(self.neighbourhood,
-                                               initial_crack)
+        # Set the initial connectivity
+        self.initial_connectivity = self._connectivity(self.neighbourhood,
+                                                       initial_crack)
+        self.connectivity = self.initial_connectivity.copy()
 
         # Set the node distance and failure strain matrices
         _, _, _, self.L_0 = self._H_and_L(self.coords)
@@ -375,7 +376,7 @@ class Model:
 
         return strain
 
-    def damage(self, strain):
+    def damage(self, strain, connectivity=None):
         """
         Calculates bond damage.
 
@@ -386,7 +387,10 @@ class Model:
             for each node.
         :rtype: :class:`numpy.ndarray`
         """
-        connectivity = self.connectivity
+        # If no connectivity is provided, use the neighbourhood (all nodes
+        # within the horizon) as an approximation
+        if connectivity is None:
+            connectivity = self.initial_connectivity
 
         bond_healths = sparse.lil_matrix(connectivity.shape)
 
@@ -409,7 +413,7 @@ class Model:
         # Calculate damage for each node
         damage = np.divide((family - unbroken_bonds), family)
 
-        return damage
+        return damage, connectivity
 
     def bond_force(self, strain, L, H_x, H_y, H_z):
         """
@@ -503,7 +507,7 @@ class Model:
 
             # Calculate bond stretch, damage and forces on nodes
             strain = self._strain(u, L)
-            damage = self.damage(strain)
+            damage, self.connectivity = self.damage(strain)
             f = self.bond_force(strain, L, H_x, H_y, H_z)
 
             # Conduct one integration step
