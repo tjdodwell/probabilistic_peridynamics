@@ -91,8 +91,8 @@ class Model:
         >>>
         >>>     return u
         >>>
-        >>> u, damage = model.simulate(steps=1000, integrator=euler,
-        >>>                            boundary_function=boundary_function)
+        >>> u, damage, *_ = model.simulate(steps=1000, integrator=euler,
+        >>>                                boundary_function=boundary_function)
     """
     def __init__(self, mesh_file, horizon, critical_strain, elastic_modulus,
                  initial_crack=[], dimensions=2):
