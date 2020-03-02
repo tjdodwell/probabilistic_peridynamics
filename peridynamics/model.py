@@ -376,22 +376,17 @@ class Model:
 
         return strain
 
-    def damage(self, strain, connectivity=None):
+    def _break_bonds(self, strain, connectivity):
         """
-        Calculates bond damage.
+        Update the connectivity by breaking bonds which have exceeded the
+        critical strain.
 
         :arg strain: The strain of each bond.
         :type strain: :class:`scipy.sparse.lil_matrix`
 
-        :returns: A (`nnodes`, ) array containing the damage
-            for each node.
-        :rtype: :class:`numpy.ndarray`
+        :returns: The updated connectivity.
+        :rtype: :class:`scipy.sparse.csr_matrix`
         """
-        # If no connectivity is provided, use the neighbourhood (all nodes
-        # within the horizon) as an approximation
-        if connectivity is None:
-            connectivity = self.initial_connectivity
-
         bond_healths = sparse.lil_matrix(connectivity.shape)
 
         # Find broken bonds
@@ -404,6 +399,16 @@ class Model:
 
         connectivity = sparse.csr_matrix(bond_healths)
 
+        return connectivity
+
+    def _damage(self, connectivity):
+        """
+        Calculates bond damage.
+
+        :returns: A (`nnodes`, ) array containing the damage for each node.
+        :rtype: :class:`numpy.ndarray`
+        """
+
         family = self.family
         # Sum all unbroken bonds for each node
         unbroken_bonds = (connectivity + connectivity.transpose()).sum(axis=0)
@@ -413,7 +418,7 @@ class Model:
         # Calculate damage for each node
         damage = np.divide((family - unbroken_bonds), family)
 
-        return damage, connectivity
+        return damage
 
     def bond_force(self, strain, L, H_x, H_y, H_z):
         """
@@ -507,7 +512,8 @@ class Model:
 
             # Calculate bond stretch, damage and forces on nodes
             strain = self._strain(u, L)
-            damage, self.connectivity = self.damage(strain)
+            self.connectivity = self._break_bonds(strain, self.connectivity)
+            damage = self._damage(self.connectivity)
             f = self.bond_force(strain, L, H_x, H_y, H_z)
 
             # Conduct one integration step
