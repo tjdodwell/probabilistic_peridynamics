@@ -330,6 +330,11 @@ class Model:
         matrix containing the Euclidean distance). Elements for particles which
         are not connected are 0.
 
+        :arg r: The positions of all nodes.
+        :type r: :class:`numpy.ndarray`
+        :arg connectivity: The sparse connectivity matrix.
+        :type connectivity: :class:`scipy.sparse.csr_matrix`
+
         :returns: (H_x, H_y, H_z, L) A tuple of sparse matrix. H_x, H_y and H_z
             are the matrices of displacements between pairs of particles in the
             x, y and z dimensions respectively. L is the Euclidean distance
@@ -382,27 +387,32 @@ class Model:
 
         :arg strain: The strain of each bond.
         :type strain: :class:`scipy.sparse.lil_matrix`
+        :arg connectivity: The sparse connectivity matrix.
+        :type connectivity: :class:`scipy.sparse.csr_matrix`
 
         :returns: The updated connectivity.
         :rtype: :class:`scipy.sparse.csr_matrix`
         """
-        bond_healths = sparse.lil_matrix(connectivity.shape)
+        unbroken = sparse.lil_matrix(connectivity.shape)
 
         # Find broken bonds
         nnodes = self.nnodes
         critical_strains = np.full((nnodes, nnodes), self.critical_strain)
         connected = connectivity.nonzero()
-        bond_healths[connected] = (
+        unbroken[connected] = (
             critical_strains[connected] - abs(strain[connected])
             ) > 0
 
-        connectivity = sparse.csr_matrix(bond_healths)
+        connectivity = sparse.csr_matrix(unbroken)
 
         return connectivity
 
     def _damage(self, connectivity):
         """
         Calculates bond damage.
+
+        :arg connectivity: The sparse connectivity matrix.
+        :type connectivity: :class:`scipy.sparse.csr_matrix`
 
         :returns: A (`nnodes`, ) array containing the damage for each node.
         :rtype: :class:`numpy.ndarray`
@@ -422,6 +432,22 @@ class Model:
     def _bond_force(self, strain, connectivity, L, H_x, H_y, H_z):
         """
         Calculate the force due to bonds acting on each node.
+
+        :arg strain: The strain of each bond.
+        :type strain: :class:`scipy.sparse.lil_matrix`
+        :arg connectivity: The sparse connectivity matrix.
+        :type connectivity: :class:`scipy.sparse.csr_matrix`
+        :arg L: The Euclidean distance between pairs of nodes.
+        :type L: :class:`scipy.sparse.csr_matrix`
+        :arg H_x: The displacement in the x dimension between each pair of
+            nodes.
+        :type H_x: :class:`scipy.sparse.csr_matrix`
+        :arg H_y: The displacement in the y dimension between each pair of
+            nodes.
+        :type H_y: :class:`scipy.sparse.csr_matrix`
+        :arg H_z: The displacement in the z dimension between each pair of
+            nodes.
+        :type H_z: :class:`scipy.sparse.csr_matrix`
 
         :returns: A (`nnodes`, 3) array of the component of the force in each
             dimension for each node.
