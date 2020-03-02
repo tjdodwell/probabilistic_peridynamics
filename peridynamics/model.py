@@ -149,13 +149,13 @@ class Model:
         self.volume = self._volume()
 
         # Determine neighbours
-        self.neighbourhood = self._neighbourhood()
+        neighbourhood = self._neighbourhood()
 
         # Set family, the number of neighbours for each node
-        self.family = np.sum(self.neighbourhood, axis=0)
+        self.family = np.sum(neighbourhood, axis=0)
 
         # Set the initial connectivity
-        self.initial_connectivity = self._connectivity(self.neighbourhood,
+        self.initial_connectivity = self._connectivity(neighbourhood,
                                                        initial_crack)
 
         # Set the node distance and failure strain matrices
