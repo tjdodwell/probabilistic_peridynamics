@@ -157,10 +157,10 @@ class Model:
         # Set the initial connectivity
         self.initial_connectivity = self._connectivity(self.neighbourhood,
                                                        initial_crack)
-        self.connectivity = self.initial_connectivity.copy()
 
         # Set the node distance and failure strain matrices
-        _, _, _, self.L_0 = self._H_and_L(self.coords)
+        _, _, _, self.L_0 = self._H_and_L(self.coords,
+                                          self.initial_connectivity)
 
     def _read_mesh(self, filename):
         """
@@ -323,7 +323,7 @@ class Model:
 
         return d_x, d_y, d_z
 
-    def _H_and_L(self, r):
+    def _H_and_L(self, r, connectivity):
         """
         Constructs the H matrices (sparse matrices containing
         displacements in a particular dimension) and the L matrix (a sparse
@@ -341,8 +341,7 @@ class Model:
 
         # Convert to spare matrices filtered by the connectivity matrix (i.e.
         # only for particles which interact).
-        a = self.connectivity
-        a = a + a.transpose()
+        a = connectivity + connectivity.transpose()
         H_x = sparse.csr_matrix(a.multiply(H_x))
         H_y = sparse.csr_matrix(a.multiply(H_y))
         H_z = sparse.csr_matrix(a.multiply(H_z))
@@ -420,7 +419,7 @@ class Model:
 
         return damage
 
-    def bond_force(self, strain, L, H_x, H_y, H_z):
+    def _bond_force(self, strain, connectivity, L, H_x, H_y, H_z):
         """
         Calculate the force due to bonds acting on each node.
 
@@ -428,8 +427,6 @@ class Model:
             dimension for each node.
         :rtype: :class:`numpy.ndarray`
         """
-        connectivity = self.connectivity
-
         # Step 1. Initiate container as a sparse matrix, only need calculate
         # for bonds that exist
         force_normd = sparse.lil_matrix(connectivity.shape)
@@ -467,7 +464,7 @@ class Model:
         return np.stack((F_x, F_y, F_z), axis=-1)
 
     def simulate(self, steps, integrator, boundary_function=None, u=None,
-                 write=None):
+                 connectivity=None, write=None):
         """
         Simulate the peridynamics model.
 
@@ -487,10 +484,20 @@ class Model:
         :arg u: The initial displacements for the simulation. If `None` the
             displacements will be initialised to zero. Default `None`.
         :type u: :class:`numpy.ndarray`
+        :arg connectivity: The initial connectivity for the simulation. If
+            `None` the connectivity at the time of construction of the
+            :class:`Model` object will be used.
+        :type connectivity: :class:`scipy.sparse.csr_matrix` or
+            :class:`numpy.ndarray`
         :arg int write: The frequency, in number of steps, to write the system
             to a mesh file by calling
             :meth:`peridynamics.model.Model.write_mesh`. If `None` then no
             output is written. Default `None`.
+
+        :returns: A tuple of the final displacements (`u`), damage and
+            connectivity.
+        :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
+            :class:`scipy.sparse.csr_matrix`)
         """
 
         if not isinstance(integrator, Integrator):
@@ -500,7 +507,14 @@ class Model:
         if u is None:
             u = np.zeros((self.nnodes, 3))
 
-        # Create dummy boundary conditions function is none is provied
+        # Use the initial connectivity (when the Model was constructed) if none
+        # is provided
+        if connectivity is None:
+            connectivity = self.initial_connectivity
+        elif type(connectivity) == np.ndarray:
+            connectivity = sparse.csr_matrix(connectivity)
+
+        # Create dummy boundary conditions function is none is provided
         if boundary_function is None:
             def boundary_function(model):
                 return model.u
@@ -508,13 +522,17 @@ class Model:
         for step in range(1, steps+1):
             # Get current distance between nodes (i.e. accounting for
             # displacements)
-            H_x, H_y, H_z, L = self._H_and_L(self.coords+u)
+            H_x, H_y, H_z, L = self._H_and_L(self.coords+u, connectivity)
 
-            # Calculate bond stretch, damage and forces on nodes
+            # Calculate the strain of each bond
             strain = self._strain(u, L)
-            self.connectivity = self._break_bonds(strain, self.connectivity)
-            damage = self._damage(self.connectivity)
-            f = self.bond_force(strain, L, H_x, H_y, H_z)
+
+            # Update the connectivity and calculate the current damage
+            connectivity = self._break_bonds(strain, connectivity)
+            damage = self._damage(connectivity)
+
+            # Calculate the bond due to forces on each node
+            f = self._bond_force(strain, connectivity, L, H_x, H_y, H_z)
 
             # Conduct one integration step
             u = integrator(u, f)
@@ -526,7 +544,7 @@ class Model:
                 if step % write == 0:
                     self.write_mesh(f"U_{step}.vtk", damage, u)
 
-        return u, damage
+        return u, damage, connectivity
 
 
 def initial_crack_helper(crack_function):

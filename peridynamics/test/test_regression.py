@@ -67,7 +67,7 @@ def regression(simple_square):
 
         return u
 
-    u, damage = model.simulate(
+    u, damage, *_ = model.simulate(
         steps=10,
         integrator=integrator,
         boundary_function=boundary_function
