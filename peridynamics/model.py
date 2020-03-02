@@ -347,9 +347,9 @@ class Model:
         # Convert to spare matrices filtered by the connectivity matrix (i.e.
         # only for particles which interact).
         a = connectivity + connectivity.transpose()
-        H_x = sparse.csr_matrix(a.multiply(H_x))
-        H_y = sparse.csr_matrix(a.multiply(H_y))
-        H_z = sparse.csr_matrix(a.multiply(H_z))
+        H_x = a.multiply(H_x)
+        H_y = a.multiply(H_y)
+        H_z = a.multiply(H_z)
 
         L = (H_x.power(2) + H_y.power(2) + H_z.power(2)).sqrt()
 
