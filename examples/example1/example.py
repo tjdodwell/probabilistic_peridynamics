@@ -68,7 +68,7 @@ def main():
 
     integrator = Euler(dt=1e-3)
 
-    u, damage = model.simulate(
+    u, damage, *_ = model.simulate(
         steps=100,
         integrator=integrator,
         boundary_function=boundary_function,

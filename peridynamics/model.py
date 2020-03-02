@@ -453,41 +453,31 @@ class Model:
             dimension for each node.
         :rtype: :class:`numpy.ndarray`
         """
-        # Step 1. Initiate container as a sparse matrix, only need calculate
-        # for bonds that exist
+        # Calculate the normalised forces
         force_normd = sparse.lil_matrix(connectivity.shape)
-
-        # Step 2. find normalised forces
-        force_normd[connectivity.nonzero()] = (
-            strain[connectivity.nonzero()]
-            / L[connectivity.nonzero()]
-            )
+        connected = connectivity.nonzero()
+        force_normd[connected] = strain[connected] / L[connected]
 
         # Make lower triangular into full matrix
         force_normd.tocsr()
         force_normd = force_normd + force_normd.transpose()
 
-        # Multiply by the direction and scale of each bond (just trigonometry,
-        # we have already scaled for bond length in step 2)
+        # Calculate component of force in each dimension
         bond_force_x = force_normd.multiply(H_x)
         bond_force_y = force_normd.multiply(H_y)
         bond_force_z = force_normd.multiply(H_z)
 
-        # now sum along the rows to calculate resultant force on nodes
-        F_x = np.array(bond_force_x.sum(axis=0))
-        F_y = np.array(bond_force_y.sum(axis=0))
-        F_z = np.array(bond_force_z.sum(axis=0))
+        # Calculate total force on nodes in each dimension
+        F_x = np.squeeze(np.array(bond_force_x.sum(axis=0)))
+        F_y = np.squeeze(np.array(bond_force_y.sum(axis=0)))
+        F_z = np.squeeze(np.array(bond_force_z.sum(axis=0)))
 
-        F_x.resize(self.nnodes)
-        F_y.resize(self.nnodes)
-        F_z.resize(self.nnodes)
+        # Determine actual force
+        F = np.stack((F_x, F_y, F_z), axis=-1)
+        F *= self.volume.reshape((self.nnodes, 1))
+        F *= self.bond_stiffness
 
-        # Finally multiply by volume and stiffness
-        F_x = self.bond_stiffness * np.multiply(F_x, self.volume)
-        F_y = self.bond_stiffness * np.multiply(F_y, self.volume)
-        F_z = self.bond_stiffness * np.multiply(F_z, self.volume)
-
-        return np.stack((F_x, F_y, F_z), axis=-1)
+        return F
 
     def simulate(self, steps, integrator, boundary_function=None, u=None,
                  connectivity=None, write=None):
