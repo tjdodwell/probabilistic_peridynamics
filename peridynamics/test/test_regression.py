@@ -67,7 +67,7 @@ def regression(simple_square):
 
         return u
 
-    u, damage = model.simulate(
+    u, damage, *_ = model.simulate(
         steps=10,
         integrator=integrator,
         boundary_function=boundary_function
@@ -81,19 +81,15 @@ class TestRegression:
         _, displacements, *_ = regression
         path = data_path
 
-        expected_displacements = np.load(
-            path/"expected_displacements.npy"
-            )
-        assert np.all(displacements == expected_displacements)
+        expected_displacements = np.load(path/"expected_displacements.npy")
+        assert np.allclose(displacements, expected_displacements)
 
     def test_damage(self, regression, data_path):
         _, _, damage = regression
         path = data_path
 
-        expected_damage = np.load(
-            path/"expected_damage.npy"
-            )
-        assert np.all(np.array(damage) == expected_damage)
+        expected_damage = np.load(path/"expected_damage.npy")
+        assert np.all(damage == expected_damage)
 
     def test_mesh(self, regression, data_path, tmp_path):
         model, displacements, damage = regression
@@ -104,4 +100,7 @@ class TestRegression:
 
         expected_mesh = path / "expected_mesh.vtk"
 
-        assert mesh.read_bytes() == expected_mesh.read_bytes()
+        assert (
+            mesh.read_bytes().split(b"\n")[2:] ==
+            expected_mesh.read_bytes().split(b"\n")[2:]
+            )

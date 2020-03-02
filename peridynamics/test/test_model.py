@@ -57,19 +57,19 @@ class TestRead2D:
         assert np.all(
             model.coords[42] == np.array([1., 0.2499999999994083, 0.]))
 
-    def test_connectivity(self, basic_model_2d):
+    def test_mesh_connectivity(self, basic_model_2d):
         model = basic_model_2d
 
-        assert model.connectivity.shape == (4096, 3)
+        assert model.mesh_connectivity.shape == (4096, 3)
         assert np.all(
-            model.connectivity[100] == np.array([252, 651, 650]))
+            model.mesh_connectivity[100] == np.array([252, 651, 650]))
 
-    def test_boundary_connectivity(self, basic_model_2d):
+    def test_mesh_boundary(self, basic_model_2d):
         model = basic_model_2d
 
-        assert model.connectivity_bnd.shape == (128, 2)
+        assert model.mesh_boundary.shape == (128, 2)
         assert np.all(
-            model.connectivity_bnd[100] == np.array([100, 101]))
+            model.mesh_boundary[100] == np.array([100, 101]))
 
 
 @pytest.mark.skip(reason="No three dimensional example")
@@ -113,6 +113,12 @@ class TestWrite:
     """
     def test_coords(self, written_model):
         assert 0
+
+
+class TestVolume:
+    def test_volume_2d(self, basic_model_2d, data_path):
+        expected_volume = np.load(data_path/"expected_volume.npy")
+        assert np.all(basic_model_2d.volume == expected_volume)
 
 
 class TestSimulate:
