@@ -153,7 +153,7 @@ class Model:
         neighbourhood = self._neighbourhood()
 
         # Set family, the number of neighbours for each node
-        self.family = np.sum(neighbourhood, axis=0)
+        self.family = np.squeeze(np.array(np.sum(neighbourhood, axis=0)))
 
         # Set the initial connectivity
         self.initial_connectivity = self._connectivity(neighbourhood,
