@@ -129,6 +129,11 @@ def test_volume_2d(basic_model_2d, data_path):
     assert np.all(basic_model_2d.volume == expected_volume)
 
 
+def test_bond_stiffness_2d(basic_model_2d):
+    """Test bond stiffness calculation."""
+    assert np.isclose(basic_model_2d.bond_stiffness, 2864.7889756)
+
+
 class TestSimulate:
     """
     Tests for the simulate method.
