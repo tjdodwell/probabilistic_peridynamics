@@ -134,6 +134,14 @@ def test_bond_stiffness_2d(basic_model_2d):
     assert np.isclose(basic_model_2d.bond_stiffness, 2864.7889756)
 
 
+def test_neighbourhood(basic_model_2d, data_path):
+    """Test _neighbourhood method."""
+    expected_neighbourhood = np.load(data_path/"expected_neighbourhood.npy")
+    assert np.all(
+        basic_model_2d._neighbourhood().toarray() == expected_neighbourhood
+        )
+
+
 class TestSimulate:
     """
     Tests for the simulate method.
