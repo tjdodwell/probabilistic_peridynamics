@@ -1,6 +1,4 @@
-"""
-Tests for the model class
-"""
+"""Tests for the model class."""
 from ..model import (Model, DimensionalityError, initial_crack_helper,
                      InvalidIntegrator)
 import numpy as np
@@ -9,6 +7,7 @@ import pytest
 
 @pytest.fixture(scope="module")
 def basic_model_2d(data_path):
+    """Create a basic 2D model object."""
     mesh_file = data_path / "example_mesh.msh"
     model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
                   elastic_modulus=0.05)
@@ -17,6 +16,7 @@ def basic_model_2d(data_path):
 
 @pytest.fixture(scope="module")
 def basic_model_3d(data_path):
+    """Create a basic 3D model object."""
     mesh_file = data_path / "example_mesh.msh"
     model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
                   elastic_modulus=0.05, dimensions=3)
@@ -24,7 +24,10 @@ def basic_model_3d(data_path):
 
 
 class TestDimension:
+    """Test the dimension argument of the Model class."""
+
     def test_2d(self, basic_model_2d):
+        """Test initialisation of a 2D model."""
         model = basic_model_2d
 
         assert model.mesh_elements.connectivity == 'triangle'
@@ -32,6 +35,7 @@ class TestDimension:
 
     @pytest.mark.skip(reason="No three dimensional example")
     def test_3d(self, basic_model_3d):
+        """Test initialisation of a 3D model."""
         model = basic_model_3d
 
         assert model.mesh_elements.connectivity == 'tetrahedron'
@@ -39,17 +43,17 @@ class TestDimension:
 
     @pytest.mark.parametrize("dimensions", [1, 4])
     def test_dimensionality_error(self, dimensions):
+        """Test invalid dimension arguments."""
         with pytest.raises(DimensionalityError):
             Model("abc.msh", horizon=0.1, critical_strain=0.05,
                   elastic_modulus=0.05, dimensions=dimensions)
 
 
 class TestRead2D:
-    """
-    Test the _read_mesh method ensuring it correctly interprets the mesh file
-    for a two dimensional system
-    """
+    """Test reading a mesh with a 2D model."""
+
     def test_coords(self, basic_model_2d):
+        """Test coordinates are read correctly."""
         model = basic_model_2d
 
         assert model.coords.shape == (2113, 3)
@@ -58,6 +62,7 @@ class TestRead2D:
             model.coords[42] == np.array([1., 0.2499999999994083, 0.]))
 
     def test_mesh_connectivity(self, basic_model_2d):
+        """Test mesh connectivity is read correctly."""
         model = basic_model_2d
 
         assert model.mesh_connectivity.shape == (4096, 3)
@@ -65,6 +70,7 @@ class TestRead2D:
             model.mesh_connectivity[100] == np.array([252, 651, 650]))
 
     def test_mesh_boundary(self, basic_model_2d):
+        """Test mesh boundary is read correctly."""
         model = basic_model_2d
 
         assert model.mesh_boundary.shape == (128, 2)
@@ -74,22 +80,24 @@ class TestRead2D:
 
 @pytest.mark.skip(reason="No three dimensional example")
 class TestRead3D:
-    """
-    Test the _read_mesh method ensuring it correctly interprets the mesh file
-    for a three dimensional system
-    """
+    """Test reading a mesh with a 3D model."""
+
     def test_coords(self, basic_model_3d):
+        """Test coordinates are read correctly."""
         assert 0
 
     def test_connectivity(self, basic_model_3d):
+        """Test mesh connectivity is read correctly."""
         assert 0
 
     def test_boundary_connectivity(self, basic_model_3d):
+        """Test mesh boundary is read correctly."""
         assert 0
 
 
 @pytest.fixture
 def written_model(basic_model_3d, tmp_path):
+    """Write an example mesh file from a model."""
     model = basic_model_3d
     mesh_file = tmp_path / "out_mesh.vtk"
 
@@ -108,17 +116,17 @@ def written_model(basic_model_3d, tmp_path):
 
 @pytest.mark.skip(reason="Should use a minimal example for testing this")
 class TestWrite:
-    """
-    Tests for the writing of mesh files.
-    """
+    """Tests for the writing of mesh files."""
+
     def test_coords(self, written_model):
+        """Ensure coordinates are written correctly."""
         assert 0
 
 
-class TestVolume:
-    def test_volume_2d(self, basic_model_2d, data_path):
-        expected_volume = np.load(data_path/"expected_volume.npy")
-        assert np.all(basic_model_2d.volume == expected_volume)
+def test_volume_2d(basic_model_2d, data_path):
+    """Test volume calculation."""
+    expected_volume = np.load(data_path/"expected_volume.npy")
+    assert np.all(basic_model_2d.volume == expected_volume)
 
 
 class TestSimulate:
@@ -127,13 +135,16 @@ class TestSimulate:
 
     Further tests of simulation are in test_regression.py
     """
+
     def invalid_integrator(self, basic_model_2d):
+        """Test passing an invalid integrator to simulate."""
         model = basic_model_2d
         with pytest.raises(InvalidIntegrator):
             model.simulate(10, None)
 
 
 def test_initial_crack_helper():
+    """Test the initial crack helper decorator."""
     @initial_crack_helper
     def initial_crack(icoord, jcoord):
         critical_distance = 1.0
