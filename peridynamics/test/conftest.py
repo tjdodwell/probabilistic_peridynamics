@@ -12,7 +12,7 @@ def data_path():
     return path
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def simple_model(data_path):
     """Create a simple peridynamics Model object."""
     path = data_path
