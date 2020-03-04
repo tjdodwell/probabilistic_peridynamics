@@ -2,6 +2,7 @@
 from ..model import (Model, DimensionalityError, initial_crack_helper,
                      InvalidIntegrator)
 import numpy as np
+import scipy.sparse as sparse
 import pytest
 
 
@@ -136,9 +137,11 @@ def test_bond_stiffness_2d(basic_model_2d):
 
 def test_neighbourhood(basic_model_2d, data_path):
     """Test _neighbourhood method."""
-    expected_neighbourhood = np.load(data_path/"expected_neighbourhood.npy")
+    expected_neighbourhood = sparse.load_npz(
+        data_path/"expected_neighbourhood.npz"
+        )
     assert np.all(
-        basic_model_2d._neighbourhood().toarray() == expected_neighbourhood
+        ~(basic_model_2d._neighbourhood() != expected_neighbourhood).toarray()
         )
 
 
