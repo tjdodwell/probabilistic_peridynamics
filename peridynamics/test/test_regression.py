@@ -1,6 +1,7 @@
 """
-A simple regression test simulating a basic model for nine steps using the
-Euler integrator.
+A simple regression test.
+
+A basic model is simulated for ten steps using the Euler integrator.
 """
 from ..model import Model, initial_crack_helper
 from ..integrators import Euler
@@ -9,7 +10,8 @@ import pytest
 
 
 @pytest.fixture(scope="module")
-def simple_square(data_path):
+def simple_model(data_path):
+    """Create a simple peridynamics Model object."""
     path = data_path
     mesh_file = path / "example_mesh.msh"
 
@@ -47,8 +49,9 @@ def simple_square(data_path):
 
 
 @pytest.fixture(scope="module")
-def regression(simple_square):
-    model = simple_square
+def regression(simple_model):
+    """Run the example simulation."""
+    model = simple_model
 
     integrator = Euler(dt=1e-3)
 
@@ -77,7 +80,10 @@ def regression(simple_square):
 
 
 class TestRegression:
+    """Regression tests."""
+
     def test_displacements(self, regression, data_path):
+        """Ensure displacements are correct."""
         _, displacements, *_ = regression
         path = data_path
 
@@ -85,6 +91,7 @@ class TestRegression:
         assert np.allclose(displacements, expected_displacements)
 
     def test_damage(self, regression, data_path):
+        """Ensure damage is correct."""
         _, _, damage = regression
         path = data_path
 
@@ -92,6 +99,7 @@ class TestRegression:
         assert np.all(damage == expected_damage)
 
     def test_mesh(self, regression, data_path, tmp_path):
+        """Ensure mesh file is identical."""
         model, displacements, damage = regression
         path = data_path
 

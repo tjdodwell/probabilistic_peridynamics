@@ -1,3 +1,4 @@
+"""Setup script for peridynamics."""
 from setuptools import setup, find_packages
 
 setup(
