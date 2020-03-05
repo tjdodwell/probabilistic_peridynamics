@@ -476,7 +476,7 @@ class Model:
         return F
 
     def simulate(self, steps, integrator, boundary_function=None, u=None,
-                 connectivity=None, write=None):
+                 connectivity=None, first_step=1, write=None):
         """
         Simulate the peridynamics model.
 
@@ -501,6 +501,9 @@ class Model:
             :class:`Model` object will be used.
         :type connectivity: :class:`scipy.sparse.csr_matrix` or
             :class:`numpy.ndarray`
+        :arg int first_step: The starting step number. This is useful when
+            restarting a simulation, especially if `boundary_function` depends
+            on the absolute step number.
         :arg int write: The frequency, in number of steps, to write the system
             to a mesh file by calling :meth:`Model.write_mesh`. If `None` then
             no output is written. Default `None`.
@@ -529,7 +532,7 @@ class Model:
             def boundary_function(model):
                 return model.u
 
-        for step in range(1, steps+1):
+        for step in range(first_step, first_step+steps):
             # Get current distance between nodes (i.e. accounting for
             # displacements)
             H_x, H_y, H_z, L = self._H_and_L(self.coords+u, connectivity)

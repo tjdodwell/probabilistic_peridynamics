@@ -1,6 +1,7 @@
 """Tests for the model class."""
 from ..model import (Model, DimensionalityError, initial_crack_helper,
                      InvalidIntegrator)
+from ..integrators import Euler
 import numpy as np
 import scipy.sparse as sparse
 import pytest
@@ -203,6 +204,60 @@ class TestSimulate:
         model = basic_model_2d
         with pytest.raises(InvalidIntegrator):
             model.simulate(10, None)
+
+    def test_stateless(self, simple_model, simple_boundary_function):
+        """Ensure the simulate method does not affect the state of Models."""
+        model = simple_model
+        euler = Euler(dt=1e-3)
+
+        u, damage, connectivity = model.simulate(
+            steps=2,
+            integrator=euler,
+            boundary_function=simple_boundary_function
+            )
+
+        expected_u, expected_damage, expected_connectivity = model.simulate(
+            steps=2,
+            integrator=euler,
+            boundary_function=simple_boundary_function
+            )
+
+        assert np.all(u == expected_u)
+        assert np.all(damage == expected_damage)
+        assert np.all(
+            connectivity.toarray() == expected_connectivity.toarray()
+            )
+
+    def test_restart(self, simple_model, simple_boundary_function):
+        """Ensure simulation restarting gives consistent results."""
+        model = simple_model
+        euler = Euler(dt=1e-3)
+
+        u, damage, connectivity = model.simulate(
+            steps=1,
+            integrator=euler,
+            boundary_function=simple_boundary_function
+            )
+        u, damage, connectivity = model.simulate(
+            steps=1,
+            integrator=euler,
+            boundary_function=simple_boundary_function,
+            u=u,
+            connectivity=connectivity,
+            first_step=2
+            )
+
+        expected_u, expected_damage, expected_connectivity = model.simulate(
+            steps=2,
+            integrator=euler,
+            boundary_function=simple_boundary_function
+            )
+
+        assert np.all(u == expected_u)
+        assert np.all(damage == expected_damage)
+        assert np.all(
+            connectivity.toarray() == expected_connectivity.toarray()
+            )
 
 
 class TestInitialCrackHelper:

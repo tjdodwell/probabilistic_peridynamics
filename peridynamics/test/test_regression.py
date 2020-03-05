@@ -9,26 +9,12 @@ import pytest
 
 
 @pytest.fixture(scope="module")
-def regression(simple_model):
+def regression(simple_model, simple_boundary_function):
     """Run the example simulation."""
     model = simple_model
+    boundary_function = simple_boundary_function
 
     integrator = Euler(dt=1e-3)
-
-    load_rate = 0.00001
-
-    def boundary_function(model, u, step):
-        u[model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
-        u[model.rhs, 1:3] = np.zeros((len(model.rhs), 2))
-
-        u[model.lhs, 0] = (
-            -0.5 * step * load_rate * np.ones(len(model.rhs))
-            )
-        u[model.rhs, 0] = (
-            0.5 * step * load_rate * np.ones(len(model.rhs))
-            )
-
-        return u
 
     u, damage, *_ = model.simulate(
         steps=10,
