@@ -1,7 +1,6 @@
 """Peridynamics model."""
 from .integrators import Integrator
 from collections import namedtuple
-from itertools import combinations
 import meshio
 import numpy as np
 from scipy import sparse
@@ -280,7 +279,7 @@ class Model:
         :rtype: :class:`scipy.sparse.csr_matrix`
         """
         if callable(initial_crack):
-            initial_crack = initial_crack(self.coords)
+            initial_crack = initial_crack(self.coords, neighbourhood)
 
         # Construct the initial connectivity matrix
         conn = neighbourhood.toarray()
@@ -579,11 +578,14 @@ def initial_crack_helper(crack_function):
         between them.
     :rtype: function
     """
-    def initial_crack(coords):
+    def initial_crack(coords, neighbourhood):
         crack = []
-        # Iterate over all unique pairs of coordinates with their indicies
-        for (i, icoord), (j, jcoord) in combinations(enumerate(coords), 2):
-            if crack_function(icoord, jcoord):
+        # Get all pairs of bonded particles (within horizon) where i < j and
+        # i /= j (using the upper triangular portion)
+        i, j = sparse.triu(neighbourhood, 1).nonzero()
+        # Check each pair using the crack function
+        for i, j in zip(i, j):
+            if crack_function(coords[i], coords[j]):
                 crack.append((i, j))
         return crack
     return initial_crack

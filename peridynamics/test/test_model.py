@@ -205,15 +205,8 @@ class TestSimulate:
             model.simulate(10, None)
 
 
-def test_initial_crack_helper():
-    """Test the initial crack helper decorator."""
-    @initial_crack_helper
-    def initial_crack(icoord, jcoord):
-        critical_distance = 1.0
-        if np.sum((jcoord - icoord)**2) > critical_distance:
-            return True
-        else:
-            return False
+class TestInitialCrackHelper:
+    """Tests of the initial crack helper decorator."""
 
     coords = np.array([
         [0.0, 0.0, 0.0],
@@ -222,12 +215,49 @@ def test_initial_crack_helper():
         [5.0, 0.0, 0.0]
         ])
 
-    actual = initial_crack(coords)
-    expected = [
-        (0, 3),
-        (1, 2),
-        (1, 3),
-        (2, 3)
-        ]
+    def test_initial_crack_helper(self):
+        """Test with all particles interacting."""
+        @initial_crack_helper
+        def initial_crack(icoord, jcoord):
+            critical_distance = 1.0
+            if np.sum((jcoord - icoord)**2) > critical_distance:
+                return True
+            else:
+                return False
 
-    assert expected == actual
+        actual = initial_crack(self.coords,
+                               sparse.csr_matrix(np.ones((4, 4), dtype=bool)))
+        expected = [
+            (0, 3),
+            (1, 2),
+            (1, 3),
+            (2, 3)
+            ]
+
+        assert expected == actual
+
+    def test_neighbourhood(self):
+        """Test with a neighbourhood defined."""
+        @initial_crack_helper
+        def initial_crack(icoord, jcoord):
+            critical_distance = 1.0
+            if np.sum((jcoord - icoord)**2) > critical_distance:
+                return True
+            else:
+                return False
+
+        # Create a neighbourhood matrix, ensure that particle 3 is not in the
+        # neighbourhood of any other nodes
+        neighbourhood = np.zeros((4, 4), dtype=bool)
+        neighbourhood[0, 1] = True
+        neighbourhood[0, 2] = True
+        neighbourhood[1, 2] = True
+        neighbourhood = neighbourhood + neighbourhood.T
+        neighbourhood = sparse.csr_matrix(neighbourhood)
+
+        actual = initial_crack(self.coords, neighbourhood)
+        expected = [
+            (1, 2)
+            ]
+
+        assert expected == actual
