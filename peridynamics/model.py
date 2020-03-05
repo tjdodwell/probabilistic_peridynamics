@@ -3,6 +3,7 @@ from .integrators import Integrator
 from collections import namedtuple
 import meshio
 import numpy as np
+import pathlib
 from scipy import sparse
 from scipy.spatial.distance import cdist
 
@@ -476,7 +477,7 @@ class Model:
         return F
 
     def simulate(self, steps, integrator, boundary_function=None, u=None,
-                 connectivity=None, first_step=1, write=None):
+                 connectivity=None, first_step=1, write=None, write_path=None):
         """
         Simulate the peridynamics model.
 
@@ -507,6 +508,9 @@ class Model:
         :arg int write: The frequency, in number of steps, to write the system
             to a mesh file by calling :meth:`Model.write_mesh`. If `None` then
             no output is written. Default `None`.
+        :arg write_path: The path where the periodic mesh files should be
+            written.
+        :type write_path: path-like or str
 
         :returns: A tuple of the final displacements (`u`), damage and
             connectivity.
@@ -532,6 +536,13 @@ class Model:
             def boundary_function(model):
                 return model.u
 
+        # If no write path was provided use the current directory, otherwise
+        # ensure write_path is a Path object.
+        if write_path is None:
+            write_path = pathlib.Path()
+        else:
+            write_path = pathlib.Path(write_path)
+
         for step in range(first_step, first_step+steps):
             # Get current distance between nodes (i.e. accounting for
             # displacements)
@@ -555,7 +566,7 @@ class Model:
 
             if write:
                 if step % write == 0:
-                    self.write_mesh(f"U_{step}.vtk", damage, u)
+                    self.write_mesh(write_path/f"U_{step}.vtk", damage, u)
 
         return u, damage, connectivity
 

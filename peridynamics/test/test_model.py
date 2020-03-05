@@ -259,6 +259,26 @@ class TestSimulate:
             connectivity.toarray() == expected_connectivity.toarray()
             )
 
+    def test_write(self, simple_model, simple_boundary_function, tmp_path):
+        """Ensure that the mesh file written by simulate is correct."""
+        model = simple_model
+        euler = Euler(dt=1e-3)
+
+        u, damage, connectivity = model.simulate(
+            steps=1,
+            integrator=euler,
+            boundary_function=simple_boundary_function,
+            write=1,
+            write_path=tmp_path
+            )
+
+        mesh = tmp_path / "U_1.vtk"
+
+        expected_mesh = tmp_path / "mesh.vtk"
+        model.write_mesh(expected_mesh, damage, u)
+
+        assert mesh.read_bytes() == expected_mesh.read_bytes()
+
 
 class TestInitialCrackHelper:
     """Tests of the initial crack helper decorator."""
