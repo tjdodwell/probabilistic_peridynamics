@@ -199,9 +199,10 @@ class TestSimulate:
     Further tests of simulation are in test_regression.py
     """
 
-    def invalid_integrator(self, basic_model_2d):
+    def test_invalid_integrator(self, basic_model_2d):
         """Test passing an invalid integrator to simulate."""
         model = basic_model_2d
+
         with pytest.raises(InvalidIntegrator):
             model.simulate(10, None)
 
