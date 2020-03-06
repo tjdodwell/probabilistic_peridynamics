@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.com/alan-turing-institute/probabilistic_peridynamics.svg?branch=master)](https://travis-ci.com/alan-turing-institute/probabilistic_peridynamics)
 
+[![codecov](https://codecov.io/gh/alan-turing-institute/Probabilistic-Peridynamics/branch/master/graph/badge.svg)](https://codecov.io/gh/alan-turing-institute/Probabilistic-Peridynamics)
+
 Code base for 'Probabilistic Peridynamics' collaboration between Exeter, Cambridge &amp; Turing
 
 # Installation
