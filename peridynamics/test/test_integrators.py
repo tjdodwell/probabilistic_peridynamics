@@ -1,9 +1,19 @@
 """Tests for the integrators module."""
-from ..integrators import Euler
+from ..integrators import Euler, Integrator
 import numpy as np
+import pytest
 
 
-class TestEuler(object):
+class TestIntegrator:
+    """ABC class tests."""
+
+    def test_not_implemented_error(self):
+        """Ensure the ABC cannot be instantiated."""
+        with pytest.raises(TypeError):
+            Integrator()
+
+
+class TestEuler:
     """Euler integrator tests."""
 
     def test_basic_integration(self):

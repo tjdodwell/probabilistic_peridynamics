@@ -17,7 +17,6 @@ class Integrator(ABC):
 
         This method should be implemennted in every concrete integrator.
         """
-        pass
 
 
 class Euler(Integrator):

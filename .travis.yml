@@ -7,11 +7,14 @@ python:
 
 install:
   - pip install .
-  - pip install flake8 flake8-docstrings pytest
+  - pip install flake8 flake8-docstrings pytest pytest-cov codecov
 
 script:
   - flake8
-  - pytest -v
+  - pytest -v --cov-config=.coveragerc --cov=./peridynamics
+
+after_success:
+  - codecov
 
 jobs:
   include:

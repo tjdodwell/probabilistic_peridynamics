@@ -1,6 +1,7 @@
 """Tests for the model class."""
 from ..model import (Model, DimensionalityError, initial_crack_helper,
                      InvalidIntegrator)
+from ..integrators import Euler
 import numpy as np
 import scipy.sparse as sparse
 import pytest
@@ -130,6 +131,67 @@ def test_volume_2d(basic_model_2d, data_path):
     assert np.all(basic_model_2d.volume == expected_volume)
 
 
+def test_bond_stiffness_2d(basic_model_2d):
+    """Test bond stiffness calculation."""
+    assert np.isclose(basic_model_2d.bond_stiffness, 2864.7889756)
+
+
+def test_neighbourhood(basic_model_2d, data_path):
+    """Test _neighbourhood method."""
+    expected_neighbourhood = sparse.load_npz(
+        data_path/"expected_neighbourhood.npz"
+        )
+    assert np.all(
+        ~(basic_model_2d._neighbourhood() != expected_neighbourhood).toarray()
+        )
+
+
+class TestConnectivity:
+    """Test the _connectivity method."""
+
+    def test_basic_connectivity(self, basic_model_2d, data_path):
+        """Test connectivity calculation with no initial crack."""
+        expected_connectivity = sparse.load_npz(
+            data_path/"expected_connectivity_basic.npz"
+            )
+        assert np.all(
+            ~(
+                basic_model_2d.initial_connectivity != expected_connectivity
+                ).toarray()
+            )
+
+    def test_connectivity(self, simple_model, data_path):
+        """Test connectivity calculation with no initial crack."""
+        expected_connectivity = sparse.load_npz(
+            data_path/"expected_connectivity_crack.npz"
+            )
+        assert np.all(
+            ~(
+                simple_model.initial_connectivity != expected_connectivity
+                ).toarray()
+            )
+
+
+def test_displacements():
+    """Test displacement calculation."""
+    r = np.identity(3, dtype=np.float)
+    expected_d_x = np.array([[0.0, 1.0, 1.0],
+                             [-1.0, 0.0, 0.0],
+                             [-1.0, 0.0, 0.0]])
+    expected_d_y = np.array([[0.0, -1.0, 0.0],
+                             [1.0, 0.0, 1.0],
+                             [0.0, -1.0, 0.0]])
+    expected_d_z = np.array([[0.0, 0.0, -1.0],
+                             [0.0, 0.0, -1.0],
+                             [1.0, 1.0, 0.0]])
+
+    d_x, d_y, d_z = Model._displacements(r)
+
+    assert np.all(d_x == expected_d_x)
+    assert np.all(d_y == expected_d_y)
+    assert np.all(d_z == expected_d_z)
+
+
 class TestSimulate:
     """
     Tests for the simulate method.
@@ -137,11 +199,143 @@ class TestSimulate:
     Further tests of simulation are in test_regression.py
     """
 
-    def invalid_integrator(self, basic_model_2d):
+    def test_invalid_integrator(self, basic_model_2d):
         """Test passing an invalid integrator to simulate."""
         model = basic_model_2d
+
         with pytest.raises(InvalidIntegrator):
             model.simulate(10, None)
+
+    def test_stateless(self, simple_model, simple_boundary_function):
+        """Ensure the simulate method does not affect the state of Models."""
+        model = simple_model
+        euler = Euler(dt=1e-3)
+
+        u, damage, connectivity = model.simulate(
+            steps=2,
+            integrator=euler,
+            boundary_function=simple_boundary_function
+            )
+
+        expected_u, expected_damage, expected_connectivity = model.simulate(
+            steps=2,
+            integrator=euler,
+            boundary_function=simple_boundary_function
+            )
+
+        assert np.all(u == expected_u)
+        assert np.all(damage == expected_damage)
+        assert np.all(
+            connectivity.toarray() == expected_connectivity.toarray()
+            )
+
+    def test_restart(self, simple_model, simple_boundary_function):
+        """Ensure simulation restarting gives consistent results."""
+        model = simple_model
+        euler = Euler(dt=1e-3)
+
+        u, damage, connectivity = model.simulate(
+            steps=1,
+            integrator=euler,
+            boundary_function=simple_boundary_function
+            )
+        u, damage, connectivity = model.simulate(
+            steps=1,
+            integrator=euler,
+            boundary_function=simple_boundary_function,
+            u=u,
+            connectivity=connectivity,
+            first_step=2
+            )
+
+        expected_u, expected_damage, expected_connectivity = model.simulate(
+            steps=2,
+            integrator=euler,
+            boundary_function=simple_boundary_function
+            )
+
+        assert np.all(u == expected_u)
+        assert np.all(damage == expected_damage)
+        assert np.all(
+            connectivity.toarray() == expected_connectivity.toarray()
+            )
+
+    def test_restart_dense(self, simple_model, simple_boundary_function):
+        """Ensure simulation restarting works with dense connectivity."""
+        model = simple_model
+        euler = Euler(dt=1e-3)
+
+        u, damage, connectivity = model.simulate(
+            steps=1,
+            integrator=euler,
+            boundary_function=simple_boundary_function
+            )
+        u, damage, connectivity = model.simulate(
+            steps=1,
+            integrator=euler,
+            boundary_function=simple_boundary_function,
+            u=u,
+            connectivity=connectivity.toarray(),
+            first_step=2
+            )
+
+        expected_u, expected_damage, expected_connectivity = model.simulate(
+            steps=2,
+            integrator=euler,
+            boundary_function=simple_boundary_function
+            )
+
+        assert np.all(u == expected_u)
+        assert np.all(damage == expected_damage)
+        assert np.all(
+            connectivity.toarray() == expected_connectivity.toarray()
+            )
+
+    def test_no_boundary_function(self, simple_model):
+        """Ensure passing no boundary function works correctly."""
+        model = simple_model
+        euler = Euler(dt=1e-3)
+
+        u, damage, connectivity = model.simulate(
+            steps=2,
+            integrator=euler,
+            boundary_function=None
+            )
+
+        def boundary_function(model, u, step):
+            return u
+
+        expected_u, expected_damage, expected_connectivity = model.simulate(
+            steps=2,
+            integrator=euler,
+            boundary_function=boundary_function
+            )
+
+        assert np.all(u == expected_u)
+        assert np.all(damage == expected_damage)
+        assert np.all(
+            connectivity.toarray() == expected_connectivity.toarray()
+            )
+
+    def test_write(self, simple_model, simple_boundary_function, tmp_path):
+        """Ensure that the mesh file written by simulate is correct."""
+        model = simple_model
+        euler = Euler(dt=1e-3)
+
+        u, damage, connectivity = model.simulate(
+            steps=1,
+            integrator=euler,
+            boundary_function=simple_boundary_function,
+            write=1,
+            write_path=tmp_path
+            )
+
+        mesh = tmp_path / "U_1.vtk"
+
+        expected_mesh = tmp_path / "mesh.vtk"
+        model.write_mesh(expected_mesh, damage, u)
+
+        assert mesh.read_bytes() == expected_mesh.read_bytes()
 
 
 class TestInitialCrackHelper:

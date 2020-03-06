@@ -3,6 +3,7 @@ from .integrators import Integrator
 from collections import namedtuple
 import meshio
 import numpy as np
+import pathlib
 from scipy import sparse
 from scipy.spatial.distance import cdist
 
@@ -152,7 +153,7 @@ class Model:
         neighbourhood = self._neighbourhood()
 
         # Set family, the number of neighbours for each node
-        self.family = np.sum(neighbourhood, axis=0)
+        self.family = np.squeeze(np.array(np.sum(neighbourhood, axis=0)))
 
         # Set the initial connectivity
         self.initial_connectivity = self._connectivity(neighbourhood,
@@ -476,7 +477,7 @@ class Model:
         return F
 
     def simulate(self, steps, integrator, boundary_function=None, u=None,
-                 connectivity=None, write=None):
+                 connectivity=None, first_step=1, write=None, write_path=None):
         """
         Simulate the peridynamics model.
 
@@ -501,9 +502,15 @@ class Model:
             :class:`Model` object will be used.
         :type connectivity: :class:`scipy.sparse.csr_matrix` or
             :class:`numpy.ndarray`
+        :arg int first_step: The starting step number. This is useful when
+            restarting a simulation, especially if `boundary_function` depends
+            on the absolute step number.
         :arg int write: The frequency, in number of steps, to write the system
             to a mesh file by calling :meth:`Model.write_mesh`. If `None` then
             no output is written. Default `None`.
+        :arg write_path: The path where the periodic mesh files should be
+            written.
+        :type write_path: path-like or str
 
         :returns: A tuple of the final displacements (`u`), damage and
             connectivity.
@@ -526,10 +533,17 @@ class Model:
 
         # Create dummy boundary conditions function is none is provided
         if boundary_function is None:
-            def boundary_function(model):
-                return model.u
+            def boundary_function(model, u, step):
+                return u
 
-        for step in range(1, steps+1):
+        # If no write path was provided use the current directory, otherwise
+        # ensure write_path is a Path object.
+        if write_path is None:
+            write_path = pathlib.Path()
+        else:
+            write_path = pathlib.Path(write_path)
+
+        for step in range(first_step, first_step+steps):
             # Get current distance between nodes (i.e. accounting for
             # displacements)
             H_x, H_y, H_z, L = self._H_and_L(self.coords+u, connectivity)
@@ -552,7 +566,7 @@ class Model:
 
             if write:
                 if step % write == 0:
-                    self.write_mesh(f"U_{step}.vtk", damage, u)
+                    self.write_mesh(write_path/f"U_{step}.vtk", damage, u)
 
         return u, damage, connectivity
 
