@@ -291,6 +291,32 @@ class TestSimulate:
             connectivity.toarray() == expected_connectivity.toarray()
             )
 
+    def test_no_boundary_function(self, simple_model):
+        """Ensure passing no boundary function works correctly."""
+        model = simple_model
+        euler = Euler(dt=1e-3)
+
+        u, damage, connectivity = model.simulate(
+            steps=2,
+            integrator=euler,
+            boundary_function=None
+            )
+
+        def boundary_function(model, u, step):
+            return u
+
+        expected_u, expected_damage, expected_connectivity = model.simulate(
+            steps=2,
+            integrator=euler,
+            boundary_function=boundary_function
+            )
+
+        assert np.all(u == expected_u)
+        assert np.all(damage == expected_damage)
+        assert np.all(
+            connectivity.toarray() == expected_connectivity.toarray()
+            )
+
     def test_write(self, simple_model, simple_boundary_function, tmp_path):
         """Ensure that the mesh file written by simulate is correct."""
         model = simple_model

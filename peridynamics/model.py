@@ -533,8 +533,8 @@ class Model:
 
         # Create dummy boundary conditions function is none is provided
         if boundary_function is None:
-            def boundary_function(model):
-                return model.u
+            def boundary_function(model, u, step):
+                return u
 
         # If no write path was provided use the current directory, otherwise
         # ensure write_path is a Path object.
