@@ -35,12 +35,11 @@ class TestDimension:
         assert model.mesh_elements.connectivity == 'triangle'
         assert model.mesh_elements.boundary == 'line'
 
-    @pytest.mark.skip(reason="No three dimensional example")
     def test_3d(self, basic_model_3d):
         """Test initialisation of a 3D model."""
         model = basic_model_3d
 
-        assert model.mesh_elements.connectivity == 'tetrahedron'
+        assert model.mesh_elements.connectivity == 'tetra'
         assert model.mesh_elements.boundary == 'triangle'
 
     @pytest.mark.parametrize("dimensions", [1, 4])

@@ -11,7 +11,7 @@ from scipy.spatial.distance import cdist
 _MeshElements = namedtuple("MeshElements", ["connectivity", "boundary"])
 _mesh_elements_2d = _MeshElements(connectivity="triangle",
                                   boundary="line")
-_mesh_elements_3d = _MeshElements(connectivity="tetrahedron",
+_mesh_elements_3d = _MeshElements(connectivity="tetra",
                                   boundary="triangle")
 
 
