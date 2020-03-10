@@ -88,25 +88,25 @@ class TestRead3D:
         """Test coordinates are read correctly."""
         model = basic_model_3d
 
-        assert model.coords.shape == (134, 3)
-        assert model.nnodes == 134
-        assert np.allclose(model.coords[42], np.array([0., 1., 0.5]))
+        assert model.coords.shape == (1023, 3)
+        assert model.nnodes == 1023
+        assert np.allclose(model.coords[42], np.array([1., 0.2, 0.]))
 
     def test_connectivity(self, basic_model_3d):
         """Test mesh connectivity is read correctly."""
         model = basic_model_3d
 
-        assert model.mesh_connectivity.shape == (363, 4)
+        assert model.mesh_connectivity.shape == (3948, 4)
         assert np.all(
-            model.mesh_connectivity[100] == np.array([71, 129, 73, 131])
+            model.mesh_connectivity[100] == np.array([467, 733, 802, 937])
             )
 
     def test_boundary_connectivity(self, basic_model_3d):
         """Test mesh boundary is read correctly."""
         model = basic_model_3d
 
-        assert model.mesh_boundary.shape == (246, 3)
-        assert np.all(model.mesh_boundary[100] == np.array([75, 36, 35]))
+        assert model.mesh_boundary.shape == (1408, 3)
+        assert np.all(model.mesh_boundary[100] == np.array([151, 122, 162]))
 
 
 @pytest.fixture
