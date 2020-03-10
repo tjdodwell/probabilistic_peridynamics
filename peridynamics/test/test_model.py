@@ -2,6 +2,7 @@
 from ..model import (Model, DimensionalityError, initial_crack_helper,
                      InvalidIntegrator)
 from ..integrators import Euler
+import meshio
 import numpy as np
 import scipy.sparse as sparse
 import pytest
@@ -127,13 +128,57 @@ def written_model(basic_model_3d, tmp_path):
     return mesh_file
 
 
-@pytest.mark.skip(reason="Should use a minimal example for testing this")
+@pytest.fixture(scope="class")
+def written_example(basic_model_3d, tmp_path_factory):
+    """Write an example model to a mesh object."""
+    model = basic_model_3d
+
+    damage = np.random.random(model.nnodes)
+    u = np.random.random((model.nnodes, 3))
+
+    mesh_file = tmp_path_factory.mktemp("data")/"mesh.vtk"
+    model.write_mesh(mesh_file, damage=damage, displacements=u)
+
+    mesh = meshio.read(mesh_file)
+
+    return model, mesh, u, damage
+
+
 class TestWrite:
     """Tests for the writing of mesh files."""
 
-    def test_coords(self, written_model):
+    def test_coords(self, written_example):
         """Ensure coordinates are written correctly."""
-        assert 0
+        model, mesh, u, damage = written_example
+        assert np.all(model.coords == mesh.points)
+
+    def test_mesh_connectivity(self, written_example):
+        """Ensure connectivity is written correctly."""
+        model, mesh, u, damage = written_example
+        assert np.all(
+            model.mesh_connectivity == mesh.cells_dict[
+                model.mesh_elements.connectivity
+                ]
+            )
+
+    def test_mesh_boundary(self, written_example):
+        """Ensure boundary is written correctly."""
+        model, mesh, u, damage = written_example
+        assert np.all(
+            model.mesh_boundary == mesh.cells_dict[
+                model.mesh_elements.boundary
+                ]
+            )
+
+    def test_damage(self, written_example):
+        """Ensure damage is written correctly."""
+        model, mesh, u, damage = written_example
+        assert np.all(damage == mesh.point_data["damage"])
+
+    def test_displacements(self, written_example):
+        """Ensure displacements are written correctly."""
+        model, mesh, u, damage = written_example
+        assert np.all(u == mesh.point_data["displacements"])
 
 
 def test_volume_2d(basic_model_2d, data_path):
