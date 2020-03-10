@@ -10,7 +10,7 @@ import pytest
 @pytest.fixture(scope="module")
 def basic_model_2d(data_path):
     """Create a basic 2D model object."""
-    mesh_file = data_path / "example_mesh.msh"
+    mesh_file = data_path / "example_mesh.vtk"
     model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
                   elastic_modulus=0.05)
     return model
@@ -19,7 +19,7 @@ def basic_model_2d(data_path):
 @pytest.fixture(scope="module")
 def basic_model_3d(data_path):
     """Create a basic 3D model object."""
-    mesh_file = data_path / "example_mesh.msh"
+    mesh_file = data_path / "example_mesh_3d.vtk"
     model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
                   elastic_modulus=0.05, dimensions=3)
     return model

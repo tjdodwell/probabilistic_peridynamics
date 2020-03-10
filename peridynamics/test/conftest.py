@@ -16,7 +16,7 @@ def data_path():
 def simple_model(data_path):
     """Create a simple peridynamics Model object."""
     path = data_path
-    mesh_file = path / "example_mesh.msh"
+    mesh_file = path / "example_mesh.vtk"
 
     @initial_crack_helper
     def is_crack(x, y):
