@@ -60,7 +60,8 @@ class TestRead2D:
         assert model.coords.shape == (2113, 3)
         assert model.nnodes == 2113
         assert np.all(
-            model.coords[42] == np.array([1., 0.2499999999994083, 0.]))
+            model.coords[42] == np.array([1., 0.2499999999994083, 0.])
+            )
 
     def test_mesh_connectivity(self, basic_model_2d):
         """Test mesh connectivity is read correctly."""
@@ -68,32 +69,43 @@ class TestRead2D:
 
         assert model.mesh_connectivity.shape == (4096, 3)
         assert np.all(
-            model.mesh_connectivity[100] == np.array([252, 651, 650]))
+            model.mesh_connectivity[100] == np.array([252, 651, 650])
+            )
 
     def test_mesh_boundary(self, basic_model_2d):
         """Test mesh boundary is read correctly."""
         model = basic_model_2d
 
         assert model.mesh_boundary.shape == (128, 2)
-        assert np.all(
-            model.mesh_boundary[100] == np.array([100, 101]))
+        assert np.all(model.mesh_boundary[100] == np.array([100, 101]))
 
 
-@pytest.mark.skip(reason="No three dimensional example")
 class TestRead3D:
     """Test reading a mesh with a 3D model."""
 
     def test_coords(self, basic_model_3d):
         """Test coordinates are read correctly."""
-        assert 0
+        model = basic_model_3d
+
+        assert model.coords.shape == (134, 3)
+        assert model.nnodes == 134
+        assert np.allclose(model.coords[42], np.array([0., 1., 0.5]))
 
     def test_connectivity(self, basic_model_3d):
         """Test mesh connectivity is read correctly."""
-        assert 0
+        model = basic_model_3d
+
+        assert model.mesh_connectivity.shape == (363, 4)
+        assert np.all(
+            model.mesh_connectivity[100] == np.array([71, 129, 73, 131])
+            )
 
     def test_boundary_connectivity(self, basic_model_3d):
         """Test mesh boundary is read correctly."""
-        assert 0
+        model = basic_model_3d
+
+        assert model.mesh_boundary.shape == (246, 3)
+        assert np.all(model.mesh_boundary[100] == np.array([75, 36, 35]))
 
 
 @pytest.fixture
