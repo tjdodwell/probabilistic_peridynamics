@@ -375,7 +375,7 @@ class Model:
         nnodes = self.nnodes
         strain = sparse.lil_matrix((nnodes, nnodes))
         non_zero = self.L_0.nonzero()
-        strain[non_zero] = (dL[non_zero]/self.L_0[non_zero])
+        strain[non_zero] = dL[non_zero]/self.L_0[non_zero]
 
         return strain
 
