@@ -9,7 +9,7 @@ from peridynamics.model import initial_crack_helper
 from peridynamics.integrators import Euler
 from pstats import SortKey, Stats
 
-mesh_file = pathlib.Path(__file__).parent.absolute() / "test.msh"
+mesh_file = pathlib.Path(__file__).parent.absolute() / "test.vtk"
 
 
 @initial_crack_helper
@@ -74,7 +74,7 @@ def main():
     integrator = Euler(dt=1e-3)
 
     u, damage, *_ = model.simulate(
-        steps=100,
+        steps=1000,
         integrator=integrator,
         boundary_function=boundary_function,
         write=1000
