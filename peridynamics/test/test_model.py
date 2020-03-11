@@ -184,13 +184,13 @@ class TestWrite:
 def test_volume_2d(basic_model_2d, data_path):
     """Test volume calculation."""
     expected_volume = np.load(data_path/"expected_volume.npy")
-    assert np.all(basic_model_2d.volume == expected_volume)
+    assert np.allclose(basic_model_2d.volume, expected_volume)
 
 
 def test_volume_3d(basic_model_3d, data_path):
     """Test volume calculation."""
     expected_volume = np.load(data_path/"expected_volume_3d.npy")
-    assert np.all(basic_model_3d.volume == expected_volume)
+    assert np.allclose(basic_model_3d.volume, expected_volume)
 
 
 def test_bond_stiffness_2d(basic_model_2d):

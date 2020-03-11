@@ -235,6 +235,7 @@ class Model:
                 xi, yi, *_ = self.coords[element[0]]
                 xj, yj, *_ = self.coords[element[1]]
                 xk, yk, *_ = self.coords[element[2]]
+
                 val *= 0.5 * ((xj - xi) * (yk - yi) - (xk - xi) * (yj - yi))
             elif self.dimensions == 3:
                 a = self.coords[element[0]]
@@ -243,14 +244,11 @@ class Model:
                 d = self.coords[element[3]]
 
                 # Volume of a tetrahedron
-                i = np.subtract(a, d)
-                j = np.subtract(b, d)
-                k = np.subtract(c, d)
+                i = a - d
+                j = b - d
+                k = c - d
 
-                element_volume = (1./6) * np.absolute(
-                    np.dot(i, np.cross(j, k))
-                    )
-                val *= element_volume
+                val *= abs(np.dot(i, np.cross(j, k))) / 6
 
             volume[element] += val
 
