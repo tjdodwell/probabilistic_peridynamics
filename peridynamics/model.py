@@ -6,6 +6,7 @@ import numpy as np
 import pathlib
 from scipy import sparse
 from scipy.spatial.distance import cdist
+from tqdm import trange
 
 
 _MeshElements = namedtuple("MeshElements", ["connectivity", "boundary"])
@@ -560,7 +561,8 @@ class Model:
         else:
             write_path = pathlib.Path(write_path)
 
-        for step in range(first_step, first_step+steps):
+        for step in trange(first_step, first_step+steps,
+                           desc="Simulation Progress", unit="steps"):
             # Get current distance between nodes (i.e. accounting for
             # displacements)
             H_x, H_y, H_z, L = self._H_and_L(self.coords+u, connectivity)
