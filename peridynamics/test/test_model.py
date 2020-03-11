@@ -2,6 +2,7 @@
 from ..model import (Model, DimensionalityError, initial_crack_helper,
                      InvalidIntegrator)
 from ..integrators import Euler
+import meshio
 import numpy as np
 import scipy.sparse as sparse
 import pytest
@@ -10,7 +11,7 @@ import pytest
 @pytest.fixture(scope="module")
 def basic_model_2d(data_path):
     """Create a basic 2D model object."""
-    mesh_file = data_path / "example_mesh.msh"
+    mesh_file = data_path / "example_mesh.vtk"
     model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
                   elastic_modulus=0.05)
     return model
@@ -19,7 +20,7 @@ def basic_model_2d(data_path):
 @pytest.fixture(scope="module")
 def basic_model_3d(data_path):
     """Create a basic 3D model object."""
-    mesh_file = data_path / "example_mesh.msh"
+    mesh_file = data_path / "example_mesh_3d.vtk"
     model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
                   elastic_modulus=0.05, dimensions=3)
     return model
@@ -35,12 +36,11 @@ class TestDimension:
         assert model.mesh_elements.connectivity == 'triangle'
         assert model.mesh_elements.boundary == 'line'
 
-    @pytest.mark.skip(reason="No three dimensional example")
     def test_3d(self, basic_model_3d):
         """Test initialisation of a 3D model."""
         model = basic_model_3d
 
-        assert model.mesh_elements.connectivity == 'tetrahedron'
+        assert model.mesh_elements.connectivity == 'tetra'
         assert model.mesh_elements.boundary == 'triangle'
 
     @pytest.mark.parametrize("dimensions", [1, 4])
@@ -61,7 +61,8 @@ class TestRead2D:
         assert model.coords.shape == (2113, 3)
         assert model.nnodes == 2113
         assert np.all(
-            model.coords[42] == np.array([1., 0.2499999999994083, 0.]))
+            model.coords[42] == np.array([1., 0.2499999999994083, 0.])
+            )
 
     def test_mesh_connectivity(self, basic_model_2d):
         """Test mesh connectivity is read correctly."""
@@ -69,32 +70,43 @@ class TestRead2D:
 
         assert model.mesh_connectivity.shape == (4096, 3)
         assert np.all(
-            model.mesh_connectivity[100] == np.array([252, 651, 650]))
+            model.mesh_connectivity[100] == np.array([252, 651, 650])
+            )
 
     def test_mesh_boundary(self, basic_model_2d):
         """Test mesh boundary is read correctly."""
         model = basic_model_2d
 
         assert model.mesh_boundary.shape == (128, 2)
-        assert np.all(
-            model.mesh_boundary[100] == np.array([100, 101]))
+        assert np.all(model.mesh_boundary[100] == np.array([100, 101]))
 
 
-@pytest.mark.skip(reason="No three dimensional example")
 class TestRead3D:
     """Test reading a mesh with a 3D model."""
 
     def test_coords(self, basic_model_3d):
         """Test coordinates are read correctly."""
-        assert 0
+        model = basic_model_3d
+
+        assert model.coords.shape == (1023, 3)
+        assert model.nnodes == 1023
+        assert np.allclose(model.coords[42], np.array([1., 0.2, 0.]))
 
     def test_connectivity(self, basic_model_3d):
         """Test mesh connectivity is read correctly."""
-        assert 0
+        model = basic_model_3d
+
+        assert model.mesh_connectivity.shape == (3948, 4)
+        assert np.all(
+            model.mesh_connectivity[100] == np.array([467, 733, 802, 937])
+            )
 
     def test_boundary_connectivity(self, basic_model_3d):
         """Test mesh boundary is read correctly."""
-        assert 0
+        model = basic_model_3d
+
+        assert model.mesh_boundary.shape == (1408, 3)
+        assert np.all(model.mesh_boundary[100] == np.array([151, 122, 162]))
 
 
 @pytest.fixture
@@ -116,19 +128,69 @@ def written_model(basic_model_3d, tmp_path):
     return mesh_file
 
 
-@pytest.mark.skip(reason="Should use a minimal example for testing this")
+@pytest.fixture(scope="class")
+def written_example(basic_model_3d, tmp_path_factory):
+    """Write an example model to a mesh object."""
+    model = basic_model_3d
+
+    damage = np.random.random(model.nnodes)
+    u = np.random.random((model.nnodes, 3))
+
+    mesh_file = tmp_path_factory.mktemp("data")/"mesh.vtk"
+    model.write_mesh(mesh_file, damage=damage, displacements=u)
+
+    mesh = meshio.read(mesh_file)
+
+    return model, mesh, u, damage
+
+
 class TestWrite:
     """Tests for the writing of mesh files."""
 
-    def test_coords(self, written_model):
+    def test_coords(self, written_example):
         """Ensure coordinates are written correctly."""
-        assert 0
+        model, mesh, u, damage = written_example
+        assert np.all(model.coords == mesh.points)
+
+    def test_mesh_connectivity(self, written_example):
+        """Ensure connectivity is written correctly."""
+        model, mesh, u, damage = written_example
+        assert np.all(
+            model.mesh_connectivity == mesh.cells_dict[
+                model.mesh_elements.connectivity
+                ]
+            )
+
+    def test_mesh_boundary(self, written_example):
+        """Ensure boundary is written correctly."""
+        model, mesh, u, damage = written_example
+        assert np.all(
+            model.mesh_boundary == mesh.cells_dict[
+                model.mesh_elements.boundary
+                ]
+            )
+
+    def test_damage(self, written_example):
+        """Ensure damage is written correctly."""
+        model, mesh, u, damage = written_example
+        assert np.all(damage == mesh.point_data["damage"])
+
+    def test_displacements(self, written_example):
+        """Ensure displacements are written correctly."""
+        model, mesh, u, damage = written_example
+        assert np.all(u == mesh.point_data["displacements"])
 
 
 def test_volume_2d(basic_model_2d, data_path):
     """Test volume calculation."""
     expected_volume = np.load(data_path/"expected_volume.npy")
-    assert np.all(basic_model_2d.volume == expected_volume)
+    assert np.allclose(basic_model_2d.volume, expected_volume)
+
+
+def test_volume_3d(basic_model_3d, data_path):
+    """Test volume calculation."""
+    expected_volume = np.load(data_path/"expected_volume_3d.npy")
+    assert np.allclose(basic_model_3d.volume, expected_volume)
 
 
 def test_bond_stiffness_2d(basic_model_2d):

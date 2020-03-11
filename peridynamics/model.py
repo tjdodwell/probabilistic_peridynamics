@@ -11,7 +11,7 @@ from scipy.spatial.distance import cdist
 _MeshElements = namedtuple("MeshElements", ["connectivity", "boundary"])
 _mesh_elements_2d = _MeshElements(connectivity="triangle",
                                   boundary="line")
-_mesh_elements_3d = _MeshElements(connectivity="tetrahedron",
+_mesh_elements_3d = _MeshElements(connectivity="tetra",
                                   boundary="triangle")
 
 
@@ -225,19 +225,36 @@ class Model:
         :rtype: NoneType
         """
         volume = np.zeros(self.nnodes)
+        dimensions = self.dimensions
 
-        for element in self.mesh_connectivity:
-            # Compute area / volume
-            val = 1. / len(element)
+        if dimensions == 2:
+            # element is a triangle
+            element_nodes = 3
+        elif dimensions == 3:
+            # element is a tetrahedron
+            element_nodes = 4
 
-            # Define area of element
-            if (self.dimensions == 2):
-                xi, yi, *_ = self.coords[element[0]]
-                xj, yj, *_ = self.coords[element[1]]
-                xk, yk, *_ = self.coords[element[2]]
-                val *= 0.5 * ((xj - xi) * (yk - yi) - (xk - xi) * (yj - yi))
+        for nodes in self.mesh_connectivity:
+            # Calculate volume/area or element
+            if dimensions == 2:
+                a, b, c = self.coords[nodes]
 
-            volume[element] += val
+                # Area of a trianble
+                i = b - a
+                j = c - a
+                element_volume = 0.5 * np.linalg.norm(np.cross(i, j))
+            elif dimensions == 3:
+                a, b, c, d = self.coords[nodes]
+
+                # Volume of a tetrahedron
+                i = a - d
+                j = b - d
+                k = c - d
+                element_volume = abs(np.dot(i, np.cross(j, k))) / 6
+
+            # Add fraction element volume to all nodes belonging to that
+            # element
+            volume[nodes] += element_volume / element_nodes
 
         return volume
 
@@ -375,7 +392,7 @@ class Model:
         nnodes = self.nnodes
         strain = sparse.lil_matrix((nnodes, nnodes))
         non_zero = self.L_0.nonzero()
-        strain[non_zero] = (dL[non_zero]/self.L_0[non_zero])
+        strain[non_zero] = dL[non_zero]/self.L_0[non_zero]
 
         return strain
 
@@ -398,8 +415,8 @@ class Model:
         critical_strains = np.full((nnodes, nnodes), self.critical_strain)
         connected = connectivity.nonzero()
         unbroken[connected] = (
-            critical_strains[connected] - abs(strain[connected])
-            ) > 0
+                critical_strains[connected] - abs(strain[connected])
+                ) > 0
 
         connectivity = sparse.csr_matrix(unbroken)
 
@@ -618,9 +635,9 @@ class DimensionalityError(Exception):
         :rtype: :class:`DimensionalityError`
         """
         message = (
-            f"The number of dimensions must be 2 or 3,"
-            " {dimensions} was given."
-            )
+                f"The number of dimensions must be 2 or 3,"
+                " {dimensions} was given."
+                )
 
         super().__init__(message)
 
@@ -638,8 +655,8 @@ class InvalidIntegrator(Exception):
         :rtype: :class:`InvalidIntegrator`
         """
         message = (
-            f"{integrator} is not an instance of"
-            "peridynamics.integrators.Integrator"
-            )
+                f"{integrator} is not an instance of"
+                "peridynamics.integrators.Integrator"
+                )
 
         super().__init__(message)

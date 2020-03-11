@@ -16,7 +16,7 @@ def data_path():
 def simple_model(data_path):
     """Create a simple peridynamics Model object."""
     path = data_path
-    mesh_file = path / "example_mesh.msh"
+    mesh_file = path / "example_mesh.vtk"
 
     @initial_crack_helper
     def is_crack(x, y):
@@ -44,9 +44,8 @@ def simple_model(data_path):
                   elastic_modulus=0.05, initial_crack=is_crack)
 
     # Set left-hand side and right-hand side of boundary
-    indices = np.arange(model.nnodes)
-    model.lhs = indices[model.coords[:, 0] < 1.5*model.horizon]
-    model.rhs = indices[model.coords[:, 0] > 1.0 - 1.5*model.horizon]
+    model.lhs = np.nonzero(model.coords[:, 0] < 1.5*model.horizon)
+    model.rhs = np.nonzero(model.coords[:, 0] > 1.0 - 1.5*model.horizon)
 
     return model
 
@@ -55,16 +54,14 @@ def simple_model(data_path):
 def simple_boundary_function():
     """Return a simple boundary function."""
     def boundary_function(model, u, step):
-        u[model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
-        u[model.rhs, 1:3] = np.zeros((len(model.rhs), 2))
-
         load_rate = 0.00001
-        u[model.lhs, 0] = (
-            -0.5 * step * load_rate * np.ones(len(model.rhs))
-            )
-        u[model.rhs, 0] = (
-            0.5 * step * load_rate * np.ones(len(model.rhs))
-            )
+
+        u[model.lhs, 1:3] = 0.
+        u[model.rhs, 1:3] = 0.
+
+        extension = 0.5 * step * load_rate
+        u[model.lhs, 0] = -extension
+        u[model.rhs, 0] = extension
 
         return u
     return boundary_function

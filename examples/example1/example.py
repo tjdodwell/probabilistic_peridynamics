@@ -9,7 +9,7 @@ from peridynamics.model import initial_crack_helper
 from peridynamics.integrators import Euler
 from pstats import SortKey, Stats
 
-mesh_file = pathlib.Path(__file__).parent.absolute() / "test.msh"
+mesh_file = pathlib.Path(__file__).parent.absolute() / "test.vtk"
 
 
 @initial_crack_helper
@@ -44,15 +44,12 @@ def boundary_function(model, u, step):
     """
     load_rate = 0.00001
 
-    u[model.lhs, 1:3] = np.zeros((len(model.lhs), 2))
-    u[model.rhs, 1:3] = np.zeros((len(model.rhs), 2))
+    u[model.lhs, 1:3] = 0.
+    u[model.rhs, 1:3] = 0.
 
-    u[model.lhs, 0] = (
-        -0.5 * step * load_rate * np.ones(len(model.rhs))
-        )
-    u[model.rhs, 0] = (
-        0.5 * step * load_rate * np.ones(len(model.rhs))
-        )
+    extension = 0.5 * step * load_rate
+    u[model.lhs, 0] = -extension
+    u[model.rhs, 0] = extension
 
     return u
 
@@ -71,14 +68,13 @@ def main():
                   elastic_modulus=0.05, initial_crack=is_crack)
 
     # Set left-hand side and right-hand side of boundary
-    indices = np.arange(model.nnodes)
-    model.lhs = indices[model.coords[:, 0] < 1.5*model.horizon]
-    model.rhs = indices[model.coords[:, 0] > 1.0 - 1.5*model.horizon]
+    model.lhs = np.nonzero(model.coords[:, 0] < 1.5*model.horizon)
+    model.rhs = np.nonzero(model.coords[:, 0] > 1.0 - 1.5*model.horizon)
 
     integrator = Euler(dt=1e-3)
 
     u, damage, *_ = model.simulate(
-        steps=100,
+        steps=1000,
         integrator=integrator,
         boundary_function=boundary_function,
         write=1000
