@@ -225,32 +225,36 @@ class Model:
         :rtype: NoneType
         """
         volume = np.zeros(self.nnodes)
+        dimensions = self.dimensions
 
-        for element in self.mesh_connectivity:
-            # Compute area / volume
-            val = 1. / len(element)
+        if dimensions == 2:
+            # element is a triangle
+            element_nodes = 3
+        elif dimensions == 3:
+            # element is a tetrahedron
+            element_nodes = 4
 
-            # Define area of element
-            if self.dimensions == 2:
-                xi, yi, *_ = self.coords[element[0]]
-                xj, yj, *_ = self.coords[element[1]]
-                xk, yk, *_ = self.coords[element[2]]
+        for nodes in self.mesh_connectivity:
+            # Calculate volume/area or element
+            if dimensions == 2:
+                a, b, c = self.coords[nodes]
 
-                val *= 0.5 * ((xj - xi) * (yk - yi) - (xk - xi) * (yj - yi))
-            elif self.dimensions == 3:
-                a = self.coords[element[0]]
-                b = self.coords[element[1]]
-                c = self.coords[element[2]]
-                d = self.coords[element[3]]
+                # Area of a trianble
+                i = b - a
+                j = c - a
+                element_volume = 0.5 * np.linalg.norm(np.cross(i, j))
+            elif dimensions == 3:
+                a, b, c, d = self.coords[nodes]
 
                 # Volume of a tetrahedron
                 i = a - d
                 j = b - d
                 k = c - d
+                element_volume = abs(np.dot(i, np.cross(j, k))) / 6
 
-                val *= abs(np.dot(i, np.cross(j, k))) / 6
-
-            volume[element] += val
+            # Add fraction element volume to all nodes belonging to that
+            # element
+            volume[nodes] += element_volume / element_nodes
 
         return volume
 
