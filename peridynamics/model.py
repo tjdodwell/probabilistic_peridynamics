@@ -231,11 +231,26 @@ class Model:
             val = 1. / len(element)
 
             # Define area of element
-            if (self.dimensions == 2):
+            if self.dimensions == 2:
                 xi, yi, *_ = self.coords[element[0]]
                 xj, yj, *_ = self.coords[element[1]]
                 xk, yk, *_ = self.coords[element[2]]
                 val *= 0.5 * ((xj - xi) * (yk - yi) - (xk - xi) * (yj - yi))
+            elif self.dimensions == 3:
+                a = self.coords[element[0]]
+                b = self.coords[element[1]]
+                c = self.coords[element[2]]
+                d = self.coords[element[3]]
+
+                # Volume of a tetrahedron
+                i = np.subtract(a, d)
+                j = np.subtract(b, d)
+                k = np.subtract(c, d)
+
+                element_volume = (1./6) * np.absolute(
+                    np.dot(i, np.cross(j, k))
+                    )
+                val *= element_volume
 
             volume[element] += val
 
@@ -398,8 +413,8 @@ class Model:
         critical_strains = np.full((nnodes, nnodes), self.critical_strain)
         connected = connectivity.nonzero()
         unbroken[connected] = (
-            critical_strains[connected] - abs(strain[connected])
-            ) > 0
+                critical_strains[connected] - abs(strain[connected])
+                ) > 0
 
         connectivity = sparse.csr_matrix(unbroken)
 
@@ -618,9 +633,9 @@ class DimensionalityError(Exception):
         :rtype: :class:`DimensionalityError`
         """
         message = (
-            f"The number of dimensions must be 2 or 3,"
-            " {dimensions} was given."
-            )
+                f"The number of dimensions must be 2 or 3,"
+                " {dimensions} was given."
+                )
 
         super().__init__(message)
 
@@ -638,8 +653,8 @@ class InvalidIntegrator(Exception):
         :rtype: :class:`InvalidIntegrator`
         """
         message = (
-            f"{integrator} is not an instance of"
-            "peridynamics.integrators.Integrator"
-            )
+                f"{integrator} is not an instance of"
+                "peridynamics.integrators.Integrator"
+                )
 
         super().__init__(message)
