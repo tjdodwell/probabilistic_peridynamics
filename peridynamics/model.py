@@ -16,7 +16,7 @@ _mesh_elements_3d = _MeshElements(connectivity="tetra",
                                   boundary="triangle")
 
 
-class Model:
+class Model(object):
     """
     A peridynamics model.
 
@@ -374,12 +374,10 @@ class Model:
 
         return H_x, H_y, H_z, L
 
-    def _strain(self, u, L):
+    def _strain(self, L):
         """
         Calculate the strain of all bonds for a given displacement.
 
-        :arg u: The displacement array with shape (`nnodes`, `dimension`).
-        :type u: :class:`numpy.ndarray`
         :arg L: The euclidean distance between each pair of nodes.
         :type L: :class:`scipy.sparse.csr_matrix`
 
@@ -568,7 +566,7 @@ class Model:
             H_x, H_y, H_z, L = self._H_and_L(self.coords+u, connectivity)
 
             # Calculate the strain of each bond
-            strain = self._strain(u, L)
+            strain = self._strain(L)
 
             # Update the connectivity and calculate the current damage
             connectivity = self._break_bonds(strain, connectivity)
