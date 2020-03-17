@@ -90,3 +90,24 @@ def test_strain(gpu_context, queue, program, example):
     strain(queue, (n, n), None, r_d, d0_d, strain_d)
     cl.enqueue_copy(queue, strain_h, strain_d)
     assert np.allclose(strain_h, expected_strain, atol=1.e-6)
+
+
+def test_neighbourhood(gpu_context, queue, program, example):
+    """Test neighbourhood calculation."""
+    # Retrieve test data
+    n = example.n
+    r = example.r
+    neighbourhood_h = np.empty((n, n), dtype=np.bool_)
+
+    neighbourhood_expected = cdist(r, r) < 0.5
+
+    # Kernel functor
+    neighbourhood = program.neighbourhood
+
+    # Create buffers
+    r_d = cl.Buffer(gpu_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r)
+    neighbourhood_d = cl.Buffer(gpu_context, mf.WRITE_ONLY,
+                                neighbourhood_h.nbytes)
+    neighbourhood(queue, (n, n), None, r_d, np.float32(0.5), neighbourhood_d)
+    cl.enqueue_copy(queue, neighbourhood_h, neighbourhood_d)
+    assert np.all(neighbourhood_h == neighbourhood_expected)

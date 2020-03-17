@@ -17,6 +17,17 @@ __kernel void dist(__global const float* r, __global float* d) {
     d[i*n + j] = euclid(r, i, j);
 }
 
+
+__kernel void neighbourhood(__global const float* r, float threshold,
+                            __global bool* nhood) {
+    int i = get_global_id(0);
+    int j = get_global_id(1);
+    int n = get_global_size(0);
+
+    nhood[i*n + j] = euclid(r, i, j) < threshold;
+}
+
+
 __kernel void strain(__global const float* r, __global const float* d0,
                      __global float* strain) {
     int i = get_global_id(0);
