@@ -33,9 +33,9 @@ def example():
     class Example():
         def __init__(self):
             n = 1000
-            r0 = np.random.random((n, 3)).astype(np.float32)
-            d0 = cdist(r0, r0).astype(np.float32)
-            u = np.random.random((n, 3)).astype(np.float32)
+            r0 = np.random.random((n, 3)).astype(np.float64)
+            d0 = cdist(r0, r0).astype(np.float64)
+            u = np.random.random((n, 3)).astype(np.float64)
             r = r0+u
 
             self.n = n
@@ -56,7 +56,7 @@ def test_distance(gpu_context, queue, program, example):
     # Retrieve test data
     n = example.n
     r = example.r
-    d = np.empty((n, n), dtype=np.float32)
+    d = np.empty((n, n), dtype=np.float64)
 
     # Kernel functor
     dist = program.dist
@@ -108,6 +108,6 @@ def test_neighbourhood(gpu_context, queue, program, example):
     r_d = cl.Buffer(gpu_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r)
     neighbourhood_d = cl.Buffer(gpu_context, mf.WRITE_ONLY,
                                 neighbourhood_h.nbytes)
-    neighbourhood(queue, (n, n), None, r_d, np.float32(0.5), neighbourhood_d)
+    neighbourhood(queue, (n, n), None, r_d, np.float64(0.5), neighbourhood_d)
     cl.enqueue_copy(queue, neighbourhood_h, neighbourhood_d)
     assert np.all(neighbourhood_h == neighbourhood_expected)
