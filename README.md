@@ -1,6 +1,6 @@
 # Probabilistic Peridynamics
 
-[![Build Status](https://travis-ci.com/alan-turing-institute/probabilistic_peridynamics.svg?branch=master)](https://travis-ci.com/alan-turing-institute/probabilistic_peridynamics)
+[![Build Status](https://travis-ci.com/alan-turing-institute/Probabilistic-Peridynamics.svg?branch=master)](https://travis-ci.com/alan-turing-institute/Probabilistic-Peridynamics)
 
 [![codecov](https://codecov.io/gh/alan-turing-institute/Probabilistic-Peridynamics/branch/master/graph/badge.svg)](https://codecov.io/gh/alan-turing-institute/Probabilistic-Peridynamics)
 
