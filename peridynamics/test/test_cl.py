@@ -27,11 +27,35 @@ def program(gpu_context):
     return cl.Program(gpu_context, kernel_source).build()
 
 
-def test_distance(gpu_context, queue, program):
+@pytest.fixture(scope="module")
+def example():
+    """Create an example test case to compare against OpenCL."""
+    class Example():
+        def __init__(self):
+            n = 1000
+            r0 = np.random.random((n, 3)).astype(np.float32)
+            d0 = cdist(r0, r0).astype(np.float32)
+            u = np.random.random((n, 3)).astype(np.float32)
+            r = r0+u
+
+            self.n = n
+            self.d0 = d0
+            self.r = r
+            self.strain = self._strain(r, d0)
+
+        def _strain(self, r, d0):
+            d = cdist(r, r)
+            strain = (d - d0) / (d0 + np.eye(r.shape[0]))
+            return strain
+
+    return Example()
+
+
+def test_distance(gpu_context, queue, program, example):
     """Test Euclidean distance calculation."""
-    # Create coordinates
-    n = 1000
-    r = np.random.random((n, 3)).astype(np.float32)
+    # Retrieve test data
+    n = example.n
+    r = example.r
     d = np.empty((n, n), dtype=np.float32)
 
     # Kernel functor
@@ -46,28 +70,23 @@ def test_distance(gpu_context, queue, program):
     assert np.allclose(d, cdist(r, r))
 
 
-def test_strain(gpu_context, queue, program):
+def test_strain(gpu_context, queue, program, example):
     """Test strain calculation."""
-    def _strain(r, d0):
-        d = cdist(r, r)
-        strain = (d - d0) / (d0 + np.eye(r.shape[0]))
-        return strain
-
-    # Create test data
-    n = 1000
-    r = np.random.random((n, 3)).astype(np.float32)
-    u = np.random.random((n, 3)).astype(np.float32)
-    d0 = cdist(r, r).astype(np.float32)
+    # Retrieve test data
+    n = example.n
+    r = example.r
+    d0 = example.d0
+    expected_strain = example.strain
     strain_h = np.empty_like(d0)
 
     # Kernel functor
     strain = program.strain
 
     # Create buffers
-    r_d = cl.Buffer(gpu_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r+u)
+    r_d = cl.Buffer(gpu_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r)
     d0_d = cl.Buffer(gpu_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=d0)
     strain_d = cl.Buffer(gpu_context, mf.WRITE_ONLY, strain_h.nbytes)
 
     strain(queue, (n, n), None, r_d, d0_d, strain_d)
     cl.enqueue_copy(queue, strain_h, strain_d)
-    assert np.allclose(strain_h, _strain(r+u, d0), atol=1.e-6)
+    assert np.allclose(strain_h, expected_strain, atol=1.e-6)
