@@ -8,6 +8,7 @@ setup(
     install_requires=[
         'meshio',
         'numpy',
+        'pyopencl',
         'scipy',
         'tqdm'
         ]
