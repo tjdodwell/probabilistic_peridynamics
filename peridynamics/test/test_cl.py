@@ -60,6 +60,26 @@ def example():
     return Example()
 
 
+def test_neighbourhood(context, queue, program, example):
+    """Test neighbourhood calculation."""
+    # Retrieve test data
+    n = example.n
+    r0 = example.r0
+    expected_neighbourhood = example.neighbourhood
+    neighbourhood_h = np.empty((n, n), dtype=np.bool_)
+
+    # Kernel functor
+    neighbourhood = program.neighbourhood
+
+    # Create buffers
+    r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r0)
+    neighbourhood_d = cl.Buffer(context, mf.WRITE_ONLY, neighbourhood_h.nbytes)
+
+    neighbourhood(queue, (n, n), None, r_d, np.float64(0.5), neighbourhood_d)
+    cl.enqueue_copy(queue, neighbourhood_h, neighbourhood_d)
+    assert np.all(neighbourhood_h == expected_neighbourhood)
+
+
 def test_distance(context, queue, program, example):
     """Test Euclidean distance calculation."""
     # Retrieve test data
@@ -105,23 +125,3 @@ def test_strain(context, queue, program, example):
     strain(queue, (n, n), None, r_d, d0_d, nhood_d, strain_d)
     cl.enqueue_copy(queue, strain_h, strain_d)
     assert np.allclose(strain_h[nhood], expected_strain[nhood], atol=1.e-6)
-
-
-def test_neighbourhood(context, queue, program, example):
-    """Test neighbourhood calculation."""
-    # Retrieve test data
-    n = example.n
-    r0 = example.r0
-    expected_neighbourhood = example.neighbourhood
-    neighbourhood_h = np.empty((n, n), dtype=np.bool_)
-
-    # Kernel functor
-    neighbourhood = program.neighbourhood
-
-    # Create buffers
-    r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r0)
-    neighbourhood_d = cl.Buffer(context, mf.WRITE_ONLY, neighbourhood_h.nbytes)
-
-    neighbourhood(queue, (n, n), None, r_d, np.float64(0.5), neighbourhood_d)
-    cl.enqueue_copy(queue, neighbourhood_h, neighbourhood_d)
-    assert np.all(neighbourhood_h == expected_neighbourhood)

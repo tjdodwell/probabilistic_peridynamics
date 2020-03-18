@@ -13,19 +13,6 @@ double euclid(__global const double* r, int i, int j) {
 }
 
 
-__kernel void dist(__global const double* r, __global const bool* nhood,
-                   __global double* d) {
-    int i = get_global_id(0);
-    int j = get_global_id(1);
-    int n = get_global_size(0);
-
-    int index = i*n + j;
-    if (nhood[index]) {
-        d[index] = euclid(r, i, j);
-    }
-}
-
-
 __kernel void neighbourhood(__global const double* r, double threshold,
                             __global bool* nhood) {
     int i = get_global_id(0);
@@ -38,6 +25,19 @@ __kernel void neighbourhood(__global const double* r, double threshold,
         nhood[index] = false;
     } else {
         nhood[i*n + j] = euclid(r, i, j) < threshold;
+    }
+}
+
+
+__kernel void dist(__global const double* r, __global const bool* nhood,
+                   __global double* d) {
+    int i = get_global_id(0);
+    int j = get_global_id(1);
+    int n = get_global_size(0);
+
+    int index = i*n + j;
+    if (nhood[index]) {
+        d[index] = euclid(r, i, j);
     }
 }
 
