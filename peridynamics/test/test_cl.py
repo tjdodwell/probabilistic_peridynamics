@@ -45,6 +45,7 @@ def example():
             self.d0 = d0
             self.r = r
             self.strain = self._strain(r, d0)
+            self.neighbourhood = d0 < 0.5
 
         def _strain(self, r, d0):
             d = cdist(r, r)
@@ -100,9 +101,8 @@ def test_neighbourhood(context, queue, program, example):
     # Retrieve test data
     n = example.n
     r0 = example.r0
+    expected_neighbourhood = example.neighbourhood
     neighbourhood_h = np.empty((n, n), dtype=np.bool_)
-
-    neighbourhood_expected = cdist(r0, r0) < 0.5
 
     # Kernel functor
     neighbourhood = program.neighbourhood
@@ -113,4 +113,4 @@ def test_neighbourhood(context, queue, program, example):
 
     neighbourhood(queue, (n, n), None, r_d, np.float64(0.5), neighbourhood_d)
     cl.enqueue_copy(queue, neighbourhood_h, neighbourhood_d)
-    assert np.all(neighbourhood_h == neighbourhood_expected)
+    assert np.all(neighbourhood_h == expected_neighbourhood)
