@@ -65,6 +65,7 @@ def test_distance(context, queue, program, example):
     # Retrieve test data
     n = example.n
     r = example.r
+    nhood = example.neighbourhood
     d = np.empty((n, n), dtype=np.float64)
 
     # Kernel functor
@@ -72,11 +73,13 @@ def test_distance(context, queue, program, example):
 
     # Create buffers
     r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r)
+    nhood_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                        hostbuf=nhood)
     d_d = cl.Buffer(context, mf.WRITE_ONLY, d.nbytes)
 
-    dist(queue, (n, n), None, r_d, d_d)
+    dist(queue, (n, n), None, r_d, nhood_d, d_d)
     cl.enqueue_copy(queue, d, d_d)
-    assert np.allclose(d, cdist(r, r))
+    assert np.allclose(d[nhood], cdist(r, r)[nhood])
 
 
 def test_strain(context, queue, program, example):
@@ -85,6 +88,7 @@ def test_strain(context, queue, program, example):
     n = example.n
     r = example.r
     d0 = example.d0
+    nhood = example.neighbourhood
     expected_strain = example.strain
     strain_h = np.empty_like(d0)
 
@@ -94,11 +98,13 @@ def test_strain(context, queue, program, example):
     # Create buffers
     r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r)
     d0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=d0)
+    nhood_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                        hostbuf=nhood)
     strain_d = cl.Buffer(context, mf.WRITE_ONLY, strain_h.nbytes)
 
-    strain(queue, (n, n), None, r_d, d0_d, strain_d)
+    strain(queue, (n, n), None, r_d, d0_d, nhood_d, strain_d)
     cl.enqueue_copy(queue, strain_h, strain_d)
-    assert np.allclose(strain_h, expected_strain, atol=1.e-6)
+    assert np.allclose(strain_h[nhood], expected_strain[nhood], atol=1.e-6)
 
 
 def test_neighbourhood(context, queue, program, example):
