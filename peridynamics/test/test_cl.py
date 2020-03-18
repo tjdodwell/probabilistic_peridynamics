@@ -124,4 +124,4 @@ def test_strain(context, queue, program, example):
 
     strain(queue, (n, n), None, r_d, d0_d, nhood_d, strain_d)
     cl.enqueue_copy(queue, strain_h, strain_d)
-    assert np.allclose(strain_h[nhood], expected_strain[nhood], atol=1.e-6)
+    assert np.allclose(strain_h[nhood], expected_strain[nhood])
