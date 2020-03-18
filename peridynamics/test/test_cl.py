@@ -41,6 +41,7 @@ def example():
             r = r0+u
 
             self.n = n
+            self.r0 = r0
             self.d0 = d0
             self.r = r
             self.strain = self._strain(r, d0)
@@ -98,16 +99,16 @@ def test_neighbourhood(context, queue, program, example):
     """Test neighbourhood calculation."""
     # Retrieve test data
     n = example.n
-    r = example.r
+    r0 = example.r0
     neighbourhood_h = np.empty((n, n), dtype=np.bool_)
 
-    neighbourhood_expected = cdist(r, r) < 0.5
+    neighbourhood_expected = cdist(r0, r0) < 0.5
 
     # Kernel functor
     neighbourhood = program.neighbourhood
 
     # Create buffers
-    r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r)
+    r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r0)
     neighbourhood_d = cl.Buffer(context, mf.WRITE_ONLY, neighbourhood_h.nbytes)
 
     neighbourhood(queue, (n, n), None, r_d, np.float64(0.5), neighbourhood_d)
