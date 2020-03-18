@@ -125,3 +125,70 @@ def test_strain(context, queue, program, example):
     strain(queue, (n, n), None, r_d, d0_d, nhood_d, strain_d)
     cl.enqueue_copy(queue, strain_h, strain_d)
     assert np.allclose(strain_h[nhood], expected_strain[nhood])
+
+
+def test_break_bonds(context, queue, program, example):
+    """Test bond breaking."""
+    # Retrieve test data
+    n = example.n
+    nhood = example.neighbourhood
+    strain = example.strain
+    nhood_new = nhood.copy()
+
+    critical_strain = 0.05
+
+    # Kernel functor
+    break_bonds = program.break_bonds
+
+    # Create buffers
+    strain_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                         hostbuf=strain)
+    nhood_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                        hostbuf=nhood)
+
+    break_bonds(queue, (n, n), None, strain_d, np.float64(critical_strain),
+                nhood_d)
+    cl.enqueue_copy(queue, nhood_new, nhood_d)
+
+    expected_nhood_new = nhood * ~(abs(strain) > critical_strain)
+    assert np.all(nhood_new == expected_nhood_new)
+
+
+def test_break_bonds2(context, queue, program):
+    """
+    Test bond breaking with a hand crafted example.
+
+    A negative strain is used to ensure absolute values are used.
+    The first row of the neighbourhood begins as false to ensure strains below
+    the critical value do not cause bonds to be reformed.
+    """
+    n = 3
+    strain = np.array([
+        [1.0, 2.0, 3.0],
+        [4.0, 5.0, 6.0],
+        [7.0, 8.0, -9.0]
+        ])
+    nhood = np.ones((n, n), dtype=np.bool_)
+    nhood[0, :] = False
+    nhood_new = nhood.copy()
+
+    critical_strain = 6
+    expected_nhood_new = np.array([
+        [False, False, False],
+        [True, True, True],
+        [False, False, False]
+        ])
+
+    # Kernel functor
+    break_bonds = program.break_bonds
+
+    # Create buffers
+    strain_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                         hostbuf=strain)
+    nhood_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                        hostbuf=nhood)
+
+    break_bonds(queue, (n, n), None, strain_d, np.float64(critical_strain),
+                nhood_d)
+    cl.enqueue_copy(queue, nhood_new, nhood_d)
+    assert np.all(nhood_new == expected_nhood_new)

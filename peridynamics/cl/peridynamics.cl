@@ -60,3 +60,19 @@ __kernel void strain(__global const double* r, __global const double* d0,
         }
     }
 }
+
+
+__kernel void break_bonds(__global const double* strain, double critical_strain,
+                          __global bool* nhood) {
+    int i = get_global_id(0);
+    int j = get_global_id(1);
+    int n = get_global_size(0);
+
+    int index = i*n +j;
+
+    if (nhood[index]) {
+        if (fabs(strain[index]) > critical_strain) {
+            nhood[index] = false;
+        }
+    }
+}
