@@ -11,10 +11,14 @@ addons:
   apt:
     packages:
       - pocl-opencl-icd
+      - clinfo
 
 install:
   - pip install .
   - pip install flake8 flake8-docstrings pytest pytest-cov codecov
+
+before_script:
+  - clinfo
 
 script:
   - flake8
