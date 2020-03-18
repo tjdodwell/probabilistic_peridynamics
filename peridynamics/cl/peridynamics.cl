@@ -28,7 +28,13 @@ __kernel void neighbourhood(__global const double* r, double threshold,
     int j = get_global_id(1);
     int n = get_global_size(0);
 
-    nhood[i*n + j] = euclid(r, i, j) < threshold;
+    int index = i*n + j;
+
+    if (i == j) {
+        nhood[index] = false;
+    } else {
+        nhood[i*n + j] = euclid(r, i, j) < threshold;
+    }
 }
 
 

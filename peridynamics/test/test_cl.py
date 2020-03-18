@@ -45,12 +45,17 @@ def example():
             self.d0 = d0
             self.r = r
             self.strain = self._strain(r, d0)
-            self.neighbourhood = d0 < 0.5
+            self.neighbourhood = self._neighbourhood(d0)
 
         def _strain(self, r, d0):
             d = cdist(r, r)
             strain = (d - d0) / (d0 + np.eye(r.shape[0]))
             return strain
+
+        def _neighbourhood(self, d0):
+            neighbourhood = d0 < 0.5
+            np.fill_diagonal(neighbourhood, False)
+            return neighbourhood
 
     return Example()
 
