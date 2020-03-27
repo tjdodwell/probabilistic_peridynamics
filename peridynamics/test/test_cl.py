@@ -85,17 +85,24 @@ def example():
     class Example():
         def __init__(self):
             n = 1000
+            critical_strain = 0.05
             r0 = np.random.random((n, 3)).astype(np.float64)
             d0 = cdist(r0, r0).astype(np.float64)
             u = np.random.random((n, 3)).astype(np.float64)
             r = r0+u
 
             self.n = n
+            self.critical_strain = critical_strain
             self.r0 = r0
             self.d0 = d0
             self.r = r
             self.strain = self._strain(r, d0)
             self.neighbourhood = self._neighbourhood(d0)
+            self.family = np.sum(self.neighbourhood, axis=0)
+            self.connectivity = (
+                self.neighbourhood * ~(abs(self.strain) > critical_strain)
+                )
+            self.damage = (self.family - self.connectivity)/self.family
 
         def _strain(self, r, d0):
             d = cdist(r, r)
@@ -183,9 +190,9 @@ def test_break_bonds(context, queue, program, example):
     n = example.n
     nhood = example.neighbourhood
     strain = example.strain
+    critical_strain = example.critical_strain
+    expected_nhood_new = example.connectivity
     nhood_new = nhood.copy()
-
-    critical_strain = 0.05
 
     # Kernel functor
     break_bonds = program.break_bonds
@@ -200,7 +207,6 @@ def test_break_bonds(context, queue, program, example):
                 nhood_d)
     cl.enqueue_copy(queue, nhood_new, nhood_d)
 
-    expected_nhood_new = nhood * ~(abs(strain) > critical_strain)
     assert np.all(nhood_new == expected_nhood_new)
 
 
