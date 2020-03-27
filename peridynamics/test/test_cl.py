@@ -24,6 +24,20 @@ class TestPad():
             array[dimension:] == np.zeros(expected_dimension-dimension)
             )
 
+    def test_no_padding(self):
+        """Test padding when non is required."""
+        dimension = 512
+        group_size = 256
+        expected_dimension = 512
+
+        array = np.random.random(dimension)
+        array = pad(array, group_size)
+
+        assert array.shape == (expected_dimension,)
+        assert np.all(
+            array[dimension:] == np.zeros(expected_dimension-dimension)
+            )
+
     def test_pad_2d_axis0(self):
         """Test padding a 2D array along axis 0."""
         dimension = 755
