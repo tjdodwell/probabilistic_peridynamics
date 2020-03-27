@@ -98,11 +98,13 @@ def example():
             self.r = r
             self.strain = self._strain(r, d0)
             self.neighbourhood = self._neighbourhood(d0)
-            self.family = np.sum(self.neighbourhood, axis=0)
+            self.family = np.sum(self.neighbourhood, axis=0).astype(np.int32)
             self.connectivity = (
                 self.neighbourhood * ~(abs(self.strain) > critical_strain)
+                ).astype(np.bool_)
+            self.damage = (
+                (self.family - np.sum(self.connectivity, axis=0))/self.family
                 )
-            self.damage = (self.family - self.connectivity)/self.family
 
         def _strain(self, r, d0):
             d = cdist(r, r)
@@ -248,3 +250,54 @@ def test_break_bonds2(context, queue, program):
                 nhood_d)
     cl.enqueue_copy(queue, nhood_new, nhood_d)
     assert np.all(nhood_new == expected_nhood_new)
+
+
+def test_damage(context, queue, program, example):
+    """Test damage kernels."""
+    connectivity = example.connectivity
+    family = example.family
+    expected_damage = example.damage
+    damage_h = np.empty_like(expected_damage)
+
+    # Initialise
+    group_size = 256
+
+    connectivity = pad(connectivity, group_size)
+
+    n_cols = connectivity.shape[1]
+    col_length = connectivity.shape[0]
+    work_groups_per_col = col_length//group_size
+
+    p_h = np.zeros((work_groups_per_col, n_cols), dtype=np.int32)
+    local_memory_size = (
+        connectivity[:, 0].astype(np.int32).nbytes//work_groups_per_col
+        )
+
+    # Kernel functors
+    damage1 = program.damage1
+    damage2 = program.damage2
+
+    # Create buffers
+    connectivity_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                               hostbuf=connectivity)
+    b_d = cl.LocalMemory(local_memory_size)
+    p_d = cl.Buffer(context, mf.READ_WRITE, p_h.nbytes)
+
+    # Call first kernel
+    damage1(queue, connectivity.shape, (group_size, 1,), connectivity_d, b_d,
+            p_d)
+    # In production copying this array now is unecessary and will hinder
+    # performance
+    cl.enqueue_copy(queue, p_h, p_d)
+    assert np.allclose(np.sum(p_h, axis=0), np.sum(connectivity, axis=0))
+
+    # Create buffers
+    family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                         hostbuf=family)
+    damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage_h.nbytes)
+
+    # Call second kernel
+    damage2(queue, (n_cols,), None, p_d, np.int32(work_groups_per_col),
+            family_d, damage_d)
+    cl.enqueue_copy(queue, damage_h, damage_d)
+    assert np.allclose(damage_h, expected_damage)
