@@ -22,4 +22,6 @@ def pad(array, group_size, axis=0):
         padding = group_size - array_size % group_size
         padding_shape = list(array.shape)
         padding_shape[axis] = padding
-        return np.concatenate((array, np.zeros(padding_shape)), axis=axis)
+        return np.concatenate(
+            (array, np.zeros(padding_shape, dtype=array.dtype)), axis=axis
+            )
