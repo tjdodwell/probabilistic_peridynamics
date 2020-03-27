@@ -1,10 +1,60 @@
 """Tests for the OpenCL kernels."""
-from ..cl import kernel_source
+from ..cl import kernel_source, pad
 import numpy as np
 import pyopencl as cl
 from pyopencl import mem_flags as mf
 import pytest
 from scipy.spatial.distance import cdist
+
+
+class TestPad():
+    """Test padding helper function."""
+
+    def test_pad_1d(self):
+        """Test padding for a 1D array."""
+        dimension = 258
+        group_size = 256
+        expected_dimension = 512
+
+        array = np.random.random(dimension)
+        array = pad(array, group_size)
+
+        assert array.shape == (expected_dimension,)
+        assert np.all(
+            array[dimension:] == np.zeros(expected_dimension-dimension)
+            )
+
+    def test_pad_2d_axis0(self):
+        """Test padding a 2D array along axis 0."""
+        dimension = 755
+        other_dimension = 5
+        group_size = 256
+        expected_dimension = 768
+
+        array = np.random.random((dimension, other_dimension))
+        array = pad(array, group_size)
+
+        assert array.shape == ((expected_dimension, other_dimension,))
+        assert np.all(
+            array[dimension:, :] ==
+            np.zeros((expected_dimension-dimension, other_dimension))
+            )
+
+    def test_pad_2d_axis1(self):
+        """Test padding a 2D array along axis 1."""
+        dimension = 400
+        other_dimension = 17
+        group_size = 256
+        expected_dimension = 512
+
+        array = np.random.random((other_dimension, dimension))
+        array = pad(array, group_size, axis=1)
+
+        assert array.shape == ((other_dimension, expected_dimension, ))
+        assert np.all(
+            array[:, dimension:] ==
+            np.zeros((other_dimension, expected_dimension-dimension))
+            )
 
 
 @pytest.fixture(scope="module")
