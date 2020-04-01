@@ -23,7 +23,7 @@ cdef inline double ceuclid(double [:] r1, double [:] r2) nogil:
 def family(double [:, :] r, double horizon):
     cdef int nnodes = r.shape[0]
 
-    result = np.zeros(nnodes, dtype=np.intc)
+    result = np.empty(nnodes, dtype=np.intc)
     cdef int[:] result_view = result
 
     cdef int tmp
@@ -36,5 +36,24 @@ def family(double [:, :] r, double horizon):
                 tmp = tmp + 1
 
         result_view[i] = tmp
+
+    return result
+
+
+def create_neighbour_list(double [:, :] r, double horizon, int size):
+    cdef int nnodes = r.shape[0]
+
+    result = np.zeros((nnodes, size), dtype=np.intc)
+    cdef int[:, :] result_view = result
+
+    cdef int n_neigh
+
+    for i in range(nnodes):
+        n_neigh = 0
+        for j in range(nnodes):
+            if i != j:
+                if ceuclid(r[i], r[j]) < horizon:
+                    result_view[i, n_neigh] = j
+                    n_neigh = n_neigh + 1
 
     return result

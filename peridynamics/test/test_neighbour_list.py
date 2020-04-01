@@ -1,5 +1,5 @@
 """Tests for the neighbour list module."""
-from peridynamics.neighbour_list import euclid, family
+from peridynamics.neighbour_list import euclid, family, create_neighbour_list
 import numpy as np
 from scipy.spatial.distance import euclidean, cdist
 
@@ -31,3 +31,24 @@ def test_family():
     family_expected = np.sum(cdist(r, r) < horizon, axis=0)
 
     assert np.all(family_actual == family_expected)
+
+
+def test_neighbour_list():
+    """Test neighbour list function."""
+    r = np.array([
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [2.0, 0.0, 0.0]
+        ])
+
+    nl = create_neighbour_list(r, 1.1, 3)
+    nl_expected = np.array([
+        [1, 2, 0],
+        [0, 3, 0],
+        [0, 0, 0],
+        [1, 0, 0]
+        ])
+
+    print(nl)
+    assert np.all(nl == nl_expected)
