@@ -5,8 +5,13 @@ python:
   - 3.7
   - 3.8
 
+before_install:
+  - pip install cython
+
 install:
   - pip install .
+
+before_script:
   - pip install flake8 flake8-docstrings pytest pytest-cov codecov
 
 script:

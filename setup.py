@@ -14,9 +14,6 @@ setup(
             extra_link_args=['-fopenmp'],
             )
         ),
-    setup_requires=[
-        'cython'
-        ],
     install_requires=[
         'meshio',
         'numpy',
