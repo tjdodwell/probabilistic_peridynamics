@@ -9,7 +9,7 @@ before_install:
   - pip install cython
 
 install:
-  - pip install .
+  - pip install -e .
 
 before_script:
   - pip install flake8 flake8-docstrings pytest pytest-cov codecov

@@ -1,5 +1,5 @@
 """Tests for the neighbour list module."""
-from ..neighbour_list import euclid, family
+from peridynamics.neighbour_list import euclid, family
 import numpy as np
 from scipy.spatial.distance import euclidean, cdist
 
