@@ -254,6 +254,15 @@ def test_displacements():
     assert np.all(d_z == expected_d_z)
 
 
+def test_initial_damage(basic_model_2d):
+    """Ensure initial damage is zero."""
+    model = basic_model_2d
+    connectivity = model.initial_connectivity
+    damage = model._damage(connectivity)
+
+    assert np.all(damage == 0)
+
+
 class TestSimulate:
     """
     Tests for the simulate method.
