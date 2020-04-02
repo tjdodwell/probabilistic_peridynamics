@@ -334,9 +334,9 @@ class Model(object):
         y = np.tile(r[:, 1], (n, 1))
         z = np.tile(r[:, 2], (n, 1))
 
-        d_x = x.T - x
-        d_y = y.T - y
-        d_z = z.T - z
+        d_x = x - x.T
+        d_y = y - y.T
+        d_z = z - z.T
 
         return d_x, d_y, d_z
 
@@ -481,9 +481,9 @@ class Model(object):
         bond_force_z = force_normd.multiply(H_z)
 
         # Calculate total force on nodes in each dimension
-        F_x = np.squeeze(np.array(bond_force_x.sum(axis=0)))
-        F_y = np.squeeze(np.array(bond_force_y.sum(axis=0)))
-        F_z = np.squeeze(np.array(bond_force_z.sum(axis=0)))
+        F_x = np.squeeze(np.array(bond_force_x.sum(axis=1)))
+        F_y = np.squeeze(np.array(bond_force_y.sum(axis=1)))
+        F_z = np.squeeze(np.array(bond_force_z.sum(axis=1)))
 
         # Determine actual force
         F = np.stack((F_x, F_y, F_z), axis=-1)

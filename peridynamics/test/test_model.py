@@ -237,15 +237,15 @@ class TestConnectivity:
 def test_displacements():
     """Test displacement calculation."""
     r = np.identity(3, dtype=np.float)
-    expected_d_x = np.array([[0.0, 1.0, 1.0],
-                             [-1.0, 0.0, 0.0],
-                             [-1.0, 0.0, 0.0]])
-    expected_d_y = np.array([[0.0, -1.0, 0.0],
-                             [1.0, 0.0, 1.0],
-                             [0.0, -1.0, 0.0]])
-    expected_d_z = np.array([[0.0, 0.0, -1.0],
-                             [0.0, 0.0, -1.0],
-                             [1.0, 1.0, 0.0]])
+    expected_d_x = np.array([[0.0, -1.0, -1.0],
+                             [1.0, 0.0, 0.0],
+                             [1.0, 0.0, 0.0]])
+    expected_d_y = np.array([[0.0, 1.0, 0.0],
+                             [-1.0, 0.0, -1.0],
+                             [0.0, 1.0, 0.0]])
+    expected_d_z = np.array([[0.0, 0.0, 1.0],
+                             [0.0, 0.0, 1.0],
+                             [-1.0, -1.0, 0.0]])
 
     d_x, d_y, d_z = Model._displacements(r)
 
