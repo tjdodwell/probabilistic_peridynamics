@@ -636,8 +636,8 @@ class DimensionalityError(Exception):
         :rtype: :class:`DimensionalityError`
         """
         message = (
-                f"The number of dimensions must be 2 or 3,"
-                " {dimensions} was given."
+                "The number of dimensions must be 2 or 3,"
+                f" {dimensions} was given."
                 )
 
         super().__init__(message)

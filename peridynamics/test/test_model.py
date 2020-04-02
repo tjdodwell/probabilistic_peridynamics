@@ -46,9 +46,11 @@ class TestDimension:
     @pytest.mark.parametrize("dimensions", [1, 4])
     def test_dimensionality_error(self, dimensions):
         """Test invalid dimension arguments."""
-        with pytest.raises(DimensionalityError):
+        with pytest.raises(DimensionalityError) as exception:
             Model("abc.msh", horizon=0.1, critical_strain=0.05,
                   elastic_modulus=0.05, dimensions=dimensions)
+            print(str(exception.value))
+        assert str(dimensions) in str(exception.value)
 
 
 class TestRead2D:
