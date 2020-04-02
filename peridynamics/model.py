@@ -276,6 +276,8 @@ class Model(object):
         neighbourhood = np.zeros((nnodes, nnodes), dtype=np.bool)
         # Connect nodes which are within horizon of each other
         neighbourhood[distance < self.horizon] = True
+        # Remove self interaction
+        np.fill_diagonal(neighbourhood, False)
 
         return sparse.csr_matrix(neighbourhood)
 
@@ -306,11 +308,8 @@ class Model(object):
             # Connectivity is symmetric
             conn[i, j] = False
             conn[j, i] = False
-        # Nodes are not connected with themselves
-        np.fill_diagonal(conn, False)
 
         # Lower triangular - count bonds only once
-        # make diagonal values False
         conn = np.tril(conn, -1)
 
         # Convert to sparse matrix
