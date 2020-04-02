@@ -1,6 +1,6 @@
 """Tests for the model class."""
-from ..model import (Model, DimensionalityError, initial_crack_helper,
-                     InvalidIntegrator)
+from ..model import (Model, DimensionalityError, FamilyError,
+                     initial_crack_helper, InvalidIntegrator)
 from ..integrators import Euler
 import meshio
 import numpy as np
@@ -46,9 +46,11 @@ class TestDimension:
     @pytest.mark.parametrize("dimensions", [1, 4])
     def test_dimensionality_error(self, dimensions):
         """Test invalid dimension arguments."""
-        with pytest.raises(DimensionalityError):
+        with pytest.raises(DimensionalityError) as exception:
             Model("abc.msh", horizon=0.1, critical_strain=0.05,
                   elastic_modulus=0.05, dimensions=dimensions)
+            print(str(exception.value))
+        assert str(dimensions) in str(exception.value)
 
 
 class TestRead2D:
@@ -270,6 +272,14 @@ def test_initial_damage_3d(basic_model_3d):
     damage = model._damage(connectivity)
 
     assert np.all(damage == 0)
+
+
+def test_family_error(data_path):
+    """Test raising of exception when a node has no neighbours."""
+    with pytest.raises(FamilyError):
+        mesh_file = data_path / "example_mesh_3d.vtk"
+        Model(mesh_file, horizon=0.0001, critical_strain=0.05,
+              elastic_modulus=0.05, dimensions=3)
 
 
 class TestSimulate:

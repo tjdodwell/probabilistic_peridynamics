@@ -155,6 +155,8 @@ class Model(object):
 
         # Set family, the number of neighbours for each node
         self.family = np.squeeze(np.array(np.sum(neighbourhood, axis=0)))
+        if np.any(self.family == 0):
+            raise FamilyError(self.family)
 
         # Set the initial connectivity
         self.initial_connectivity = self._connectivity(neighbourhood,
@@ -634,8 +636,30 @@ class DimensionalityError(Exception):
         :rtype: :class:`DimensionalityError`
         """
         message = (
-                f"The number of dimensions must be 2 or 3,"
-                " {dimensions} was given."
+                "The number of dimensions must be 2 or 3,"
+                f" {dimensions} was given."
+                )
+
+        super().__init__(message)
+
+
+class FamilyError(Exception):
+    """One or more nodes have no bonds in the initial state."""
+
+    def __init__(self, family):
+        """
+        Construct the exception.
+
+        :arg family: The family array.
+        :type family: :class:`numpy.ndarray`
+
+        :rtype: :class:`FamilyError`
+        """
+        indicies = np.where(family == 0)[0]
+        indicies = " ".join([f"{index}" for index in indicies])
+        message = (
+                "The following nodes have no bonds in the initial state,"
+                f" {indicies}."
                 )
 
         super().__init__(message)
