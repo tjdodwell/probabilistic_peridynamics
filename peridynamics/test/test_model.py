@@ -1,6 +1,6 @@
 """Tests for the model class."""
-from ..model import (Model, DimensionalityError, initial_crack_helper,
-                     InvalidIntegrator)
+from ..model import (Model, DimensionalityError, FamilyError,
+                     initial_crack_helper, InvalidIntegrator)
 from ..integrators import Euler
 import meshio
 import numpy as np
@@ -270,6 +270,14 @@ def test_initial_damage_3d(basic_model_3d):
     damage = model._damage(connectivity)
 
     assert np.all(damage == 0)
+
+
+def test_family_error(data_path):
+    """Test raising of exception when a node has no neighbours."""
+    with pytest.raises(FamilyError):
+        mesh_file = data_path / "example_mesh_3d.vtk"
+        Model(mesh_file, horizon=0.0001, critical_strain=0.05,
+              elastic_modulus=0.05, dimensions=3)
 
 
 class TestSimulate:
