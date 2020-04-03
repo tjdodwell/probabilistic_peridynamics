@@ -155,6 +155,8 @@ class Model(object):
 
         # Set family, the number of neighbours for each node
         self.family = np.squeeze(np.array(np.sum(neighbourhood, axis=0)))
+        if np.any(self.family == 0):
+            raise FamilyError(self.family)
 
         # Set the initial connectivity
         self.initial_connectivity = self._connectivity(neighbourhood,
@@ -276,6 +278,8 @@ class Model(object):
         neighbourhood = np.zeros((nnodes, nnodes), dtype=np.bool)
         # Connect nodes which are within horizon of each other
         neighbourhood[distance < self.horizon] = True
+        # Remove self interaction
+        np.fill_diagonal(neighbourhood, False)
 
         return sparse.csr_matrix(neighbourhood)
 
@@ -306,11 +310,8 @@ class Model(object):
             # Connectivity is symmetric
             conn[i, j] = False
             conn[j, i] = False
-        # Nodes are not connected with themselves
-        np.fill_diagonal(conn, False)
 
         # Lower triangular - count bonds only once
-        # make diagonal values False
         conn = np.tril(conn, -1)
 
         # Convert to sparse matrix
@@ -334,9 +335,9 @@ class Model(object):
         y = np.tile(r[:, 1], (n, 1))
         z = np.tile(r[:, 2], (n, 1))
 
-        d_x = x.T - x
-        d_y = y.T - y
-        d_z = z.T - z
+        d_x = x - x.T
+        d_y = y - y.T
+        d_z = z - z.T
 
         return d_x, d_y, d_z
 
@@ -481,9 +482,9 @@ class Model(object):
         bond_force_z = force_normd.multiply(H_z)
 
         # Calculate total force on nodes in each dimension
-        F_x = np.squeeze(np.array(bond_force_x.sum(axis=0)))
-        F_y = np.squeeze(np.array(bond_force_y.sum(axis=0)))
-        F_z = np.squeeze(np.array(bond_force_z.sum(axis=0)))
+        F_x = np.squeeze(np.array(bond_force_x.sum(axis=1)))
+        F_y = np.squeeze(np.array(bond_force_y.sum(axis=1)))
+        F_z = np.squeeze(np.array(bond_force_z.sum(axis=1)))
 
         # Determine actual force
         F = np.stack((F_x, F_y, F_z), axis=-1)
@@ -635,8 +636,30 @@ class DimensionalityError(Exception):
         :rtype: :class:`DimensionalityError`
         """
         message = (
-                f"The number of dimensions must be 2 or 3,"
-                " {dimensions} was given."
+                "The number of dimensions must be 2 or 3,"
+                f" {dimensions} was given."
+                )
+
+        super().__init__(message)
+
+
+class FamilyError(Exception):
+    """One or more nodes have no bonds in the initial state."""
+
+    def __init__(self, family):
+        """
+        Construct the exception.
+
+        :arg family: The family array.
+        :type family: :class:`numpy.ndarray`
+
+        :rtype: :class:`FamilyError`
+        """
+        indicies = np.where(family == 0)[0]
+        indicies = " ".join([f"{index}" for index in indicies])
+        message = (
+                "The following nodes have no bonds in the initial state,"
+                f" {indicies}."
                 )
 
         super().__init__(message)

@@ -1,6 +1,6 @@
 """Tests for the model class."""
-from ..model import (Model, DimensionalityError, initial_crack_helper,
-                     InvalidIntegrator)
+from ..model import (Model, DimensionalityError, FamilyError,
+                     initial_crack_helper, InvalidIntegrator)
 from ..integrators import Euler
 import meshio
 import numpy as np
@@ -46,9 +46,11 @@ class TestDimension:
     @pytest.mark.parametrize("dimensions", [1, 4])
     def test_dimensionality_error(self, dimensions):
         """Test invalid dimension arguments."""
-        with pytest.raises(DimensionalityError):
+        with pytest.raises(DimensionalityError) as exception:
             Model("abc.msh", horizon=0.1, critical_strain=0.05,
                   elastic_modulus=0.05, dimensions=dimensions)
+            print(str(exception.value))
+        assert str(dimensions) in str(exception.value)
 
 
 class TestRead2D:
@@ -88,25 +90,25 @@ class TestRead3D:
         """Test coordinates are read correctly."""
         model = basic_model_3d
 
-        assert model.coords.shape == (1023, 3)
-        assert model.nnodes == 1023
-        assert np.allclose(model.coords[42], np.array([1., 0.2, 0.]))
+        assert model.coords.shape == (1175, 3)
+        assert model.nnodes == 1175
+        assert np.allclose(model.coords[42], np.array([0.5, 0.1, 0.]))
 
     def test_connectivity(self, basic_model_3d):
         """Test mesh connectivity is read correctly."""
         model = basic_model_3d
 
-        assert model.mesh_connectivity.shape == (3948, 4)
+        assert model.mesh_connectivity.shape == (4788, 4)
         assert np.all(
-            model.mesh_connectivity[100] == np.array([467, 733, 802, 937])
+            model.mesh_connectivity[100] == np.array([833, 841, 817, 1168])
             )
 
     def test_boundary_connectivity(self, basic_model_3d):
         """Test mesh boundary is read correctly."""
         model = basic_model_3d
 
-        assert model.mesh_boundary.shape == (1408, 3)
-        assert np.all(model.mesh_boundary[100] == np.array([151, 122, 162]))
+        assert model.mesh_boundary.shape == (1474, 3)
+        assert np.all(model.mesh_boundary[100] == np.array([172, 185, 124]))
 
 
 @pytest.fixture
@@ -237,21 +239,122 @@ class TestConnectivity:
 def test_displacements():
     """Test displacement calculation."""
     r = np.identity(3, dtype=np.float)
-    expected_d_x = np.array([[0.0, 1.0, 1.0],
-                             [-1.0, 0.0, 0.0],
-                             [-1.0, 0.0, 0.0]])
-    expected_d_y = np.array([[0.0, -1.0, 0.0],
-                             [1.0, 0.0, 1.0],
-                             [0.0, -1.0, 0.0]])
-    expected_d_z = np.array([[0.0, 0.0, -1.0],
-                             [0.0, 0.0, -1.0],
-                             [1.0, 1.0, 0.0]])
+    expected_d_x = np.array([[0.0, -1.0, -1.0],
+                             [1.0, 0.0, 0.0],
+                             [1.0, 0.0, 0.0]])
+    expected_d_y = np.array([[0.0, 1.0, 0.0],
+                             [-1.0, 0.0, -1.0],
+                             [0.0, 1.0, 0.0]])
+    expected_d_z = np.array([[0.0, 0.0, 1.0],
+                             [0.0, 0.0, 1.0],
+                             [-1.0, -1.0, 0.0]])
 
     d_x, d_y, d_z = Model._displacements(r)
 
     assert np.all(d_x == expected_d_x)
     assert np.all(d_y == expected_d_y)
     assert np.all(d_z == expected_d_z)
+
+
+def test_initial_damage_2d(basic_model_2d):
+    """Ensure initial damage is zero."""
+    model = basic_model_2d
+    connectivity = model.initial_connectivity
+    damage = model._damage(connectivity)
+
+    assert np.all(damage == 0)
+
+
+def test_initial_damage_3d(basic_model_3d):
+    """Ensure initial damage is zero."""
+    model = basic_model_3d
+    connectivity = model.initial_connectivity
+    damage = model._damage(connectivity)
+
+    assert np.all(damage == 0)
+
+
+def test_family_error(data_path):
+    """Test raising of exception when a node has no neighbours."""
+    with pytest.raises(FamilyError):
+        mesh_file = data_path / "example_mesh_3d.vtk"
+        Model(mesh_file, horizon=0.0001, critical_strain=0.05,
+              elastic_modulus=0.05, dimensions=3)
+
+
+@pytest.fixture(scope="module")
+def model_force_test(data_path):
+    """Create a minimal model designed for testings force calculation."""
+    mesh_file = data_path/"force_test.vtk"
+    model = Model(mesh_file, horizon=1.01, critical_strain=0.05,
+                  elastic_modulus=0.05)
+    return model
+
+
+class TestForce():
+    """Test force calculation."""
+
+    def test_initial_force(self, model_force_test):
+        """Ensure initial forces are zero."""
+        model = model_force_test
+        connectivity = model.initial_connectivity
+
+        H_x, H_y, H_z, L = model._H_and_L(model.coords, connectivity)
+        strain = model._strain(L)
+        f = model._bond_force(strain, connectivity, L, H_x, H_y, H_z)
+
+        assert np.all(f == 0)
+
+    def test_force(self, model_force_test):
+        """Ensure forces are in the correct direction using a minimal model."""
+        model = model_force_test
+        connectivity = model.initial_connectivity
+
+        # Nodes 0 and 1 are connected along the x axis, 1 and 2 along the y
+        # axis. There are no other connections.
+        assert connectivity[1, 0]
+        assert not connectivity[2, 0]
+        assert connectivity[2, 1]
+
+        # Displace nodes 1 and 2 in the positive x direction and y in the
+        # positive y direction
+        u = np.array([
+            [0.0, 0.0, 0.0],
+            [0.05, 0.0, 0.0],
+            [0.05, 0.05, 0.0]
+            ])
+
+        # Calculate force
+        # This is lifted from the Model.simulate method
+        H_x, H_y, H_z, L = model._H_and_L(model.coords+u, connectivity)
+        strain = model._strain(L)
+        f = model._bond_force(strain, connectivity, L, H_x, H_y, H_z)
+
+        # Ensure force array is correct
+        force_value = 0.00229417
+        expected_force = np.array([
+            [force_value, 0., 0.],
+            [-force_value, force_value, 0.],
+            [0., -force_value, 0.]
+            ])
+        assert np.allclose(f, expected_force)
+
+        # Ensure force is restorative,
+        #   - Node 1 pulls node 0 in the positive x direction
+        #   - Node 0 pulls node 1 in the negative x direction
+        assert f[0, 0] > 0
+        assert f[1, 0] < 0
+        #   - Node 2 pulls node 1 in the positive y direction
+        #   - Node 1 pulls node 2 in the negative y direction
+        assert f[1, 1] > 0
+        assert f[2, 1] < 0
+
+        # Node 0 has no component of force in the y or z dimensions
+        assert np.all(f[0, 1:] == 0)
+        # Node 1 has no component of force in the z dimension
+        assert f[1, 2] == 0
+        # Node 2 has no component of force in the x or z dimensions
+        assert np.all(f[2, [0, 2]] == 0)
 
 
 class TestSimulate:
