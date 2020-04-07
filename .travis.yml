@@ -5,12 +5,11 @@ python:
   - 3.7
   - 3.8
 
-install:
-  - pip install .
-  - pip install flake8 flake8-docstrings pytest pytest-cov codecov
+before_install: pip install pytest pytest-cov codecov
+
+install: pip install .
 
 script:
-  - flake8
   - pytest -v --cov-config=.coveragerc --cov=./peridynamics
 
 after_success:
@@ -18,8 +17,9 @@ after_success:
 
 jobs:
   include:
-    - python: 3.7
-      install:
-        - pip install .
-        - pip install sphinx
+    - name: Lint
+      before-install: pip install flake8 flake8-docstrings
+      script: flake8
+    - name: Build documentation
+      before-install: pip install sphinx
       script: sphinx-build -W -b html docs build
