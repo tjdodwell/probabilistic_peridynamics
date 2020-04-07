@@ -18,11 +18,11 @@ after_success:
 jobs:
   include:
     - name: Lint
-      before-install: pip install flake8 flake8-docstrings
+      before_install: pip install flake8 flake8-docstrings
       install:
       script: flake8
       after_success:
     - name: Build documentation
-      before-install: pip install sphinx
+      before_install: pip install sphinx
       script: sphinx-build -W -b html docs build
       after_success:
