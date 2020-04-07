@@ -1,16 +1,17 @@
+dist: bionic
+
 language: python
 
 python:
-  - 3.6
   - 3.7
+  - 3.6
   - 3.8
 
-install:
-  - pip install .
-  - pip install flake8 flake8-docstrings pytest pytest-cov codecov
+before_install: pip install pytest pytest-cov codecov
+
+install: pip install .
 
 script:
-  - flake8
   - pytest -v --cov-config=.coveragerc --cov=./peridynamics
 
 after_success:
@@ -18,8 +19,12 @@ after_success:
 
 jobs:
   include:
-    - python: 3.7
+    - name: Lint
+      before_install: pip install flake8 flake8-docstrings
       install:
-        - pip install .
-        - pip install sphinx
+      script: flake8
+      after_success:
+    - name: Build documentation
+      before_install: pip install sphinx
       script: sphinx-build -W -b html docs build
+      after_success:
