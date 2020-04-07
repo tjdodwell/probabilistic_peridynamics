@@ -1,8 +1,8 @@
 language: python
 
 python:
-  - 3.6
   - 3.7
+  - 3.6
   - 3.8
 
 before_install: pip install pytest pytest-cov codecov
@@ -19,7 +19,10 @@ jobs:
   include:
     - name: Lint
       before-install: pip install flake8 flake8-docstrings
+      install:
       script: flake8
+      after_success:
     - name: Build documentation
       before-install: pip install sphinx
       script: sphinx-build -W -b html docs build
+      after_success:
