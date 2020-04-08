@@ -9,7 +9,7 @@ def euclid(r1, r2):
     return ceuclid(r1, r2)
 
 
-cdef inline double ceuclid(double [:] r1, double [:] r2) nogil:
+cdef inline double ceuclid(double[:] r1, double[:] r2) nogil:
     cdef int imax = 3
     cdef double[3] dr
 
@@ -20,7 +20,7 @@ cdef inline double ceuclid(double [:] r1, double [:] r2) nogil:
     return sqrt(dr[0] + dr[1] + dr[2])
 
 
-def family(double [:, :] r, double horizon):
+def family(double[:, :] r, double horizon):
     cdef int nnodes = r.shape[0]
 
     result = np.empty(nnodes, dtype=np.intc)
@@ -42,20 +42,20 @@ def family(double [:, :] r, double horizon):
     return result
 
 
-def create_neighbour_list(double [:, :] r, double horizon, int size):
+def create_neighbour_list(double[:, :] r, double horizon, int size):
     cdef int nnodes = r.shape[0]
 
     result = np.zeros((nnodes, size), dtype=np.intc)
     cdef int[:, :] result_view = result
-
-    cdef int n_neigh
+    n_neigh = np.zeros(nnodes, dtype=np.intc)
+    cdef int[:] n_neigh_view = n_neigh
 
     for i in range(nnodes):
-        n_neigh = 0
+        n_neigh_view[i] = 0
         for j in range(nnodes):
             if i != j:
                 if ceuclid(r[i], r[j]) < horizon:
-                    result_view[i, n_neigh] = j
-                    n_neigh = n_neigh + 1
+                    result_view[i, n_neigh_view[i]] = j
+                    n_neigh_view[i] = n_neigh_view[i] + 1
 
-    return result
+    return result, n_neigh
