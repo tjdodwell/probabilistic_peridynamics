@@ -23,21 +23,16 @@ cdef inline double ceuclid(double[:] r1, double[:] r2) nogil:
 def family(double[:, :] r, double horizon):
     cdef int nnodes = r.shape[0]
 
-    result = np.empty(nnodes, dtype=np.intc)
+    result = np.zeros(nnodes, dtype=np.intc)
     cdef int[:] result_view = result
 
-    cdef int tmp
     cdef int i, j
 
-    for i in range(nnodes):
-        tmp = 0
-        for j in range(nnodes):
-            if i == j:
-                continue
+    for i in range(nnodes-1):
+        for j in range(i+1, nnodes):
             if ceuclid(r[i], r[j]) < horizon:
-                tmp = tmp + 1
-
-        result_view[i] = tmp
+                result_view[i] = result_view[i] + 1
+                result_view[j] = result_view[j] + 1
 
     return result
 
