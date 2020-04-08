@@ -24,18 +24,51 @@ class TestEuclid():
         assert np.allclose(euclidean(r1, r2), euclid(r1, r2))
 
 
-def test_strain():
+class TestStrain():
     """Test the strain function."""
-    r10 = np.random.random(3)
-    r20 = np.random.random(3)
-    l0 = euclidean(r10, r20)
 
-    r1 = r10 + np.random.random(3)*0.1
-    r2 = r20 + np.random.random(3)*0.1
+    def test_strain1(self):
+        """Ensure function is consistent with scipy."""
+        r10 = np.random.random(3)
+        r20 = np.random.random(3)
+        l0 = euclidean(r10, r20)
 
-    strain_actual = strain(r1, r2, r10, r20)
-    strain_expected = (euclidean(r1, r2) - l0)/l0
-    assert np.allclose(strain_actual, strain_expected)
+        r1 = r10 + np.random.random(3)*0.1
+        r2 = r20 + np.random.random(3)*0.1
+
+        strain_actual = strain(r1, r2, r10, r20)
+        strain_expected = (euclidean(r1, r2) - l0)/l0
+        assert np.allclose(strain_actual, strain_expected)
+
+    def test_strain2(self):
+        """Test a trivial, known example."""
+        r10 = np.array([0.0, 0.0, 0.0])
+        r20 = np.array([1.0, 0.0, 0.0])
+
+        r1 = np.array([0.0, 0.0, 0.0])
+        r2 = np.array([2.0, 0.0, 0.0])
+
+        assert np.isclose(strain(r1, r2, r10, r20), 1.0)
+
+    def test_strain3(self):
+        """Test a trivial, known example."""
+        r10 = np.array([0.0, 0.0, 0.0])
+        r20 = np.array([1.0, 0.0, 0.0])
+
+        r1 = r10
+        r2 = r20
+
+        assert np.isclose(strain(r1, r2, r10, r20), 0.0)
+
+    def test_strain4(self):
+        """Test a trivial, known example."""
+        r10 = np.array([0.0, 0.0, 0.0])
+        r20 = np.array([2.0, 0.0, 0.0])
+
+        r1 = np.array([0.0, 0.0, 0.0])
+        r2 = np.array([3.0, 0.0, 0.0])
+
+        assert np.isclose(strain(r1, r2, r10, r20), 0.5)
 
 
 def test_family():
@@ -73,7 +106,7 @@ def test_neighbour_list():
 
 def test_break_bonds():
     """Test neighbour list function."""
-    r = np.array([
+    r0 = np.array([
         [0.0, 0.0, 0.0],
         [1.0, 0.0, 0.0],
         [0.0, 1.0, 0.0],
@@ -81,7 +114,7 @@ def test_break_bonds():
         [0.0, 0.0, 1.0],
         ])
     horizon = 1.1
-    nl, n_neigh = create_neighbour_list(r, horizon, 3)
+    nl, n_neigh = create_neighbour_list(r0, horizon, 3)
 
     nl_expected = np.array([
         [1, 2, 4],
@@ -102,8 +135,9 @@ def test_break_bonds():
         [3.0, 0.0, 0.0],
         [0.0, 0.0, 2.0],
         ])
+    critical_strain = 1.0
 
-    break_bonds(r, nl, n_neigh, horizon)
+    break_bonds(r, r0, nl, n_neigh, critical_strain)
     nl_expected = np.array([
         [2, 2, 4],
         [3, 3, 0],

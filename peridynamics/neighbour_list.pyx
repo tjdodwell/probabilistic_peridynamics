@@ -1,6 +1,6 @@
 import cython
 import numpy as np
-from libc.math cimport sqrt
+from libc.math cimport sqrt, abs
 
 
 def euclid(r1, r2):
@@ -71,8 +71,8 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
     return result, n_neigh
 
 
-def break_bonds(double[:, :] r, int[:, :] nlist, int[:] n_neigh,
-                double horizon):
+def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
+                int[:] n_neigh, double critical_strain):
     cdef int nnodes = nlist.shape[0]
     cdef int size = nlist.shape[1]
 
@@ -90,7 +90,7 @@ def break_bonds(double[:, :] r, int[:, :] nlist, int[:] n_neigh,
         while neigh < i_n_neigh:
             j = nlist_view[i, neigh]
 
-            if ceuclid(r[i], r[j]) < horizon:
+            if abs(cstrain(r[i], r[j], r0[i], r0[j])) < critical_strain:
                 # Move onto the next neighbour
                 neigh += 1
             else:
