@@ -45,13 +45,15 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
     n_neigh = np.zeros(nnodes, dtype=np.intc)
     cdef int[:] n_neigh_view = n_neigh
 
-    for i in range(nnodes):
-        n_neigh_view[i] = 0
-        for j in range(nnodes):
-            if i != j:
-                if ceuclid(r[i], r[j]) < horizon:
-                    result_view[i, n_neigh_view[i]] = j
-                    n_neigh_view[i] = n_neigh_view[i] + 1
+    for i in range(nnodes-1):
+        for j in range(i+1, nnodes):
+            if ceuclid(r[i], r[j]) < horizon:
+                # Add j as a neighbour of i
+                result_view[i, n_neigh_view[i]] = j
+                n_neigh_view[i] = n_neigh_view[i] + 1
+                # Add i as a neighbour of j
+                result_view[j, n_neigh_view[j]] = i
+                n_neigh_view[j] = n_neigh_view[j] + 1
 
     return result, n_neigh
 
