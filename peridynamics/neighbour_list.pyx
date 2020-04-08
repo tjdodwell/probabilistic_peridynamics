@@ -1,7 +1,5 @@
 import cython
-from cython.parallel import prange
 import numpy as np
-from scipy.spatial.distance import euclidean
 from libc.math cimport sqrt
 
 
@@ -9,7 +7,7 @@ def euclid(r1, r2):
     return ceuclid(r1, r2)
 
 
-cdef inline double ceuclid(double[:] r1, double[:] r2) nogil:
+cdef inline double ceuclid(double[:] r1, double[:] r2):
     cdef int imax = 3
     cdef double[3] dr
 
@@ -18,6 +16,19 @@ cdef inline double ceuclid(double[:] r1, double[:] r2) nogil:
         dr[i] = dr[i] * dr[i]
 
     return sqrt(dr[0] + dr[1] + dr[2])
+
+
+def strain(r1, r2, l0):
+    return cstrain(r1, r2, l0)
+
+
+cdef inline double cstrain(double[:] r1, double[:] r2, double l0):
+    cdef double l, dl
+
+    l = ceuclid(r1, r2)
+    dl = l - l0
+
+    return dl/l0
 
 
 def family(double[:, :] r, double horizon):

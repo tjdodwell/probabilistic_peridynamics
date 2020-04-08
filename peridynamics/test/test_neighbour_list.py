@@ -1,6 +1,7 @@
 """Tests for the neighbour list module."""
-from peridynamics.neighbour_list import (euclid, family, create_neighbour_list,
-                                         break_bonds)
+from peridynamics.neighbour_list import (
+    euclid, strain, family, create_neighbour_list, break_bonds
+    )
 import numpy as np
 from scipy.spatial.distance import euclidean, cdist
 
@@ -21,6 +22,19 @@ class TestEuclid():
         r2 = -np.random.random(3)
 
         assert np.allclose(euclidean(r1, r2), euclid(r1, r2))
+
+
+def test_strain():
+    """Test the strain function."""
+    r1 = np.random.random(3)
+    r2 = np.random.random(3)
+    l0 = euclidean(r1, r2)
+
+    r2 += np.random.random(3)*0.1
+
+    strain_actual = strain(r1, r2, l0)
+    strain_expected = (euclidean(r1, r2) - l0)/l0
+    assert np.allclose(strain_actual, strain_expected)
 
 
 def test_family():
