@@ -1,6 +1,6 @@
 """Tests for the neighbour list module."""
 from peridynamics.neighbour_list import (
-    euclid, strain, family, create_neighbour_list, break_bonds
+    euclid, strain, family, create_neighbour_list, break_bonds, damage
     )
 import numpy as np
 from scipy.spatial.distance import euclidean, cdist
@@ -149,3 +149,14 @@ def test_break_bonds():
 
     assert np.all(nl == nl_expected)
     assert np.all(n_neigh == n_neigh_expected)
+
+
+def test_damage():
+    """Test damage function."""
+    family = np.array([10, 5, 5, 1, 5, 7, 10, 3, 3, 4], dtype=np.int32)
+    n_neigh = np.array([5, 5, 3, 0, 4, 5, 8, 3, 2, 1], dtype=np.int32)
+
+    damage_actual = damage(n_neigh, family)
+    damage_expected = (family - n_neigh) / family
+
+    assert np.allclose(damage_actual, damage_expected)

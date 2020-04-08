@@ -58,6 +58,8 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
     n_neigh = np.zeros(nnodes, dtype=np.intc)
     cdef int[:] n_neigh_view = n_neigh
 
+    cdef int i, j
+
     for i in range(nnodes-1):
         for j in range(i+1, nnodes):
             if ceuclid(r[i], r[j]) < horizon:
@@ -79,7 +81,7 @@ def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
     cdef int[:, :] nlist_view = nlist
     cdef int[:] n_neigh_view = n_neigh
 
-    cdef int i_n_neigh, neigh
+    cdef int i, j, i_n_neigh, neigh
 
     # Check neighbours for each node
     for i in range(nnodes):
@@ -100,3 +102,19 @@ def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
                 i_n_neigh -= 1
 
         n_neigh_view[i] = i_n_neigh
+
+
+def damage(int[:] n_neigh, int[:] family):
+    cdef nnodes = family.shape[0]
+
+    result = np.empty(nnodes, dtype=np.float64)
+    cdef double[:] result_view = result
+
+    cdef double ifamily
+    cdef int i
+
+    for i in range(nnodes):
+        ifamily = family[i]
+        result_view[i] = (ifamily - n_neigh[i])/ifamily
+
+    return result
