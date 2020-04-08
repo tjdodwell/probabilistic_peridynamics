@@ -59,3 +59,34 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
                     n_neigh_view[i] = n_neigh_view[i] + 1
 
     return result, n_neigh
+
+
+def break_bonds(double[:, :] r, int[:, :] nlist, int[:] n_neigh,
+                double horizon):
+    cdef int nnodes = nlist.shape[0]
+    cdef int size = nlist.shape[1]
+
+    cdef int[:, :] nlist_view = nlist
+    cdef int[:] n_neigh_view = n_neigh
+
+    cdef int i_n_neigh, neigh
+
+    # Check neighbours for each node
+    for i in range(nnodes):
+        # Get current number of neighbours
+        i_n_neigh = n_neigh_view[i]
+
+        neigh = 0
+        while neigh < i_n_neigh:
+            j = nlist_view[i, neigh]
+
+            if ceuclid(r[i], r[j]) < horizon:
+                # Move onto the next neighbour
+                neigh += 1
+            else:
+                # Remove this neighbour by replacing it with the last neighbour
+                # on the list, then reducing the number of neighbours by 1
+                nlist_view[i, neigh] = nlist_view[i, i_n_neigh-1]
+                i_n_neigh -= 1
+
+        n_neigh_view[i] = i_n_neigh
