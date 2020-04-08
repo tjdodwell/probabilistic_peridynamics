@@ -26,13 +26,14 @@ class TestEuclid():
 
 def test_strain():
     """Test the strain function."""
-    r1 = np.random.random(3)
-    r2 = np.random.random(3)
-    l0 = euclidean(r1, r2)
+    r10 = np.random.random(3)
+    r20 = np.random.random(3)
+    l0 = euclidean(r10, r20)
 
-    r2 += np.random.random(3)*0.1
+    r1 = r10 + np.random.random(3)*0.1
+    r2 = r20 + np.random.random(3)*0.1
 
-    strain_actual = strain(r1, r2, l0)
+    strain_actual = strain(r1, r2, r10, r20)
     strain_expected = (euclidean(r1, r2) - l0)/l0
     assert np.allclose(strain_actual, strain_expected)
 

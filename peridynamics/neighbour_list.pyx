@@ -18,14 +18,16 @@ cdef inline double ceuclid(double[:] r1, double[:] r2):
     return sqrt(dr[0] + dr[1] + dr[2])
 
 
-def strain(r1, r2, l0):
-    return cstrain(r1, r2, l0)
+def strain(r1, r2, r10, r20):
+    return cstrain(r1, r2, r10, r20)
 
 
-cdef inline double cstrain(double[:] r1, double[:] r2, double l0):
+cdef inline double cstrain(double[:] r1, double[:] r2,
+                           double[:] r10, double[:] r20):
     cdef double l, dl
 
     l = ceuclid(r1, r2)
+    l0 = ceuclid(r10, r20)
     dl = l - l0
 
     return dl/l0
