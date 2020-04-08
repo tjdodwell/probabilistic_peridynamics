@@ -32,6 +32,8 @@ def family(double [:, :] r, double horizon):
     for i in range(nnodes):
         tmp = 0
         for j in range(nnodes):
+            if i == j:
+                continue
             if ceuclid(r[i], r[j]) < horizon:
                 tmp = tmp + 1
 

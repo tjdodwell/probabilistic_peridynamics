@@ -28,7 +28,7 @@ def test_family():
     horizon = 0.2
 
     family_actual = family(r, horizon)
-    family_expected = np.sum(cdist(r, r) < horizon, axis=0)
+    family_expected = np.sum(cdist(r, r) < horizon, axis=0) - 1
 
     assert np.all(family_actual == family_expected)
 
