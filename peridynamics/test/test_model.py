@@ -356,9 +356,6 @@ class TestForce():
         # Node 2 has no component of force in the x or z dimensions
         assert np.all(f[2, [0, 2]] == 0)
 
-        print(model.volume)
-        assert 0
-
 
 class TestSimulate:
     """
