@@ -13,8 +13,14 @@ ext_modules = [
         extra_link_args=extra_link_args
         ),
     Extension(
-        "peridynamics.euclid",
-        ["peridynamics/euclid.pyx"],
+        "peridynamics.peridynamics",
+        ["peridynamics/peridynamics.pyx"],
+        extra_compile_args=extra_compile_args,
+        extra_link_args=extra_link_args
+        ),
+    Extension(
+        "peridynamics.spatial",
+        ["peridynamics/spatial.pyx"],
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args
         )
