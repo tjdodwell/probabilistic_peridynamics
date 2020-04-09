@@ -1,8 +1,9 @@
 """Tests for the neighbour list module."""
 from peridynamics.neighbour_list import (
-    euclid, strain, strain2, family, create_neighbour_list, break_bonds,
+    strain, strain2, family, create_neighbour_list, break_bonds,
     damage, bond_force
     )
+from peridynamics.euclid import euclid
 import numpy as np
 from scipy.spatial.distance import euclidean, cdist
 
