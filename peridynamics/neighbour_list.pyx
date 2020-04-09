@@ -33,6 +33,19 @@ cdef inline double cstrain(double[:] r1, double[:] r2,
     return dl/l0
 
 
+def strain2(l, r10, r20):
+    return cstrain2(l, r10, r20)
+
+
+cdef inline double cstrain2(double l, double[:] r10, double[:] r20):
+    cdef double dl
+
+    l0 = ceuclid(r10, r20)
+    dl = l - l0
+
+    return dl/l0
+
+
 def family(double[:, :] r, double horizon):
     cdef int nnodes = r.shape[0]
 
@@ -133,10 +146,11 @@ def bond_force(double[:, :] r, double[:, :] r0, int[:, :] nlist,
             j = nlist[i, neigh]
 
             if i < j:
-                strain = cstrain(r[i], r[j], r0[i], r0[j])
+                # Calculate total force
                 l = ceuclid(r[i], r[j])
-
+                strain = cstrain2(l, r0[i], r0[j])
                 force_norm = strain * bond_stiffness
+
                 # Calculate component of force in each dimension
                 force_norm = force_norm / l
                 for dim in range(3):

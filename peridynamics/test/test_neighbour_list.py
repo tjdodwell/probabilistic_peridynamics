@@ -1,7 +1,7 @@
 """Tests for the neighbour list module."""
 from peridynamics.neighbour_list import (
-    euclid, strain, family, create_neighbour_list, break_bonds, damage,
-    bond_force
+    euclid, strain, strain2, family, create_neighbour_list, break_bonds,
+    damage, bond_force
     )
 import numpy as np
 from scipy.spatial.distance import euclidean, cdist
@@ -39,7 +39,10 @@ class TestStrain():
 
         strain_actual = strain(r1, r2, r10, r20)
         strain_expected = (euclidean(r1, r2) - l0)/l0
-        assert np.allclose(strain_actual, strain_expected)
+        assert np.isclose(strain_actual, strain_expected)
+
+        strain2_actual = strain2(euclidean(r1, r2), r10, r20)
+        assert np.isclose(strain2_actual, strain_expected)
 
     def test_strain2(self):
         """Test a trivial, known example."""
@@ -51,6 +54,8 @@ class TestStrain():
 
         assert np.isclose(strain(r1, r2, r10, r20), 1.0)
 
+        assert np.isclose(strain2(euclidean(r1, r2), r10, r20), 1.0)
+
     def test_strain3(self):
         """Test a trivial, known example."""
         r10 = np.array([0.0, 0.0, 0.0])
@@ -61,6 +66,8 @@ class TestStrain():
 
         assert np.isclose(strain(r1, r2, r10, r20), 0.0)
 
+        assert np.isclose(strain2(euclidean(r1, r2), r10, r20), 0.0)
+
     def test_strain4(self):
         """Test a trivial, known example."""
         r10 = np.array([0.0, 0.0, 0.0])
@@ -70,6 +77,8 @@ class TestStrain():
         r2 = np.array([3.0, 0.0, 0.0])
 
         assert np.isclose(strain(r1, r2, r10, r20), 0.5)
+
+        assert np.isclose(strain2(euclidean(r1, r2), r10, r20), 0.5)
 
 
 def test_family():
