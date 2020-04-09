@@ -76,21 +76,17 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
 def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
                 int[:] n_neigh, double critical_strain):
     cdef int nnodes = nlist.shape[0]
-    cdef int size = nlist.shape[1]
-
-    cdef int[:, :] nlist_view = nlist
-    cdef int[:] n_neigh_view = n_neigh
 
     cdef int i, j, i_n_neigh, neigh
 
     # Check neighbours for each node
     for i in range(nnodes):
         # Get current number of neighbours
-        i_n_neigh = n_neigh_view[i]
+        i_n_neigh = n_neigh[i]
 
         neigh = 0
         while neigh < i_n_neigh:
-            j = nlist_view[i, neigh]
+            j = nlist[i, neigh]
 
             if abs(cstrain(r[i], r[j], r0[i], r0[j])) < critical_strain:
                 # Move onto the next neighbour
@@ -98,10 +94,10 @@ def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
             else:
                 # Remove this neighbour by replacing it with the last neighbour
                 # on the list, then reducing the number of neighbours by 1
-                nlist_view[i, neigh] = nlist_view[i, i_n_neigh-1]
+                nlist[i, neigh] = nlist[i, i_n_neigh-1]
                 i_n_neigh -= 1
 
-        n_neigh_view[i] = i_n_neigh
+        n_neigh[i] = i_n_neigh
 
 
 def damage(int[:] n_neigh, int[:] family):
