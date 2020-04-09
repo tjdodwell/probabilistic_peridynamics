@@ -68,3 +68,31 @@ def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
                 i_n_neigh -= 1
 
         n_neigh[i] = i_n_neigh
+
+
+def create_crack(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):
+    cdef int n = crack.shape[0]
+
+    cdef int icrack, i, j, neigh
+
+    for icrack in range(n):
+        i = crack[icrack][0]
+        j = crack[icrack][1]
+
+        # Iterate through i's neighbour list until j is found
+        for neigh in range(n_neigh[i]):
+            if nlist[i][neigh] == j:
+                # Remove this neighbour by replacing it with the last neighbour
+                # on the list, then reducing the number of neighbours by 1
+                nlist[i, neigh] = nlist[i, n_neigh[i]-1]
+                n_neigh[i] = n_neigh[i] - 1
+                break
+
+        # Iterate through j's neighbour list until i is found
+        for neigh in range(n_neigh[j]):
+            if nlist[j][neigh] == i:
+                # Remove this neighbour by replacing it with the last neighbour
+                # on the list, then reducing the number of neighbours by 1
+                nlist[j, neigh] = nlist[j, n_neigh[j]-1]
+                n_neigh[j] = n_neigh[j] - 1
+                break
