@@ -1,11 +1,12 @@
 """Peridynamics model."""
 from .integrators import Integrator
+from .neighbour_list import (family, create_neighbour_list, break_bonds,
+                             create_crack)
+from .peridynamics import damage, bond_force
 from collections import namedtuple
 import meshio
 import numpy as np
 import pathlib
-from scipy import sparse
-from scipy.spatial.distance import cdist
 from tqdm import trange
 
 
@@ -150,21 +151,24 @@ class Model(object):
         # Calculate the volume for each node
         self.volume = self._volume()
 
-        # Determine neighbours
-        neighbourhood = self._neighbourhood()
+        # Calculate the family (number of bonds in the initial configuration)
+        # for each node
+        self.family = family(self.coords, horizon)
 
-        # Set family, the number of neighbours for each node
-        self.family = np.squeeze(np.array(np.sum(neighbourhood, axis=0)))
-        if np.any(self.family == 0):
-            raise FamilyError(self.family)
+        # Create the neighbourlist
+        max_neigbhours = self.family.max()
+        nlist, n_neigh = create_neighbour_list(
+            self.coords, horizon, max_neigbhours
+            )
 
-        # Set the initial connectivity
-        self.initial_connectivity = self._connectivity(neighbourhood,
-                                                       initial_crack)
-
-        # Set the node distance and failure strain matrices
-        _, _, _, self.L_0 = self._H_and_L(self.coords,
-                                          self.initial_connectivity)
+        # Initialise inital crack
+        if initial_crack:
+            if callable(initial_crack):
+                initial_crack = initial_crack(self.coords, nlist, n_neigh)
+            create_crack(
+                np.array(initial_crack, dtype=np.int32),  nlist, n_neigh
+                )
+        self.initial_connectivity = (nlist, n_neigh)
 
     def _read_mesh(self, filename):
         """
@@ -178,7 +182,7 @@ class Model(object):
         mesh = meshio.read(filename)
 
         # Get coordinates, encoded as mesh points
-        self.coords = mesh.points
+        self.coords = np.array(mesh.points, dtype=np.float64)
         self.nnodes = self.coords.shape[0]
 
         # Get connectivity, mesh triangle cells
@@ -261,237 +265,40 @@ class Model(object):
 
         return volume
 
-    def _neighbourhood(self):
-        """
-        Determine the neighbourhood of all nodes.
-
-        :returns: The sparse neighbourhood matrix.  Element [i, j] of this
-            martrix is True if i is within `horizon` of j and False otherwise.
-        :rtype: :class:`scipy.sparse.csr_matrix`
-        """
-        # Calculate the Euclidean distance between each pair of nodes
-        distance = cdist(self.coords, self.coords, 'euclidean')
-
-        # Construct the neighbourhood matrix (neighbourhood[i, j] = True if i
-        # and j are neighbours)
-        nnodes = self.nnodes
-        neighbourhood = np.zeros((nnodes, nnodes), dtype=np.bool)
-        # Connect nodes which are within horizon of each other
-        neighbourhood[distance < self.horizon] = True
-        # Remove self interaction
-        np.fill_diagonal(neighbourhood, False)
-
-        return sparse.csr_matrix(neighbourhood)
-
-    def _connectivity(self, neighbourhood, initial_crack):
-        """
-        Initialise the connectivity.
-
-        :arg neighbourhood: The sparse neighbourhood matrix.
-        :type neighbourhood: :class:`scipy.sparse.csr_matrix`
-        :arg initial_crack: The initial crack of the system. The argument may
-            be a list of tuples where each tuple is a pair of integers
-            representing nodes between which to create a crack. Alternatively,
-            the arugment may be a function which takes the (nnodes, 3)
-            :class:`numpy.ndarray` of coordinates as an argument, and returns a
-            list of tuples defining the initial crack.
-        :type initial_crack: list(tuple(int, int)) or function
-
-        :returns: The sparse connectivity matrix. Element [i, j] of this matrix
-            is True if i and j are bonded and False otherwise.
-        :rtype: :class:`scipy.sparse.csr_matrix`
-        """
-        if callable(initial_crack):
-            initial_crack = initial_crack(self.coords, neighbourhood)
-
-        # Construct the initial connectivity matrix
-        conn = neighbourhood.toarray()
-        for i, j in initial_crack:
-            # Connectivity is symmetric
-            conn[i, j] = False
-            conn[j, i] = False
-
-        # Lower triangular - count bonds only once
-        conn = np.tril(conn, -1)
-
-        # Convert to sparse matrix
-        return sparse.csr_matrix(conn)
-
-    @staticmethod
-    def _displacements(r):
-        """
-        Determine displacements, in each dimension, between vectors.
-
-        :arg r: A (n,3) array of coordinates.
-        :type r: :class:`numpy.ndarray`
-
-        :returns: A tuple of three arrays giving the displacements between
-            each pair of parities in the first, second and third dimensions
-            respectively. m[i, j] is the distance from j to i (i.e. i - j).
-        :rtype: tuple(:class:`numpy.ndarray`)
-        """
-        n = len(r)
-        x = np.tile(r[:, 0], (n, 1))
-        y = np.tile(r[:, 1], (n, 1))
-        z = np.tile(r[:, 2], (n, 1))
-
-        d_x = x - x.T
-        d_y = y - y.T
-        d_z = z - z.T
-
-        return d_x, d_y, d_z
-
-    def _H_and_L(self, r, connectivity):
-        """
-        Construct the displacement and distance matrices.
-
-        The H matrices  are sparse matrices containing displacements in
-        a particular dimension and the L matrix isa sparse matrix containing
-        the Euclidean distance. Elements for particles which are not connected
-        are 0.
-
-        :arg r: The positions of all nodes.
-        :type r: :class:`numpy.ndarray`
-        :arg connectivity: The sparse connectivity matrix.
-        :type connectivity: :class:`scipy.sparse.csr_matrix`
-
-        :returns: (H_x, H_y, H_z, L) A tuple of sparse matrix. H_x, H_y and H_z
-            are the matrices of displacements between pairs of particles in the
-            x, y and z dimensions respectively. L is the Euclidean distance
-            between pairs of particles.
-        :rtype: tuple(:class:`scipy.sparse.csr_matrix`)
-        """
-        # Get displacements in each dimension between coordinate
-        H_x, H_y, H_z = self._displacements(r)
-
-        # Convert to spare matrices filtered by the connectivity matrix (i.e.
-        # only for particles which interact).
-        a = connectivity + connectivity.transpose()
-        H_x = a.multiply(H_x)
-        H_y = a.multiply(H_y)
-        H_z = a.multiply(H_z)
-
-        L = (H_x.power(2) + H_y.power(2) + H_z.power(2)).sqrt()
-
-        return H_x, H_y, H_z, L
-
-    def _strain(self, L):
-        """
-        Calculate the strain of all bonds for a given displacement.
-
-        :arg L: The euclidean distance between each pair of nodes.
-        :type L: :class:`scipy.sparse.csr_matrix`
-
-        :returns: The strain between each pair of nodes.
-        :rtype: :class:`scipy.sparse.lil_matrix`
-        """
-        # Calculate difference in bond lengths from the initial state
-        dL = L - self.L_0
-
-        # Calculate strain
-        nnodes = self.nnodes
-        strain = sparse.lil_matrix((nnodes, nnodes))
-        non_zero = self.L_0.nonzero()
-        strain[non_zero] = dL[non_zero]/self.L_0[non_zero]
-
-        return strain
-
-    def _break_bonds(self, strain, connectivity):
+    def _break_bonds(self, u, nlist, n_neigh):
         """
         Break bonds which have exceeded the critical strain.
 
-        :arg strain: The strain of each bond.
-        :type strain: :class:`scipy.sparse.lil_matrix`
-        :arg connectivity: The sparse connectivity matrix.
-        :type connectivity: :class:`scipy.sparse.csr_matrix`
-
-        :returns: The updated connectivity.
-        :rtype: :class:`scipy.sparse.csr_matrix`
+        :arg u: A (nnodes, 3) array of the displacements of each node.
+        :type u: :class:`numpy.ndarray`
         """
-        unbroken = sparse.lil_matrix(connectivity.shape)
+        break_bonds(self.coords+u, self.coord, nlist, n_neigh,
+                    self.critical_strain)
 
-        # Find broken bonds
-        nnodes = self.nnodes
-        critical_strains = np.full((nnodes, nnodes), self.critical_strain)
-        connected = connectivity.nonzero()
-        unbroken[connected] = (
-                critical_strains[connected] - abs(strain[connected])
-                ) > 0
-
-        connectivity = sparse.csr_matrix(unbroken)
-
-        return connectivity
-
-    def _damage(self, connectivity):
+    def _damage(self):
         """
         Calculate bond damage.
-
-        :arg connectivity: The sparse connectivity matrix.
-        :type connectivity: :class:`scipy.sparse.csr_matrix`
 
         :returns: A (`nnodes`, ) array containing the damage for each node.
         :rtype: :class:`numpy.ndarray`
         """
-        family = self.family
-        # Sum all unbroken bonds for each node
-        unbroken_bonds = (connectivity + connectivity.transpose()).sum(axis=0)
-        # Convert matrix object to array
-        unbroken_bonds = np.squeeze(np.array(unbroken_bonds))
+        return damage(self.n_neigh, self.family)
 
-        # Calculate damage for each node
-        damage = np.divide((family - unbroken_bonds), family)
-
-        return damage
-
-    def _bond_force(self, strain, connectivity, L, H_x, H_y, H_z):
+    def _bond_force(self, u, nlist, n_neigh):
         """
         Calculate the force due to bonds acting on each node.
 
-        :arg strain: The strain of each bond.
-        :type strain: :class:`scipy.sparse.lil_matrix`
-        :arg connectivity: The sparse connectivity matrix.
-        :type connectivity: :class:`scipy.sparse.csr_matrix`
-        :arg L: The Euclidean distance between pairs of nodes.
-        :type L: :class:`scipy.sparse.csr_matrix`
-        :arg H_x: The displacement in the x dimension between each pair of
-            nodes.
-        :type H_x: :class:`scipy.sparse.csr_matrix`
-        :arg H_y: The displacement in the y dimension between each pair of
-            nodes.
-        :type H_y: :class:`scipy.sparse.csr_matrix`
-        :arg H_z: The displacement in the z dimension between each pair of
-            nodes.
-        :type H_z: :class:`scipy.sparse.csr_matrix`
+        :arg u: A (nnodes, 3) array of the displacements of each node.
+        :type u: :class:`numpy.ndarray`
 
         :returns: A (`nnodes`, 3) array of the component of the force in each
             dimension for each node.
         :rtype: :class:`numpy.ndarray`
         """
-        # Calculate the normalised forces
-        force_normd = sparse.lil_matrix(connectivity.shape)
-        connected = connectivity.nonzero()
-        force_normd[connected] = strain[connected] / L[connected]
+        f = bond_force(self.coords, self.coords+u, nlist, n_neigh,
+                       self.volume, self.bond_stiffness)
 
-        # Make lower triangular into full matrix
-        force_normd.tocsr()
-        force_normd = force_normd + force_normd.transpose()
-
-        # Calculate component of force in each dimension
-        bond_force_x = force_normd.multiply(H_x)
-        bond_force_y = force_normd.multiply(H_y)
-        bond_force_z = force_normd.multiply(H_z)
-
-        # Calculate total force on nodes in each dimension
-        F_x = np.squeeze(np.array(bond_force_x.sum(axis=1)))
-        F_y = np.squeeze(np.array(bond_force_y.sum(axis=1)))
-        F_z = np.squeeze(np.array(bond_force_z.sum(axis=1)))
-
-        # Determine actual force
-        F = np.stack((F_x, F_y, F_z), axis=-1)
-        F *= self.volume.reshape((self.nnodes, 1))
-        F *= self.bond_stiffness
-
-        return F
+        return f
 
     def simulate(self, steps, integrator, boundary_function=None, u=None,
                  connectivity=None, first_step=1, write=None, write_path=None):
@@ -545,8 +352,12 @@ class Model(object):
         # is provided
         if connectivity is None:
             connectivity = self.initial_connectivity
-        elif type(connectivity) == np.ndarray:
-            connectivity = sparse.csr_matrix(connectivity)
+        elif type(connectivity) == tuple:
+            if len(connectivity) != 2:
+                raise ValueError
+            nlist, n_neigh = connectivity
+        else:
+            raise ValueError
 
         # Create dummy boundary conditions function is none is provided
         if boundary_function is None:
@@ -562,31 +373,26 @@ class Model(object):
 
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
-            # Get current distance between nodes (i.e. accounting for
-            # displacements)
-            H_x, H_y, H_z, L = self._H_and_L(self.coords+u, connectivity)
 
-            # Calculate the strain of each bond
-            strain = self._strain(L)
+            # Calculate the current damage
+            damage = self._damage()
 
-            # Update the connectivity and calculate the current damage
-            connectivity = self._break_bonds(strain, connectivity)
-            damage = self._damage(connectivity)
-
-            # Calculate the bond due to forces on each node
-            f = self._bond_force(strain, connectivity, L, H_x, H_y, H_z)
+            # Calculate the force due to bonds on each node
+            f = self._bond_force(u, nlist, n_neigh)
 
             # Conduct one integration step
             u = integrator(u, f)
-
             # Apply boundary conditions
             u = boundary_function(self, u, step)
+
+            # Update neighbour list
+            self._break_bonds(u, nlist, n_neigh)
 
             if write:
                 if step % write == 0:
                     self.write_mesh(write_path/f"U_{step}.vtk", damage, u)
 
-        return u, damage, connectivity
+        return u, damage, (nlist, n_neigh)
 
 
 def initial_crack_helper(crack_function):
@@ -610,13 +416,15 @@ def initial_crack_helper(crack_function):
         between them.
     :rtype: function
     """
-    def initial_crack(coords, neighbourhood):
+    def initial_crack(coords, nlist, n_neigh):
         crack = []
-        # Get all pairs of bonded particles (within horizon) where i < j and
-        # i /= j (using the upper triangular portion)
-        i, j = sparse.triu(neighbourhood, 1).nonzero()
+
+        # Get all pairs of bonded particles
+        nnodes = nlist.shape[0]
+        pairs = [(i, j) for i in range(nnodes) for j in nlist[i][0:n_neigh[i]]]
+
         # Check each pair using the crack function
-        for i, j in zip(i, j):
+        for i, j in pairs:
             if crack_function(coords[i], coords[j]):
                 crack.append((i, j))
         return crack
