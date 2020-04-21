@@ -279,13 +279,17 @@ class TestForce():
     def test_force(self, model_force_test):
         """Ensure forces are in the correct direction using a minimal model."""
         model = model_force_test
-        connectivity = model.initial_connectivity
+        nlist, n_neigh = model.initial_connectivity
 
         # Nodes 0 and 1 are connected along the x axis, 1 and 2 along the y
         # axis. There are no other connections.
-        assert connectivity[1, 0]
-        assert not connectivity[2, 0]
-        assert connectivity[2, 1]
+        assert n_neigh[0] == 1
+        assert n_neigh[1] == 2
+        assert n_neigh[2] == 1
+        assert 1 in nlist[0]
+        assert 0 in nlist[1]
+        assert 2 in nlist[1]
+        assert 1 in nlist[2]
 
         # Displace nodes 1 and 2 in the positive x direction and y in the
         # positive y direction
@@ -297,9 +301,7 @@ class TestForce():
 
         # Calculate force
         # This is lifted from the Model.simulate method
-        H_x, H_y, H_z, L = model._H_and_L(model.coords+u, connectivity)
-        strain = model._strain(L)
-        f = model._bond_force(strain, connectivity, L, H_x, H_y, H_z)
+        f = model._bond_force(u, nlist, n_neigh)
 
         # Ensure force array is correct
         force_value = 0.00229417
