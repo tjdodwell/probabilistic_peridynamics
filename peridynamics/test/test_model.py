@@ -363,9 +363,8 @@ class TestSimulate:
 
         assert np.all(u == expected_u)
         assert np.all(damage == expected_damage)
-        assert np.all(
-            connectivity.toarray() == expected_connectivity.toarray()
-            )
+        assert np.all(connectivity[0] == expected_connectivity[0])
+        assert np.all(connectivity[1] == expected_connectivity[1])
 
     def test_restart(self, simple_model, simple_boundary_function):
         """Ensure simulation restarting gives consistent results."""
