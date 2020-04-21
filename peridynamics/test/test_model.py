@@ -269,11 +269,10 @@ class TestForce():
     def test_initial_force(self, model_force_test):
         """Ensure initial forces are zero."""
         model = model_force_test
-        connectivity = model.initial_connectivity
+        nlist, n_neigh = model.initial_connectivity
 
-        H_x, H_y, H_z, L = model._H_and_L(model.coords, connectivity)
-        strain = model._strain(L)
-        f = model._bond_force(strain, connectivity, L, H_x, H_y, H_z)
+        u = np.zeros_like(model.coords)
+        f = model._bond_force(u, nlist, n_neigh)
 
         assert np.all(f == 0)
 
