@@ -200,16 +200,6 @@ def test_bond_stiffness_2d(basic_model_2d):
     assert np.isclose(basic_model_2d.bond_stiffness, 2864.7889756)
 
 
-def test_neighbourhood(basic_model_2d, data_path):
-    """Test _neighbourhood method."""
-    expected_neighbourhood = sparse.load_npz(
-        data_path/"expected_neighbourhood.npz"
-        )
-    assert np.all(
-        ~(basic_model_2d._neighbourhood() != expected_neighbourhood).toarray()
-        )
-
-
 class TestConnectivity:
     """Test the _connectivity method."""
 
