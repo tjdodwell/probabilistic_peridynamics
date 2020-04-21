@@ -272,17 +272,17 @@ class Model(object):
         :arg u: A (nnodes, 3) array of the displacements of each node.
         :type u: :class:`numpy.ndarray`
         """
-        break_bonds(self.coords+u, self.coord, nlist, n_neigh,
+        break_bonds(self.coords+u, self.coords, nlist, n_neigh,
                     self.critical_strain)
 
-    def _damage(self):
+    def _damage(self, n_neigh):
         """
         Calculate bond damage.
 
         :returns: A (`nnodes`, ) array containing the damage for each node.
         :rtype: :class:`numpy.ndarray`
         """
-        return damage(self.n_neigh, self.family)
+        return damage(n_neigh, self.family)
 
     def _bond_force(self, u, nlist, n_neigh):
         """
@@ -351,7 +351,7 @@ class Model(object):
         # Use the initial connectivity (when the Model was constructed) if none
         # is provided
         if connectivity is None:
-            connectivity = self.initial_connectivity
+            nlist, n_neigh = self.initial_connectivity
         elif type(connectivity) == tuple:
             if len(connectivity) != 2:
                 raise ValueError
@@ -375,7 +375,7 @@ class Model(object):
                            desc="Simulation Progress", unit="steps"):
 
             # Calculate the current damage
-            damage = self._damage()
+            damage = self._damage(n_neigh)
 
             # Calculate the force due to bonds on each node
             f = self._bond_force(u, nlist, n_neigh)
