@@ -201,29 +201,31 @@ def test_bond_stiffness_2d(basic_model_2d):
 
 
 class TestConnectivity:
-    """Test the _connectivity method."""
+    """Test the initial neighbour list."""
 
     def test_basic_connectivity(self, basic_model_2d, data_path):
         """Test connectivity calculation with no initial crack."""
-        expected_connectivity = sparse.load_npz(
+        npz_file = np.load(
             data_path/"expected_connectivity_basic.npz"
             )
-        assert np.all(
-            ~(
-                basic_model_2d.initial_connectivity != expected_connectivity
-                ).toarray()
-            )
+        expected_nlist = npz_file["nlist"]
+        expected_n_neigh = npz_file["n_neigh"]
+
+        actual_nlist, actual_n_neigh = basic_model_2d.initial_connectivity
+        assert np.all(expected_nlist == actual_nlist)
+        assert np.all(expected_n_neigh == actual_n_neigh)
 
     def test_connectivity(self, simple_model, data_path):
-        """Test connectivity calculation with no initial crack."""
-        expected_connectivity = sparse.load_npz(
+        """Test connectivity calculation with initial crack."""
+        npz_file = np.load(
             data_path/"expected_connectivity_crack.npz"
             )
-        assert np.all(
-            ~(
-                simple_model.initial_connectivity != expected_connectivity
-                ).toarray()
-            )
+        expected_nlist = npz_file["nlist"]
+        expected_n_neigh = npz_file["n_neigh"]
+
+        actual_nlist, actual_n_neigh = simple_model.initial_connectivity
+        assert np.all(expected_nlist == actual_nlist)
+        assert np.all(expected_n_neigh == actual_n_neigh)
 
 
 def test_displacements():
