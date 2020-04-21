@@ -297,7 +297,7 @@ class Model(object):
             dimension for each node.
         :rtype: :class:`numpy.ndarray`
         """
-        f = bond_force(self.coords, self.coords+u, nlist, n_neigh,
+        f = bond_force(self.coords+u, self.coords, nlist, n_neigh,
                        self.volume, self.bond_stiffness)
 
         return f
