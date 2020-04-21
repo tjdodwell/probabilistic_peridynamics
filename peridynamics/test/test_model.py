@@ -232,7 +232,7 @@ def test_initial_damage_2d(basic_model_2d):
     """Ensure initial damage is zero."""
     model = basic_model_2d
     connectivity = model.initial_connectivity
-    damage = model._damage(connectivity)
+    damage = model._damage(connectivity[1])
 
     assert np.all(damage == 0)
 
@@ -241,7 +241,7 @@ def test_initial_damage_3d(basic_model_3d):
     """Ensure initial damage is zero."""
     model = basic_model_3d
     connectivity = model.initial_connectivity
-    damage = model._damage(connectivity)
+    damage = model._damage(connectivity[1])
 
     assert np.all(damage == 0)
 
