@@ -154,6 +154,8 @@ class Model(object):
         # Calculate the family (number of bonds in the initial configuration)
         # for each node
         self.family = family(self.coords, horizon)
+        if np.any(self.family == 0):
+            raise FamilyError(self.family)
 
         # Create the neighbourlist
         max_neigbhours = self.family.max()
