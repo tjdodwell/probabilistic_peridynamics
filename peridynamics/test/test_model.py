@@ -393,40 +393,8 @@ class TestSimulate:
 
         assert np.all(u == expected_u)
         assert np.all(damage == expected_damage)
-        assert np.all(
-            connectivity.toarray() == expected_connectivity.toarray()
-            )
-
-    def test_restart_dense(self, simple_model, simple_boundary_function):
-        """Ensure simulation restarting works with dense connectivity."""
-        model = simple_model
-        euler = Euler(dt=1e-3)
-
-        u, damage, connectivity = model.simulate(
-            steps=1,
-            integrator=euler,
-            boundary_function=simple_boundary_function
-            )
-        u, damage, connectivity = model.simulate(
-            steps=1,
-            integrator=euler,
-            boundary_function=simple_boundary_function,
-            u=u,
-            connectivity=connectivity.toarray(),
-            first_step=2
-            )
-
-        expected_u, expected_damage, expected_connectivity = model.simulate(
-            steps=2,
-            integrator=euler,
-            boundary_function=simple_boundary_function
-            )
-
-        assert np.all(u == expected_u)
-        assert np.all(damage == expected_damage)
-        assert np.all(
-            connectivity.toarray() == expected_connectivity.toarray()
-            )
+        assert np.all(connectivity[0] == expected_connectivity[0])
+        assert np.all(connectivity[1] == expected_connectivity[1])
 
     def test_no_boundary_function(self, simple_model):
         """Ensure passing no boundary function works correctly."""
@@ -450,9 +418,8 @@ class TestSimulate:
 
         assert np.all(u == expected_u)
         assert np.all(damage == expected_damage)
-        assert np.all(
-            connectivity.toarray() == expected_connectivity.toarray()
-            )
+        assert np.all(connectivity[0] == expected_connectivity[0])
+        assert np.all(connectivity[1] == expected_connectivity[1])
 
     def test_write(self, simple_model, simple_boundary_function, tmp_path):
         """Ensure that the mesh file written by simulate is correct."""
