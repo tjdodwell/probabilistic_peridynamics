@@ -132,6 +132,8 @@ class Model(object):
 
         :raises DimensionalityError: when an invalid `dimensions` argument is
             provided.
+        :raises FamilyError: when a node has no neighbours (other nodes it
+            interacts with) in the initial state.
         """
         # Set model dimensionality
         self.dimensions = dimensions
