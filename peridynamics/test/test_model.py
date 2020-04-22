@@ -343,6 +343,18 @@ class TestSimulate:
         with pytest.raises(InvalidIntegrator):
             model.simulate(10, None)
 
+    def test_invalid_connectivity(self, basic_model_2d):
+        """Test passing an invalid connectivity argument to simulate."""
+        euler = Euler(dt=1e-3)
+        with pytest.raises(ValueError):
+            basic_model_2d.simulate(10, euler, connectivity=[1, 2, 3])
+
+    def test_invalid_connectivity2(self, basic_model_2d):
+        """Test passing an invalid connectivity argument to simulate."""
+        euler = Euler(dt=1e-3)
+        with pytest.raises(ValueError):
+            basic_model_2d.simulate(10, euler, connectivity=(1, 2, 3))
+
     def test_stateless(self, simple_model, simple_boundary_function):
         """Ensure the simulate method does not affect the state of Models."""
         model = simple_model
