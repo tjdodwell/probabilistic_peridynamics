@@ -423,7 +423,8 @@ def initial_crack_helper(crack_function):
 
         # Get all pairs of bonded particles
         nnodes = nlist.shape[0]
-        pairs = [(i, j) for i in range(nnodes) for j in nlist[i][0:n_neigh[i]]]
+        pairs = [(i, j) for i in range(nnodes) for j in nlist[i][0:n_neigh[i]]
+                 if i < j]
 
         # Check each pair using the crack function
         for i, j in pairs:
