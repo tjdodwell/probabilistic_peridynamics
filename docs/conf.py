@@ -39,7 +39,6 @@ autoclass_content = 'both'
 # intersphinx configuration
 intersphinx_mapping = {
     'numpy': ('https://docs.scipy.org/doc/numpy/', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy/reference', None)
     }
 
 # Add any paths that contain templates here, relative to this directory.

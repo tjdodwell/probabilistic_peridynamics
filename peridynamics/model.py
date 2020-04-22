@@ -281,6 +281,10 @@ class Model(object):
 
         :arg u: A (nnodes, 3) array of the displacements of each node.
         :type u: :class:`numpy.ndarray`
+        :arg nlist: The neighbour list.
+        :type nlist: :class:`numpy.ndarray`
+        :arg n_neigh: The number of neighbours of each node.
+        :type n_neigh: :class:`numpy.ndarray`
         """
         break_bonds(self.coords+u, self.coords, nlist, n_neigh,
                     self.critical_strain)
@@ -288,6 +292,9 @@ class Model(object):
     def _damage(self, n_neigh):
         """
         Calculate bond damage.
+
+        :arg n_neigh: The number of neighbours of each node.
+        :type n_neigh: :class:`numpy.ndarray`
 
         :returns: A (`nnodes`, ) array containing the damage for each node.
         :rtype: :class:`numpy.ndarray`
@@ -300,6 +307,10 @@ class Model(object):
 
         :arg u: A (nnodes, 3) array of the displacements of each node.
         :type u: :class:`numpy.ndarray`
+        :arg nlist: The neighbour list.
+        :type nlist: :class:`numpy.ndarray`
+        :arg n_neigh: The number of neighbours of each node.
+        :type n_neigh: :class:`numpy.ndarray`
 
         :returns: A (`nnodes`, 3) array of the component of the force in each
             dimension for each node.
@@ -331,11 +342,12 @@ class Model(object):
         :arg u: The initial displacements for the simulation. If `None` the
             displacements will be initialised to zero. Default `None`.
         :type u: :class:`numpy.ndarray`
-        :arg connectivity: The initial connectivity for the simulation. If
+        :arg connectivity: The initial connectivity for the simulation. A tuple
+            of a neighbour list and the number of neighbours for each node. If
             `None` the connectivity at the time of construction of the
-            :class:`Model` object will be used.
-        :type connectivity: :class:`scipy.sparse.csr_matrix` or
-            :class:`numpy.ndarray`
+            :class:`Model` object will be used. Default `None`.
+        :type connectivity: tuple(:class:`numpy.ndarray`,
+            :class:`numpy.ndarray`)
         :arg int first_step: The starting step number. This is useful when
             restarting a simulation, especially if `boundary_function` depends
             on the absolute step number.
@@ -349,7 +361,7 @@ class Model(object):
         :returns: A tuple of the final displacements (`u`), damage and
             connectivity.
         :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
-            :class:`scipy.sparse.csr_matrix`)
+            tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`))
         """
         if not isinstance(integrator, Integrator):
             raise InvalidIntegrator(integrator)
