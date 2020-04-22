@@ -12,6 +12,7 @@ Welcome to Probabilistic Peridynamics's documentation!
 
    model
    integrators
+   spatial
 
 
 
