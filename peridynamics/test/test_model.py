@@ -4,7 +4,6 @@ from ..model import (Model, DimensionalityError, FamilyError,
 from ..integrators import Euler
 import meshio
 import numpy as np
-import scipy.sparse as sparse
 import pytest
 
 
@@ -462,8 +461,15 @@ class TestInitialCrackHelper:
             else:
                 return False
 
-        actual = initial_crack(self.coords,
-                               sparse.csr_matrix(np.ones((4, 4), dtype=bool)))
+        n_neigh = np.full((4,), 3)
+        nlist = np.array([
+            [1, 2, 3],
+            [0, 2, 3],
+            [0, 1, 3],
+            [0, 1, 2]
+            ])
+
+        actual = initial_crack(self.coords, nlist, n_neigh)
         expected = [
             (0, 3),
             (1, 2),
@@ -474,7 +480,7 @@ class TestInitialCrackHelper:
         assert expected == actual
 
     def test_neighbourhood(self):
-        """Test with a neighbourhood defined."""
+        """Test with a neighbourlist defined."""
         @initial_crack_helper
         def initial_crack(icoord, jcoord):
             critical_distance = 1.0
@@ -485,14 +491,15 @@ class TestInitialCrackHelper:
 
         # Create a neighbourhood matrix, ensure that particle 3 is not in the
         # neighbourhood of any other nodes
-        neighbourhood = np.zeros((4, 4), dtype=bool)
-        neighbourhood[0, 1] = True
-        neighbourhood[0, 2] = True
-        neighbourhood[1, 2] = True
-        neighbourhood = neighbourhood + neighbourhood.T
-        neighbourhood = sparse.csr_matrix(neighbourhood)
+        n_neigh = np.array([2, 2, 2, 0])
+        nlist = np.array([
+            [1, 2],
+            [0, 2],
+            [0, 1],
+            [0, 0]
+            ])
 
-        actual = initial_crack(self.coords, neighbourhood)
+        actual = initial_crack(self.coords, nlist, n_neigh)
         expected = [
             (1, 2)
             ]
