@@ -3,6 +3,19 @@ import numpy as np
 
 
 def damage(int[:] n_neigh, int[:] family):
+    """
+    Calculate the damage for each node.
+
+    Damage is defined as the ratio of broken bonds at a node to the total
+    number of bonds at that node.
+
+    :arg n_neigh: The current number of neighbours for each node, *i.e.* the
+        number of unbroken bonds. dtype=numpy.int32.
+    :type n_neigh: :class:`numpy.ndarray`
+    :arg family: The total (initial) number of bonds for each node.
+        dtype=numpy.int32.
+    :type family: :class:`numpy.ndarray`
+    """
     cdef nnodes = family.shape[0]
 
     result = np.empty(nnodes, dtype=np.float64)
@@ -20,6 +33,21 @@ def damage(int[:] n_neigh, int[:] family):
 
 def bond_force(double[:, :] r, double[:, :] r0, int[:, :] nlist,
                int[:] n_neigh, double[:] volume, double bond_stiffness):
+    """
+    Calculate the force due to bonds on each node.
+
+    :arg r: The current coordinates of each node.
+    :type r: :class:`numpy.ndarray`
+    :arg r0: The initial coordinates of each node.
+    :type r0: :class:`numpy.ndarray`
+    :arg nlist: The neighbour list
+    :type nlist: :class:`numpy.ndarray`
+    :arg n_neigh: The number of neighbours for each node.
+    :type n_neigh: :class:`numpy.ndarray`
+    :arg volume: The volume of each node.
+    :type volume: :class:`numpy.ndarray`
+    :arg float bond_stiffness: The bond stiffness.
+    """
     cdef int nnodes = nlist.shape[0]
 
     force = np.zeros((nnodes, 3), dtype=np.float64)
