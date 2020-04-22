@@ -42,7 +42,7 @@ class TestRegression:
         path = data_path
 
         expected_damage = np.load(path/"expected_damage.npy")
-        assert np.all(damage == expected_damage)
+        assert np.allclose(damage, expected_damage)
 
     def test_mesh(self, regression, data_path, tmp_path):
         """Ensure mesh file is identical."""

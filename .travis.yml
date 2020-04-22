@@ -3,25 +3,23 @@ dist: bionic
 language: python
 
 python:
-  - 3.6
   - 3.7
+  - 3.6
   - 3.8
 
-addons:
-  apt:
-    packages:
-      - pocl-opencl-icd
-      - clinfo
+before_install:
+  - pip install cython
+  - sudo apt-get -y install pocl-opencl-icd clinfo
 
 install:
-  - pip install .
-  - pip install flake8 flake8-docstrings pytest pytest-cov codecov
+  - pip install -e .
+
+before_script: pip install pytest pytest-cov codecov
 
 before_script:
   - clinfo
 
 script:
-  - flake8
   - pytest -v --cov-config=.coveragerc --cov=./peridynamics
 
 after_success:
@@ -29,8 +27,13 @@ after_success:
 
 jobs:
   include:
-    - python: 3.7
+    - name: Lint
+      before_install:
       install:
-        - pip install .
-        - pip install sphinx
+      before_script: pip install flake8 flake8-docstrings
+      script: flake8
+      after_success:
+    - name: Build documentation
+      before_script: pip install sphinx
       script: sphinx-build -W -b html docs build
+      after_success:
