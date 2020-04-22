@@ -4,6 +4,17 @@ import numpy as np
 
 
 def family(double[:, :] r, double horizon):
+    """
+    Determine the number of nodes within the horizon distance of each node.
+    This is the total number of bonded nodes.
+
+    :arg r: The coordinates of all nodes.
+    :type r: :class:`numpy.ndarray`
+    :arg float horizon: The horizon distance.
+
+    :return: An array of the number of nodes within the horizon of each node.
+    :rtype: :class:`numpy.ndarray`
+    """
     cdef int nnodes = r.shape[0]
 
     result = np.zeros(nnodes, dtype=np.intc)
@@ -21,6 +32,20 @@ def family(double[:, :] r, double horizon):
 
 
 def create_neighbour_list(double[:, :] r, double horizon, int size):
+    """
+    Build a neighbour list.
+
+    :arg r: The coordinates of all nodes.
+    :type r: :class:`numpy.ndarray`
+    :arg float horizon: The horizon distance.
+    :arg int size: The size of each row of the neighbour list. This is the
+        maximum number of neighbours and should be equal to the maximum of
+        of :func:`peridynamics.neighbour_list.family`.
+
+    :return: A tuple of the neighbour list and number of neighbours for each
+        node.
+    :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`)
+    """
     cdef int nnodes = r.shape[0]
 
     result = np.zeros((nnodes, size), dtype=np.intc)
@@ -45,6 +70,20 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
 
 def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
                 int[:] n_neigh, double critical_strain):
+    """
+    Update the neighbour list and number of neighbours by breaking bonds which
+    have exceeded the critical strain.
+
+    :arg r: The current coordinates of each node.
+    :type r: :class:`numpy.ndarray`
+    :arg r0: The initial coordinates of each node.
+    :type r0: :class:`numpy.ndarray`
+    :arg nlist: The neighbour list
+    :type nlist: :class:`numpy.ndarray`
+    :arg n_neigh: The number of neighbours for each node.
+    :type n_neigh: :class:`numpy.ndarray`
+    :arg float critical_strain: The critical strain.
+    """
     cdef int nnodes = nlist.shape[0]
 
     cdef int i, j, i_n_neigh, neigh
@@ -71,6 +110,17 @@ def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
 
 
 def create_crack(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):
+    """
+    Create a crack by removing selected pairs from the neighbour list.
+
+    :arg crack: An array giving the pairs between which to create the crack.
+        Each row of this array should be the index of two nodes.
+    :type crack: :class:`numpy.ndarray`
+    :arg nlist: The neighbour list
+    :type nlist: :class:`numpy.ndarray`
+    :arg n_neigh: The number of neighbours for each node.
+    :type n_neigh: :class:`numpy.ndarray`
+    """
     cdef int n = crack.shape[0]
 
     cdef int icrack, i, j, neigh
