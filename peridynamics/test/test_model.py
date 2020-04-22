@@ -4,7 +4,6 @@ from ..model import (Model, DimensionalityError, FamilyError,
 from ..integrators import Euler
 import meshio
 import numpy as np
-import scipy.sparse as sparse
 import pytest
 
 
@@ -200,67 +199,39 @@ def test_bond_stiffness_2d(basic_model_2d):
     assert np.isclose(basic_model_2d.bond_stiffness, 2864.7889756)
 
 
-def test_neighbourhood(basic_model_2d, data_path):
-    """Test _neighbourhood method."""
-    expected_neighbourhood = sparse.load_npz(
-        data_path/"expected_neighbourhood.npz"
-        )
-    assert np.all(
-        ~(basic_model_2d._neighbourhood() != expected_neighbourhood).toarray()
-        )
-
-
 class TestConnectivity:
-    """Test the _connectivity method."""
+    """Test the initial neighbour list."""
 
     def test_basic_connectivity(self, basic_model_2d, data_path):
         """Test connectivity calculation with no initial crack."""
-        expected_connectivity = sparse.load_npz(
+        npz_file = np.load(
             data_path/"expected_connectivity_basic.npz"
             )
-        assert np.all(
-            ~(
-                basic_model_2d.initial_connectivity != expected_connectivity
-                ).toarray()
-            )
+        expected_nlist = npz_file["nlist"]
+        expected_n_neigh = npz_file["n_neigh"]
+
+        actual_nlist, actual_n_neigh = basic_model_2d.initial_connectivity
+        assert np.all(expected_nlist == actual_nlist)
+        assert np.all(expected_n_neigh == actual_n_neigh)
 
     def test_connectivity(self, simple_model, data_path):
-        """Test connectivity calculation with no initial crack."""
-        expected_connectivity = sparse.load_npz(
+        """Test connectivity calculation with initial crack."""
+        npz_file = np.load(
             data_path/"expected_connectivity_crack.npz"
             )
-        assert np.all(
-            ~(
-                simple_model.initial_connectivity != expected_connectivity
-                ).toarray()
-            )
+        expected_nlist = npz_file["nlist"]
+        expected_n_neigh = npz_file["n_neigh"]
 
-
-def test_displacements():
-    """Test displacement calculation."""
-    r = np.identity(3, dtype=np.float)
-    expected_d_x = np.array([[0.0, -1.0, -1.0],
-                             [1.0, 0.0, 0.0],
-                             [1.0, 0.0, 0.0]])
-    expected_d_y = np.array([[0.0, 1.0, 0.0],
-                             [-1.0, 0.0, -1.0],
-                             [0.0, 1.0, 0.0]])
-    expected_d_z = np.array([[0.0, 0.0, 1.0],
-                             [0.0, 0.0, 1.0],
-                             [-1.0, -1.0, 0.0]])
-
-    d_x, d_y, d_z = Model._displacements(r)
-
-    assert np.all(d_x == expected_d_x)
-    assert np.all(d_y == expected_d_y)
-    assert np.all(d_z == expected_d_z)
+        actual_nlist, actual_n_neigh = simple_model.initial_connectivity
+        assert np.all(expected_nlist == actual_nlist)
+        assert np.all(expected_n_neigh == actual_n_neigh)
 
 
 def test_initial_damage_2d(basic_model_2d):
     """Ensure initial damage is zero."""
     model = basic_model_2d
     connectivity = model.initial_connectivity
-    damage = model._damage(connectivity)
+    damage = model._damage(connectivity[1])
 
     assert np.all(damage == 0)
 
@@ -269,7 +240,7 @@ def test_initial_damage_3d(basic_model_3d):
     """Ensure initial damage is zero."""
     model = basic_model_3d
     connectivity = model.initial_connectivity
-    damage = model._damage(connectivity)
+    damage = model._damage(connectivity[1])
 
     assert np.all(damage == 0)
 
@@ -297,24 +268,27 @@ class TestForce():
     def test_initial_force(self, model_force_test):
         """Ensure initial forces are zero."""
         model = model_force_test
-        connectivity = model.initial_connectivity
+        nlist, n_neigh = model.initial_connectivity
 
-        H_x, H_y, H_z, L = model._H_and_L(model.coords, connectivity)
-        strain = model._strain(L)
-        f = model._bond_force(strain, connectivity, L, H_x, H_y, H_z)
+        u = np.zeros_like(model.coords)
+        f = model._bond_force(u, nlist, n_neigh)
 
         assert np.all(f == 0)
 
     def test_force(self, model_force_test):
         """Ensure forces are in the correct direction using a minimal model."""
         model = model_force_test
-        connectivity = model.initial_connectivity
+        nlist, n_neigh = model.initial_connectivity
 
         # Nodes 0 and 1 are connected along the x axis, 1 and 2 along the y
         # axis. There are no other connections.
-        assert connectivity[1, 0]
-        assert not connectivity[2, 0]
-        assert connectivity[2, 1]
+        assert n_neigh[0] == 1
+        assert n_neigh[1] == 2
+        assert n_neigh[2] == 1
+        assert 1 in nlist[0]
+        assert 0 in nlist[1]
+        assert 2 in nlist[1]
+        assert 1 in nlist[2]
 
         # Displace nodes 1 and 2 in the positive x direction and y in the
         # positive y direction
@@ -326,9 +300,7 @@ class TestForce():
 
         # Calculate force
         # This is lifted from the Model.simulate method
-        H_x, H_y, H_z, L = model._H_and_L(model.coords+u, connectivity)
-        strain = model._strain(L)
-        f = model._bond_force(strain, connectivity, L, H_x, H_y, H_z)
+        f = model._bond_force(u, nlist, n_neigh)
 
         # Ensure force array is correct
         force_value = 0.00229417
@@ -371,6 +343,18 @@ class TestSimulate:
         with pytest.raises(InvalidIntegrator):
             model.simulate(10, None)
 
+    def test_invalid_connectivity(self, basic_model_2d):
+        """Test passing an invalid connectivity argument to simulate."""
+        euler = Euler(dt=1e-3)
+        with pytest.raises(ValueError):
+            basic_model_2d.simulate(10, euler, connectivity=[1, 2, 3])
+
+    def test_invalid_connectivity2(self, basic_model_2d):
+        """Test passing an invalid connectivity argument to simulate."""
+        euler = Euler(dt=1e-3)
+        with pytest.raises(ValueError):
+            basic_model_2d.simulate(10, euler, connectivity=(1, 2, 3))
+
     def test_stateless(self, simple_model, simple_boundary_function):
         """Ensure the simulate method does not affect the state of Models."""
         model = simple_model
@@ -390,9 +374,8 @@ class TestSimulate:
 
         assert np.all(u == expected_u)
         assert np.all(damage == expected_damage)
-        assert np.all(
-            connectivity.toarray() == expected_connectivity.toarray()
-            )
+        assert np.all(connectivity[0] == expected_connectivity[0])
+        assert np.all(connectivity[1] == expected_connectivity[1])
 
     def test_restart(self, simple_model, simple_boundary_function):
         """Ensure simulation restarting gives consistent results."""
@@ -421,40 +404,8 @@ class TestSimulate:
 
         assert np.all(u == expected_u)
         assert np.all(damage == expected_damage)
-        assert np.all(
-            connectivity.toarray() == expected_connectivity.toarray()
-            )
-
-    def test_restart_dense(self, simple_model, simple_boundary_function):
-        """Ensure simulation restarting works with dense connectivity."""
-        model = simple_model
-        euler = Euler(dt=1e-3)
-
-        u, damage, connectivity = model.simulate(
-            steps=1,
-            integrator=euler,
-            boundary_function=simple_boundary_function
-            )
-        u, damage, connectivity = model.simulate(
-            steps=1,
-            integrator=euler,
-            boundary_function=simple_boundary_function,
-            u=u,
-            connectivity=connectivity.toarray(),
-            first_step=2
-            )
-
-        expected_u, expected_damage, expected_connectivity = model.simulate(
-            steps=2,
-            integrator=euler,
-            boundary_function=simple_boundary_function
-            )
-
-        assert np.all(u == expected_u)
-        assert np.all(damage == expected_damage)
-        assert np.all(
-            connectivity.toarray() == expected_connectivity.toarray()
-            )
+        assert np.all(connectivity[0] == expected_connectivity[0])
+        assert np.all(connectivity[1] == expected_connectivity[1])
 
     def test_no_boundary_function(self, simple_model):
         """Ensure passing no boundary function works correctly."""
@@ -478,9 +429,8 @@ class TestSimulate:
 
         assert np.all(u == expected_u)
         assert np.all(damage == expected_damage)
-        assert np.all(
-            connectivity.toarray() == expected_connectivity.toarray()
-            )
+        assert np.all(connectivity[0] == expected_connectivity[0])
+        assert np.all(connectivity[1] == expected_connectivity[1])
 
     def test_write(self, simple_model, simple_boundary_function, tmp_path):
         """Ensure that the mesh file written by simulate is correct."""
@@ -523,8 +473,15 @@ class TestInitialCrackHelper:
             else:
                 return False
 
-        actual = initial_crack(self.coords,
-                               sparse.csr_matrix(np.ones((4, 4), dtype=bool)))
+        n_neigh = np.full((4,), 3)
+        nlist = np.array([
+            [1, 2, 3],
+            [0, 2, 3],
+            [0, 1, 3],
+            [0, 1, 2]
+            ])
+
+        actual = initial_crack(self.coords, nlist, n_neigh)
         expected = [
             (0, 3),
             (1, 2),
@@ -535,7 +492,7 @@ class TestInitialCrackHelper:
         assert expected == actual
 
     def test_neighbourhood(self):
-        """Test with a neighbourhood defined."""
+        """Test with a neighbourlist defined."""
         @initial_crack_helper
         def initial_crack(icoord, jcoord):
             critical_distance = 1.0
@@ -546,14 +503,15 @@ class TestInitialCrackHelper:
 
         # Create a neighbourhood matrix, ensure that particle 3 is not in the
         # neighbourhood of any other nodes
-        neighbourhood = np.zeros((4, 4), dtype=bool)
-        neighbourhood[0, 1] = True
-        neighbourhood[0, 2] = True
-        neighbourhood[1, 2] = True
-        neighbourhood = neighbourhood + neighbourhood.T
-        neighbourhood = sparse.csr_matrix(neighbourhood)
+        n_neigh = np.array([2, 2, 2, 0])
+        nlist = np.array([
+            [1, 2],
+            [0, 2],
+            [0, 1],
+            [0, 0]
+            ])
 
-        actual = initial_crack(self.coords, neighbourhood)
+        actual = initial_crack(self.coords, nlist, n_neigh)
         expected = [
             (1, 2)
             ]
