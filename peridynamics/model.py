@@ -24,8 +24,6 @@ class Model(object):
     This class allows users to define a peridynamics system from parameters and
     a set of initial conditions (coordinates and connectivity).
 
-    :Example: ::
-
         >>> from peridynamics import Model
         >>>
         >>> model = Model(
@@ -38,13 +36,14 @@ class Model(object):
     To define a crack in the inital configuration, you may supply a list of
     pairs of particles between which the crack is.
 
-    :Example: ::
-
-        >>> from peridynamics import Model, initial_crack_helper
-        >>>
         >>> initial_crack = [(1,2), (5,7), (3,9)]
-        >>> model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
-        >>>               elastic_modulus=0.05, initial_crack=initial_crack)
+        >>> model = Model(
+        >>>     mesh_file="./example.msh",
+        >>>     horizon=0.1,
+        >>>     critical_strain=0.005,
+        >>>     elastic_modulus=0.05,
+        >>>     initial_crack=initial_crack
+        >>>     )
 
     If it is more convenient to define the crack as a function you may also
     pass a function to the constructor which takes the array of coordinates as
@@ -53,9 +52,7 @@ class Model(object):
     to easily create a function of the correct form from one which tests a
     single pair of node coordinates and returns `True` or `False`.
 
-    :Example: ::
-
-        >>> from peridynamics import Model, initial_crack_helper
+        >>> from peridynamics import initial_crack_helper
         >>>
         >>> @initial_crack_helper
         >>> def initial_crack(x, y):
@@ -65,16 +62,18 @@ class Model(object):
         >>>     else:
         >>>         return False
         >>>
-        >>> model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
-        >>>               elastic_modulus=0.05, initial_crack=initial_crack)
+        >>> model = Model(
+        >>>     mesh_file="./example.msh",
+        >>>     horizon=0.1,
+        >>>     critical_strain=0.005,
+        >>>     elastic_modulus=0.05,
+        >>>     initial_crack=initial_crack
+        >>>     )
 
     The :meth:`Model.simulate` method can be used to conduct a peridynamics
     simulation. For this an :class:`peridynamics.integrators.Integrator` is
     required, and optionally a function implementing the boundary conditions.
 
-    :Example: ::
-
-        >>> from peridynamics import Model, initial_crack_helper
         >>> from peridynamics.integrators import Euler
         >>>
         >>> model = Model(...)
@@ -82,8 +81,12 @@ class Model(object):
         >>> euler = Euler(dt=1e-3)
         >>>
         >>> indices = np.arange(model.nnodes)
-        >>> model.lhs = indices[model.coords[:, 0] < 1.5*model.horizon]
-        >>> model.rhs = indices[model.coords[:, 0] > 1.0 - 1.5*model.horizon]
+        >>> model.lhs = indices[
+        >>>     model.coords[:, 0] < 1.5*model.horizon
+        >>>     ]
+        >>> model.rhs = indices[
+        >>>     model.coords[:, 0] > 1.0 - 1.5*model.horizon
+        >>>     ]
         >>>
         >>> def boundary_function(model, u, step):
         >>>     u[model.lhs] = 0
@@ -93,8 +96,11 @@ class Model(object):
         >>>
         >>>     return u
         >>>
-        >>> u, damage, *_ = model.simulate(steps=1000, integrator=euler,
-        >>>                                boundary_function=boundary_function)
+        >>> u, damage, *_ = model.simulate(
+        >>>     steps=1000,
+        >>>     integrator=euler,
+        >>>     boundary_function=boundary_function
+        >>>     )
     """
 
     def __init__(self, mesh_file, horizon, critical_strain, elastic_modulus,
