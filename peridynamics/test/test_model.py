@@ -48,8 +48,7 @@ class TestDimension:
         with pytest.raises(DimensionalityError) as exception:
             Model("abc.msh", horizon=0.1, critical_strain=0.05,
                   elastic_modulus=0.05, dimensions=dimensions)
-            print(str(exception.value))
-        assert str(dimensions) in str(exception.value)
+            assert str(dimensions) in str(exception.value)
 
 
 class TestRead2D:
