@@ -1,5 +1,5 @@
-cdef inline double ceuclid(double[:], double[:])
+cdef double ceuclid(double[:], double[:])
 
-cdef inline double cstrain(double[:], double[:], double[:], double[:])
+cdef double cstrain(double[:], double[:], double[:], double[:])
 
-cdef inline double cstrain2(double, double[:], double[:])
+cdef double cstrain2(double, double[:], double[:])
