@@ -1,10 +1,23 @@
 """Tests for the OpenCL kernels."""
-from ..cl import kernel_source, pad
+from ..cl import kernel_source, get_context, pad
+from ..cl.utilities import DOUBLE_FP_SUPPORT
 import numpy as np
 import pyopencl as cl
 from pyopencl import mem_flags as mf
 import pytest
 from scipy.spatial.distance import cdist
+
+
+def test_get_context():
+    context = get_context()
+
+    if type(context) == cl._cl.Context:
+        devices = context.devices
+        assert len(devices) == 1
+        assert (devices[0].get_info(cl.device_info.DOUBLE_FP_CONFIG)
+                == DOUBLE_FP_SUPPORT)
+    else:
+        assert context is None
 
 
 class TestPad():

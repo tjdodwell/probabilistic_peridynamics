@@ -1,5 +1,34 @@
-"""Utilities for using teh OpenCL kernels."""
+"""Utilities for using the OpenCL kernels."""
 import numpy as np
+import pyopencl as cl
+
+
+DOUBLE_FP_SUPPORT = (
+    cl.device_fp_config.DENORM | cl.device_fp_config.FMA |
+    cl.device_fp_config.INF_NAN | cl.device_fp_config.ROUND_TO_INF |
+    cl.device_fp_config.ROUND_TO_NEAREST |
+    cl.device_fp_config.ROUND_TO_ZERO
+    )
+
+
+def get_context():
+    """
+    Find an appropriate OpenCL context.
+
+    This function looks for a device with support for double
+    floating-point precision and prefers GPU devices.
+
+    :returns: A context with a single suitable device, or `None` is no suitable
+    device is found.
+    :rtype: :class:`pyopencl._cl.Context` or `NoneType`
+    """
+    for platform in cl.get_platforms():
+        for device_type in [cl.device_type.GPU, cl.device_type.ALL]:
+            for device in platform.get_devices(device_type):
+                if (device.get_info(cl.device_info.DOUBLE_FP_CONFIG)
+                        == DOUBLE_FP_SUPPORT):
+                    return cl.Context([device])
+    return None
 
 
 def pad(array, group_size, axis=0):
