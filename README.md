@@ -1,15 +1,15 @@
 # Probabilistic Peridynamics
 
 [![Build Status](https://travis-ci.com/alan-turing-institute/Probabilistic-Peridynamics.svg?branch=master)](https://travis-ci.com/alan-turing-institute/Probabilistic-Peridynamics)
-
 [![codecov](https://codecov.io/gh/alan-turing-institute/Probabilistic-Peridynamics/branch/master/graph/badge.svg)](https://codecov.io/gh/alan-turing-institute/Probabilistic-Peridynamics)
 
-Code base for 'Probabilistic Peridynamics' collaboration between Exeter, Cambridge &amp; Turing
+Probabilistic Peridynamics, a collaboration between Exeter, Cambridge &amp; the Alan Turing Institute.
 
-# Installation
+# Building and Installation
 
 - Clone the repository `git clone
   git@github.com:alan-turing-institute/probabilistic_peridynamics.git`
+- Install cython, a build dependency, `pip install cython`
 - Install using pip `pip install .`
 
 # Running the tests
@@ -19,3 +19,4 @@ the tests yourself,
 
 - Install pytest using pip `pip install pytest`
 - Run `pytest` from the root directory of the repository
+- For coverage install `pytest-cov` and run `pytest --cov=./peridynamics`
