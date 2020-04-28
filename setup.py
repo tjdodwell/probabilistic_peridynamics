@@ -2,8 +2,8 @@
 from setuptools import setup, find_packages, Extension
 from Cython.Build import cythonize
 
-extra_compile_args = ['-O3', '-fopenmp']
-extra_link_args = ['-fopenmp']
+extra_compile_args = ['-O3']
+extra_link_args = []
 
 ext_modules = [
     Extension(
