@@ -78,52 +78,12 @@ __kernel void break_bonds(__global const double* strain, double critical_strain,
 }
 
 
-__kernel void damage1(__global const bool* nhood, __local int* b,
-                      __global int* partials) {
-    int gid0 = get_global_id(0);
-    int gid1 = get_global_id(1);
-    int gsize1 = get_global_size(1);
-
-    int lid = get_local_id(0);
-    int lsize = get_local_size(0);
-    int wg = get_group_id(0);
-
-    // Copy to local memory, cast true to 1 and false to 0
-    b[lid] = (int)nhood[gid0*gsize1 + gid1];
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    // Reduction within work group, sum is left in b[0]
-    for (int stride=lsize>>1; stride>0; stride>>=1) {
-        if (lid < stride) {
-            b[lid] += b[lid+stride];
-        }
-        barrier(CLK_LOCAL_MEM_FENCE);
-    }
-
-    // Local thread 0 copies its work group sum to the result array
-    if (lid == 0) {
-        // row is wg
-        // col is gid1
-        partials[wg*gsize1 + gid1] = b[0];
-    }
-}
-
-
-__kernel void damage2(__global int* partials, int n_partials,
-                      __global const int* family, __global double* damage) {
+__kernel void damage(__global const int* n_neigh, __global const int* family,
+                     __global double* damage){
     int i = get_global_id(0);
-    int n = get_global_size(0);
 
-    // Complete summing the number of unbroken bonds
-    damage[i] = 0.0;
-    for (int j=0; j<n_partials; j++) {
-        damage[i] += (double)partials[j*n+i];
-    }
-
-    // Damage calculation
-    // (initially_unbroken - current_unbroken)/initially_unbroken
-    // == 1 - current_unbroken/initially_unbroken
-    damage[i] = 1.0 - damage[i]/family[i];
+    int ifamily = family[i];
+    damage[i] = (double)(ifamily - n_neigh[i])/ifamily;
 }
 
 

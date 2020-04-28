@@ -289,52 +289,23 @@ def test_break_bonds2(context, queue, program):
 
 
 @context_available
-def test_damage(context, queue, program, example):
-    """Test damage kernels."""
-    connectivity = example.connectivity
-    family = example.family
-    expected_damage = example.damage
-    damage_h = np.empty_like(expected_damage)
-
-    # Initialise
-    group_size = 256
-
-    connectivity = pad(connectivity, group_size)
-
-    n_cols = connectivity.shape[1]
-    col_length = connectivity.shape[0]
-    work_groups_per_col = col_length//group_size
-
-    p_h = np.zeros((work_groups_per_col, n_cols), dtype=np.int32)
-    local_memory_size = (
-        connectivity[:, 0].astype(np.int32).nbytes//work_groups_per_col
-        )
-
-    # Kernel functors
-    damage1 = program.damage1
-    damage2 = program.damage2
+def test_damage(context, queue, program):
+    """Test damage kernel."""
+    n_neigh = np.array([5, 5, 3, 0, 4, 5, 8, 3, 2, 1], dtype=np.int32)
+    family = np.array([10, 5, 5, 1, 5, 7, 10, 3, 3, 4], dtype=np.int32)
+    damage = np.empty(n_neigh.shape, dtype=np.float64)
 
     # Create buffers
-    connectivity_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                               hostbuf=connectivity)
-    b_d = cl.LocalMemory(local_memory_size)
-    p_d = cl.Buffer(context, mf.READ_WRITE, p_h.nbytes)
-
-    # Call first kernel
-    damage1(queue, connectivity.shape, (group_size, 1,), connectivity_d, b_d,
-            p_d)
-    # In production copying this array now is unecessary and will hinder
-    # performance
-    cl.enqueue_copy(queue, p_h, p_d)
-    assert np.allclose(np.sum(p_h, axis=0), np.sum(connectivity, axis=0))
-
-    # Create buffers
+    n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                          hostbuf=n_neigh)
     family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                          hostbuf=family)
-    damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage_h.nbytes)
+    damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
 
-    # Call second kernel
-    damage2(queue, (n_cols,), None, p_d, np.int32(work_groups_per_col),
-            family_d, damage_d)
-    cl.enqueue_copy(queue, damage_h, damage_d)
-    assert np.allclose(damage_h, expected_damage)
+    # Call kernel
+    damage_kernel = program.damage
+    damage_kernel(queue, family.shape, None, n_neigh_d, family_d, damage_d)
+    cl.enqueue_copy(queue, damage, damage_d)
+
+    damage_expected = (family - n_neigh) / family
+    assert np.allclose(damage, damage_expected)
