@@ -87,19 +87,23 @@ class TestPad():
 @pytest.fixture(scope="module")
 def context():
     """Create a context using the default platform, prefer GPU."""
-    platform = cl.get_platforms()
-    devices = platform[0].get_devices(cl.device_type.GPU)
-    if not devices:
-        devices = platform[0].get_devices(cl.device_type.DEFAULT)
-    return cl.Context([devices[0]])
+    return get_context()
 
 
+context_available = pytest.mark.skipif(
+    get_context() is None,
+    reason="Suitable OpenCL context required."
+    )
+
+
+@context_available
 @pytest.fixture(scope="module")
 def queue(context):
     """Create a CL command queue."""
     return cl.CommandQueue(context)
 
 
+@context_available
 @pytest.fixture(scope="module")
 def program(context):
     """Create a program object from the kernel source."""
@@ -146,6 +150,7 @@ def example():
     return Example()
 
 
+@context_available
 def test_neighbourhood(context, queue, program, example):
     """Test neighbourhood calculation."""
     # Retrieve test data
@@ -166,6 +171,7 @@ def test_neighbourhood(context, queue, program, example):
     assert np.all(neighbourhood_h == expected_neighbourhood)
 
 
+@context_available
 def test_distance(context, queue, program, example):
     """Test Euclidean distance calculation."""
     # Retrieve test data
@@ -188,6 +194,7 @@ def test_distance(context, queue, program, example):
     assert np.allclose(d[nhood], cdist(r, r)[nhood])
 
 
+@context_available
 def test_strain(context, queue, program, example):
     """Test strain calculation."""
     # Retrieve test data
@@ -213,6 +220,7 @@ def test_strain(context, queue, program, example):
     assert np.allclose(strain_h[nhood], expected_strain[nhood])
 
 
+@context_available
 def test_break_bonds(context, queue, program, example):
     """Test bond breaking."""
     # Retrieve test data
@@ -239,6 +247,7 @@ def test_break_bonds(context, queue, program, example):
     assert np.all(nhood_new == expected_nhood_new)
 
 
+@context_available
 def test_break_bonds2(context, queue, program):
     """
     Test bond breaking with a hand crafted example.
@@ -279,6 +288,7 @@ def test_break_bonds2(context, queue, program):
     assert np.all(nhood_new == expected_nhood_new)
 
 
+@context_available
 def test_damage(context, queue, program, example):
     """Test damage kernels."""
     connectivity = example.connectivity
