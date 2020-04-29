@@ -1,5 +1,6 @@
 """Shared definitions for test modules."""
 from ..model import Model, initial_crack_helper
+from ..model_cl import ModelCL
 import numpy as np
 import pathlib
 import pytest
@@ -12,9 +13,9 @@ def data_path():
     return path
 
 
-@pytest.fixture(scope="session")
-def simple_model(data_path):
-    """Create a simple peridynamics Model object."""
+@pytest.fixture(scope="session", params=[Model, ModelCL])
+def simple_model(data_path, request):
+    """Create a simple peridynamics Model and ModelCL object."""
     path = data_path
     mesh_file = path / "example_mesh.vtk"
 
@@ -40,8 +41,8 @@ def simple_model(data_path):
         return output
 
     # Create model
-    model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
-                  elastic_modulus=0.05, initial_crack=is_crack)
+    model = request.param(mesh_file, horizon=0.1, critical_strain=0.005,
+                          elastic_modulus=0.05, initial_crack=is_crack)
 
     # Set left-hand side and right-hand side of boundary
     model.lhs = np.nonzero(model.coords[:, 0] < 1.5*model.horizon)

@@ -1,27 +1,28 @@
 """Tests for the model class."""
 from ..model import (Model, DimensionalityError, FamilyError,
                      initial_crack_helper, InvalidIntegrator)
+from ..model_cl import ModelCL
 from ..integrators import Euler
 import meshio
 import numpy as np
 import pytest
 
 
-@pytest.fixture(scope="module")
-def basic_model_2d(data_path):
+@pytest.fixture(scope="module", params=[Model, ModelCL])
+def basic_model_2d(data_path, request):
     """Create a basic 2D model object."""
     mesh_file = data_path / "example_mesh.vtk"
-    model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
-                  elastic_modulus=0.05)
+    model = request.param(mesh_file, horizon=0.1, critical_strain=0.05,
+                          elastic_modulus=0.05)
     return model
 
 
-@pytest.fixture(scope="module")
-def basic_model_3d(data_path):
+@pytest.fixture(scope="module", params=[Model, ModelCL])
+def basic_model_3d(data_path, request):
     """Create a basic 3D model object."""
     mesh_file = data_path / "example_mesh_3d.vtk"
-    model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
-                  elastic_modulus=0.05, dimensions=3)
+    model = request.param(mesh_file, horizon=0.1, critical_strain=0.05,
+                          elastic_modulus=0.05, dimensions=3)
     return model
 
 
@@ -107,25 +108,6 @@ class TestRead3D:
 
         assert model.mesh_boundary.shape == (1474, 3)
         assert np.all(model.mesh_boundary[100] == np.array([172, 185, 124]))
-
-
-@pytest.fixture
-def written_model(basic_model_3d, tmp_path):
-    """Write an example mesh file from a model."""
-    model = basic_model_3d
-    mesh_file = tmp_path / "out_mesh.vtk"
-
-    # Create synthetic damage and displacements
-    # The damange is simply the number of the node (begining at 0) divided by
-    # the total
-    damage = np.arange(model.nnodes)/model.nnodes
-    # The displacements are three columns of the damage array
-    displacements = np.tile(damage, (3, 1)).T
-
-    model.write_mesh(mesh_file, damage, displacements, file_format="vtk-ascii")
-    model.write_mesh("abc.vtk", damage, displacements, file_format="vtk-ascii")
-
-    return mesh_file
 
 
 @pytest.fixture(scope="class")
