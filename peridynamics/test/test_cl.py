@@ -178,6 +178,7 @@ class TestForce():
 
         assert np.allclose(force_actual, force_expected)
 
+    @context_available
     def test_force(self, context, queue, program):
         """Ensure forces are in the correct direction using a minimal model."""
         r0 = np.array([
