@@ -9,6 +9,7 @@ import pytest
 
 
 def test_get_context():
+    """Test the get_context function."""
     context = get_context()
 
     if type(context) == cl._cl.Context:
