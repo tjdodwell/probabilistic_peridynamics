@@ -16,7 +16,7 @@ def test_get_context():
         devices = context.devices
         assert len(devices) == 1
         assert (devices[0].get_info(cl.device_info.DOUBLE_FP_CONFIG)
-                == DOUBLE_FP_SUPPORT)
+                & DOUBLE_FP_SUPPORT)
     else:
         assert context is None
 
