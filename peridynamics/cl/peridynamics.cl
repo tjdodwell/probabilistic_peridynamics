@@ -28,51 +28,6 @@ double strain(__global const double* r0, int i, int j, double l) {
 }
 
 
-__kernel void neighbourhood(__global const double* r, double threshold,
-                            __global bool* nhood) {
-    int i = get_global_id(0);
-    int j = get_global_id(1);
-    int n = get_global_size(1);
-
-    int index = i*n + j;
-
-    if (i == j) {
-        nhood[index] = false;
-    } else {
-        nhood[i*n + j] = euclid(r, i, j) < threshold;
-    }
-}
-
-
-__kernel void dist(__global const double* r, __global const bool* nhood,
-                   __global double* d) {
-    int i = get_global_id(0);
-    int j = get_global_id(1);
-    int n = get_global_size(1);
-
-    int index = i*n + j;
-    if (nhood[index]) {
-        d[index] = euclid(r, i, j);
-    }
-}
-
-
-__kernel void break_bonds(__global const double* strain, double critical_strain,
-                          __global bool* nhood) {
-    int i = get_global_id(0);
-    int j = get_global_id(1);
-    int n = get_global_size(1);
-
-    int index = i*n +j;
-
-    if (nhood[index]) {
-        if (fabs(strain[index]) > critical_strain) {
-            nhood[index] = false;
-        }
-    }
-}
-
-
 __kernel void damage(__global const int* n_neigh, __global const int* family,
                      __global double* damage){
     int i = get_global_id(0);
