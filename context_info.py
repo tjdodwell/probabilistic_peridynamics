@@ -13,4 +13,4 @@ for platform in cl.get_platforms():
         for device in platform.get_devices(device_type):
             print(f"\t{device}")
             print(f"\t{device.get_info(cl.device_info.DOUBLE_FP_CONFIG)}")
-            print(f"\t{device.get_info(cl.device_info.DOUBLE_FP_CONFIG) == DOUBLE_FP_SUPPORT}")
+            print(f"\t{device.get_info(cl.device_info.DOUBLE_FP_CONFIG) & DOUBLE_FP_SUPPORT != 0}")

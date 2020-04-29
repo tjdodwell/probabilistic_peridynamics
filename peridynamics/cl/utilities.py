@@ -26,7 +26,7 @@ def get_context():
         for device_type in [cl.device_type.GPU, cl.device_type.ALL]:
             for device in platform.get_devices(device_type):
                 if (device.get_info(cl.device_info.DOUBLE_FP_CONFIG)
-                        == DOUBLE_FP_SUPPORT):
+                        & DOUBLE_FP_SUPPORT):
                     return cl.Context([device])
     return None
 
