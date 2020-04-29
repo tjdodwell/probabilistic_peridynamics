@@ -14,9 +14,8 @@ before_install:
 install:
   - pip install -e .
 
-before_script: pip install pytest pytest-cov codecov
-
 before_script:
+  - pip install pytest pytest-cov codecov
   - clinfo
 
 script:
