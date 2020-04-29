@@ -13,6 +13,21 @@ double euclid(__global const double* r, int i, int j) {
 }
 
 
+double strain(__global const double* r0, int i, int j, double l) {
+    int il = i*3;
+    int jl = j*3;
+
+    double dx = r0[jl] - r0[il];
+    double dy = r0[jl+1] - r0[il+1];
+    double dz = r0[jl+2] - r0[il+2];
+
+    double l0 = sqrt(dx*dx + dy*dy + dz*dz);
+    double dl = l - l0;
+
+    return dl / l0;
+}
+
+
 __kernel void neighbourhood(__global const double* r, double threshold,
                             __global bool* nhood) {
     int i = get_global_id(0);
@@ -42,26 +57,6 @@ __kernel void dist(__global const double* r, __global const bool* nhood,
 }
 
 
-__kernel void strain(__global const double* r, __global const double* d0,
-                     __global const bool* nhood, __global double* strain) {
-    int i = get_global_id(0);
-    int j = get_global_id(1);
-    int n = get_global_size(1);
-
-    int index = i*n +j;
-
-    if (nhood[index]) {
-        double l0 = d0[index];
-        if (l0 == 0.) {
-            strain[index] = 0.;
-        } else {
-            double l = euclid(r, i, j);
-            strain[index] = (l - l0) / l0;
-        }
-    }
-}
-
-
 __kernel void break_bonds(__global const double* strain, double critical_strain,
                           __global bool* nhood) {
     int i = get_global_id(0);
@@ -87,45 +82,35 @@ __kernel void damage(__global const int* n_neigh, __global const int* family,
 }
 
 
-/* Force
- * global size (nnodes, nnodes, 3) local size (group_size, 1, 1)
- * each work item calculates a force for pair global_size(0), global_size(1) in dimension global_size(2)
- *   - strain(i,j) / euclidean_distance(i,j)
- *   - *= volume(i)
- *   - *= bond_stiffness
- *   - *= distance_in_dimension_k(i,j)
- * reduction sum over axis0 leaving a (npartials, nnodes, 3) array, finish sum on host
- */
-// __kernel void force(__global const double* strain, __global const double* dist,
-//                     __global const double* volume, float bond_stiffness
-//                     __local float* b, __global double* partials) {
-//     int gid0 = get_global_id(0);
-//     int gid1 = get_global_id(1);
-//     int gsize1 = get_global_size(1);
+__kernel void bond_force(__global const double* r, __global const double* r0,
+                         __global const int* nlist, global const int* n_neigh,
+                         int max_neigh, __global const double* volume,
+                         double bond_stiffness, __global double* f) {
+    int i = get_global_id(0);
 
-//     int lid = get_local_id(0);
-//     int lsize = get_local_size(0);
-//     int wg = get_group_id(0);
+    double fi[3] = {0.0, 0.0, 0.0};
 
-//     int index = gid0*gsize1 + gid1;
-//     float norm_force = strain[
+    for(int neigh=0; neigh<n_neigh[i]; neigh++) {
+        int j = nlist[i*max_neigh + neigh];
 
-//     // Copy to local memory
-//     b[lid] = a[gid0*gsize1 + gid1];
-//     barrier(CLK_LOCAL_MEM_FENCE);
+        double l = euclid(r, i, j);
 
-//     // Reduction within work group, sum is left in b[0]
-//     for (int stride=lsize>>1; stride>0; stride>>=1) {
-//         if (lid < stride) {
-//             b[lid] += b[lid+stride];
-//         }
-//         barrier(CLK_LOCAL_MEM_FENCE);
-//     }
+        double force_norm = strain(r0, i, j, l) * bond_stiffness;
+        force_norm = force_norm / l;
 
-//     // Local thread 0 copies its work group sum to the result array
-//     if (lid == 0) {
-//         // row is wg
-//         // col is gid1
-//         partials[wg*gsize1 + gid1] = b[0];
-//     }
-// }
+        #pragma unroll
+        for(int dim=0; dim<3; dim++) {
+            fi[dim] += force_norm * (r[j*3 + dim] - r[i*3 + dim]);
+        }
+    }
+
+    #pragma unroll
+    for(int dim=0; dim<3; dim++) {
+        fi[dim] *= volume[i];
+    }
+
+    #pragma unroll
+    for(int dim=0; dim<3; dim++) {
+        f[i*3 + dim] = fi[dim];
+    }
+}

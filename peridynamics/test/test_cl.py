@@ -2,6 +2,7 @@
 from ..cl import kernel_source, get_context, pad
 from ..cl.utilities import DOUBLE_FP_SUPPORT
 import numpy as np
+from peridynamics.neighbour_list import create_neighbour_list
 import pyopencl as cl
 from pyopencl import mem_flags as mf
 import pytest
@@ -195,32 +196,6 @@ def test_distance(context, queue, program, example):
 
 
 @context_available
-def test_strain(context, queue, program, example):
-    """Test strain calculation."""
-    # Retrieve test data
-    n = example.n
-    r = example.r
-    d0 = example.d0
-    nhood = example.neighbourhood
-    expected_strain = example.strain
-    strain_h = np.empty_like(d0)
-
-    # Kernel functor
-    strain = program.strain
-
-    # Create buffers
-    r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r)
-    d0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=d0)
-    nhood_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                        hostbuf=nhood)
-    strain_d = cl.Buffer(context, mf.WRITE_ONLY, strain_h.nbytes)
-
-    strain(queue, (n, n), None, r_d, d0_d, nhood_d, strain_d)
-    cl.enqueue_copy(queue, strain_h, strain_d)
-    assert np.allclose(strain_h[nhood], expected_strain[nhood])
-
-
-@context_available
 def test_break_bonds(context, queue, program, example):
     """Test bond breaking."""
     # Retrieve test data
@@ -309,3 +284,99 @@ def test_damage(context, queue, program):
 
     damage_expected = (family - n_neigh) / family
     assert np.allclose(damage, damage_expected)
+
+
+class TestForce():
+    """Test force calculation."""
+
+    @context_available
+    def test_initial_force(self, context, queue, program):
+        """Ensure forces are zero when there is no displacement."""
+        r0 = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0],
+            ], dtype=np.float64)
+        horizon = 1.1
+        volume = np.ones(5, dtype=np.float64)
+        bond_stiffness = 1.0
+        max_neigh = 3
+        nlist, n_neigh = create_neighbour_list(r0, horizon, max_neigh)
+
+        force_expected = np.zeros((5, 3), dtype=np.float64)
+        force_actual = np.empty_like(force_expected)
+
+        # Create buffers
+        r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                        hostbuf=r0)
+        r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                         hostbuf=r0)
+        nlist_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                            hostbuf=nlist)
+        n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                              hostbuf=n_neigh)
+        volume_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                             hostbuf=volume)
+        force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
+
+        # Call kernel
+        bond_force = program.bond_force
+        bond_force(queue, n_neigh.shape, None, r_d, r0_d, nlist_d, n_neigh_d,
+                   np.int32(max_neigh), volume_d, np.float64(bond_stiffness),
+                   force_d)
+        cl.enqueue_copy(queue, force_actual, force_d)
+
+        assert np.allclose(force_actual, force_expected)
+
+    def test_force(self, context, queue, program):
+        """Ensure forces are in the correct direction using a minimal model."""
+        r0 = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            ], dtype=np.float64)
+        horizon = 1.01
+        elastic_modulus = 0.05
+        bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
+        max_neigh = 3
+        volume = np.full(3, 0.16666667, dtype=np.float64)
+        nlist, n_neigh = create_neighbour_list(r0, horizon, max_neigh)
+
+        # Displace particles, but do not update neighbour list
+        r = r0 + np.array([
+            [0.0, 0.0, 0.0],
+            [0.05, 0.0, 0.0],
+            [0.05, 0.05, 0.0]
+            ], dtype=np.float64)
+
+        force_value = 0.00229417
+        force_expected = np.array([
+            [force_value, 0., 0.],
+            [-force_value, force_value, 0.],
+            [0., -force_value, 0.]
+            ])
+        force_actual = np.empty_like(force_expected)
+
+        # Create buffers
+        r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                        hostbuf=r)
+        r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                         hostbuf=r0)
+        nlist_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                            hostbuf=nlist)
+        n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                              hostbuf=n_neigh)
+        volume_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                             hostbuf=volume)
+        force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
+
+        # Call kernel
+        bond_force = program.bond_force
+        bond_force(queue, n_neigh.shape, None, r_d, r0_d, nlist_d, n_neigh_d,
+                   np.int32(max_neigh), volume_d, np.float64(bond_stiffness),
+                   force_d)
+        cl.enqueue_copy(queue, force_actual, force_d)
+
+        assert np.allclose(force_actual, force_expected)
