@@ -1,3 +1,4 @@
+"""Print OpenCL devices and support for double floating-point precssion."""
 import pyopencl as cl
 
 DOUBLE_FP_SUPPORT = (
@@ -11,5 +12,8 @@ for platform in cl.get_platforms():
     for device_type in [cl.device_type.GPU, cl.device_type.ALL]:
         print(cl.device_type.to_string(device_type))
         for device in platform.get_devices(device_type):
-            print(f"\tDevice name: {device.get_info(cl.device_info.NAME)}")
-            print(f"\tfp64 support: {device.get_info(cl.device_info.DOUBLE_FP_CONFIG) & DOUBLE_FP_SUPPORT != 0}\n")
+            name = device.get_info(cl.device_info.NAME)
+            support = (device.get_info(cl.device_info.DOUBLE_FP_CONFIG)
+                       & DOUBLE_FP_SUPPORT != 0)
+            print(f"\tDevice name: {name}")
+            print(f"\tfp64 support: {support}\n")
