@@ -10,6 +10,7 @@ class ModelCL(Model):
     """OpenCL Model."""
 
     def __init__(self, *args, context=None, **kwargs):
+        """Create a :class:`ModelCL` object."""
         super().__init__(*args, **kwargs)
 
         # Get an OpenCL context
@@ -27,6 +28,15 @@ class ModelCL(Model):
         self.bond_force_kernel = self.program.bond_force
 
     def _damage(self, n_neigh):
+        """
+        Calculate bond damage.
+
+        :arg n_neigh: The number of neighbours of each node.
+        :type n_neigh: :class:`numpy.ndarray`
+
+        :returns: A (`nnodes`, ) array containing the damage for each node.
+        :rtype: :class:`numpy.ndarray`
+        """
         context = self.context
         queue = self.queue
 
