@@ -10,10 +10,13 @@ DOUBLE_FP_SUPPORT = (
 
 for platform in cl.get_platforms():
     for device_type in [cl.device_type.GPU, cl.device_type.ALL]:
-        print(cl.device_type.to_string(device_type))
-        for device in platform.get_devices(device_type):
-            name = device.get_info(cl.device_info.NAME)
-            support = (device.get_info(cl.device_info.DOUBLE_FP_CONFIG)
-                       & DOUBLE_FP_SUPPORT != 0)
-            print(f"\tDevice name: {name}")
-            print(f"\tfp64 support: {support}\n")
+        device_name = cl.device_type.to_string(device_type)
+        devices = platform.get_devices(device_type)
+        if devices:
+            print(f"{device_name} devices:")
+            for device in devices:
+                name = device.get_info(cl.device_info.NAME)
+                support = (device.get_info(cl.device_info.DOUBLE_FP_CONFIG)
+                           & DOUBLE_FP_SUPPORT != 0)
+                print(f"\tDevice name: {name}")
+                print(f"\tfp64 support: {support}\n")
