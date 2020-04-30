@@ -1,4 +1,5 @@
 """Tests for the model class."""
+from .conftest import context_available
 from ..model import (Model, DimensionalityError, FamilyError,
                      initial_crack_helper, InvalidIntegrator)
 from ..model_cl import ModelCL
@@ -8,7 +9,10 @@ import numpy as np
 import pytest
 
 
-@pytest.fixture(scope="module", params=[Model, ModelCL])
+@pytest.fixture(
+    scope="session",
+    params=[Model, pytest.param(ModelCL, marks=context_available)]
+    )
 def basic_model_2d(data_path, request):
     """Create a basic 2D model object."""
     mesh_file = data_path / "example_mesh.vtk"
@@ -17,7 +21,10 @@ def basic_model_2d(data_path, request):
     return model
 
 
-@pytest.fixture(scope="module", params=[Model, ModelCL])
+@pytest.fixture(
+    scope="session",
+    params=[Model, pytest.param(ModelCL, marks=context_available)]
+    )
 def basic_model_3d(data_path, request):
     """Create a basic 3D model object."""
     mesh_file = data_path / "example_mesh_3d.vtk"

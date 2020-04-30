@@ -1,4 +1,5 @@
 """Tests for the OpenCL kernels."""
+from .conftest import context_available
 from ..cl import kernel_source, get_context, pad
 from ..cl.utilities import DOUBLE_FP_SUPPORT
 import numpy as np
@@ -89,12 +90,6 @@ class TestPad():
 def context():
     """Create a context using the default platform, prefer GPU."""
     return get_context()
-
-
-context_available = pytest.mark.skipif(
-    get_context() is None,
-    reason="Suitable OpenCL context required."
-    )
 
 
 @context_available

@@ -1,4 +1,5 @@
 """Shared definitions for test modules."""
+from ..cl import get_context
 from ..model import Model, initial_crack_helper
 from ..model_cl import ModelCL
 import numpy as np
@@ -13,7 +14,16 @@ def data_path():
     return path
 
 
-@pytest.fixture(scope="session", params=[Model, ModelCL])
+context_available = pytest.mark.skipif(
+    get_context() is None,
+    reason="Suitable OpenCL context required."
+    )
+
+
+@pytest.fixture(
+    scope="session",
+    params=[Model, pytest.param(ModelCL, marks=context_available)]
+    )
 def simple_model(data_path, request):
     """Create a simple peridynamics Model and ModelCL object."""
     path = data_path
