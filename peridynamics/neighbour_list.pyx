@@ -87,6 +87,7 @@ def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
     cdef int nnodes = nlist.shape[0]
 
     cdef int i, j, i_n_neigh, neigh
+    cdef int j_n_neigh, jneigh
 
     # Check neighbours for each node
     for i in range(nnodes):
@@ -97,14 +98,26 @@ def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
         while neigh < i_n_neigh:
             j = nlist[i, neigh]
 
-            if abs(cstrain(r[i], r[j], r0[i], r0[j])) < critical_strain:
+            if i < j:
+                if abs(cstrain(r[i], r[j], r0[i], r0[j])) < critical_strain:
+                    # Move onto the next neighbour
+                    neigh += 1
+                else:
+                    # Remove this neighbour by replacing it with the last neighbour
+                    # on the list, then reducing the number of neighbours by 1
+                    nlist[i, neigh] = nlist[i, i_n_neigh-1]
+                    i_n_neigh -= 1
+
+                    # Remove from j
+                    j_n_neigh = n_neigh[j]
+                    for jneigh in range(j_n_neigh):
+                        if nlist[j, jneigh] == i:
+                            nlist[j, jneigh] = nlist[j, j_n_neigh-1]
+                            n_neigh[j] = n_neigh[j] - 1
+                            break
+            else:
                 # Move onto the next neighbour
                 neigh += 1
-            else:
-                # Remove this neighbour by replacing it with the last neighbour
-                # on the list, then reducing the number of neighbours by 1
-                nlist[i, neigh] = nlist[i, i_n_neigh-1]
-                i_n_neigh -= 1
 
         n_neigh[i] = i_n_neigh
 
