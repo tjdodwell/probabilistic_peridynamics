@@ -18,7 +18,10 @@ class ModelCL(Model):
             self.context = get_context()
         else:
             self.context = context
-        assert type(self.context) is cl._cl.Context
+
+        # Ensure that self.context is a pyopencl context object
+        if type(self.context) is not cl._cl.Context:
+            raise ContextError
 
         # Build kernels
         self.program = cl.Program(self.context, kernel_source).build()
@@ -54,3 +57,14 @@ class ModelCL(Model):
                            damage_d)
         cl.enqueue_copy(queue, damage, damage_d)
         return damage
+
+
+class ContextError(Exception):
+    """No suitable context was found by :func:`get_context`."""
+
+    def __init__(self):
+        """Exception constructor."""
+        message = ("No suitable context was found. You can manually specify"
+                   "the context by passing it to ModelCL with the 'context'"
+                   "argument.")
+        super().__init__(message)
