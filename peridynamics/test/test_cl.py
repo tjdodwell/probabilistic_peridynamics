@@ -224,3 +224,66 @@ class TestForce():
         cl.enqueue_copy(queue, force_actual, force_d)
 
         assert np.allclose(force_actual, force_expected)
+
+
+@context_available
+def test_break_bonds(context, queue, program):
+    """Test neighbour list function."""
+    r0 = np.array([
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [2.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0],
+        ])
+    horizon = 1.1
+    max_neigh = 3
+    nl, n_neigh = create_neighbour_list(r0, horizon, max_neigh)
+
+    nl_expected = np.array([
+        [1, 2, 4],
+        [0, 3, 0],
+        [0, 0, 0],
+        [1, 0, 0],
+        [0, 0, 0]
+        ])
+    n_neigh_expected = np.array([3, 2, 1, 1, 1])
+
+    assert np.all(nl == nl_expected)
+    assert np.all(n_neigh == n_neigh_expected)
+
+    r = np.array([
+        [0.0, 0.0, 0.0],
+        [2.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [3.0, 0.0, 0.0],
+        [0.0, 0.0, 2.0],
+        ])
+    critical_strain = 1.0
+
+    # Create buffers
+    r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r)
+    r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r0)
+    nlist_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                        hostbuf=nl)
+    n_neigh_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                          hostbuf=n_neigh)
+
+    # Call kernel
+    break_bonds = program.break_bonds
+    break_bonds(queue, n_neigh.shape, None, r_d, r0_d, nlist_d, n_neigh_d,
+                np.int32(max_neigh), np.float64(critical_strain))
+    cl.enqueue_copy(queue, nl, nlist_d)
+    cl.enqueue_copy(queue, n_neigh, n_neigh_d)
+
+    nl_expected = np.array([
+        [2, 2, 4],
+        [3, 3, 0],
+        [0, 0, 0],
+        [1, 0, 0],
+        [0, 0, 0]
+        ])
+    n_neigh_expected = np.array([1, 1, 1, 1, 0])
+
+    assert np.all(nl == nl_expected)
+    assert np.all(n_neigh == n_neigh_expected)

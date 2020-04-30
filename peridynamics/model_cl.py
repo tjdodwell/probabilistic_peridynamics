@@ -34,6 +34,7 @@ class ModelCL(Model):
         self.queue = cl.CommandQueue(self.context)
 
         self.damage_kernel = self.program.damage
+        self.break_bonds_kernel = self.program.break_bonds
         self.bond_force_kernel = self.program.bond_force
 
     def _damage(self, n_neigh):
@@ -63,6 +64,37 @@ class ModelCL(Model):
                            damage_d)
         cl.enqueue_copy(queue, damage, damage_d)
         return damage
+
+    def _break_bonds(self, u, nlist, n_neigh):
+        """
+        Break bonds which have exceeded the critical strain.
+
+        :arg u: A (nnodes, 3) array of the displacements of each node.
+        :type u: :class:`numpy.ndarray`
+        :arg nlist: The neighbour list.
+        :type nlist: :class:`numpy.ndarray`
+        :arg n_neigh: The number of neighbours of each node.
+        :type n_neigh: :class:`numpy.ndarray`
+        """
+        context = self.context
+        queue = self.queue
+
+        # Create buffers
+        r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                        hostbuf=self.coords+u)
+        r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                         hostbuf=self.coords)
+        nlist_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                            hostbuf=nlist)
+        n_neigh_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                              hostbuf=n_neigh)
+
+        # Call kernel
+        self.break_bonds_kernel(queue, n_neigh.shape, None, r_d, r0_d, nlist_d,
+                                n_neigh_d, np.int32(self.max_neighbours),
+                                np.float64(self.critical_strain))
+        cl.enqueue_copy(queue, nlist, nlist_d)
+        cl.enqueue_copy(queue, n_neigh, n_neigh_d)
 
     def _bond_force(self, u, nlist, n_neigh):
         """
