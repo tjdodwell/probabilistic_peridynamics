@@ -103,8 +103,11 @@ def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
                     # Move onto the next neighbour
                     neigh += 1
                 else:
-                    # Remove this neighbour by replacing it with the last neighbour
-                    # on the list, then reducing the number of neighbours by 1
+                    # Remove this neighbour by replacing it with the last
+                    # neighbour on the list, then reducing the number of
+                    # neighbours by 1.
+                    # As neighbour `neigh` is now a new neighbour, we do not
+                    # adcave the neighbour index
                     nlist[i, neigh] = nlist[i, i_n_neigh-1]
                     i_n_neigh -= 1
 
