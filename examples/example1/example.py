@@ -89,7 +89,7 @@ def main():
         profile.disable()
         s = StringIO()
         stats = Stats(profile, stream=s).sort_stats(SortKey.CUMULATIVE)
-        stats.print_stats()
+        stats.print_stats(.05)
         print(s.getvalue())
 
 
