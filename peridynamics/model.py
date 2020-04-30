@@ -166,9 +166,9 @@ class Model(object):
             raise FamilyError(self.family)
 
         # Create the neighbourlist
-        max_neigbhours = self.family.max()
+        self.max_neighbours = self.family.max()
         nlist, n_neigh = create_neighbour_list(
-            self.coords, horizon, max_neigbhours
+            self.coords, horizon, self.max_neighbours
             )
 
         # Initialise inital crack

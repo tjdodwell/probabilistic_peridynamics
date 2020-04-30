@@ -64,6 +64,47 @@ class ModelCL(Model):
         cl.enqueue_copy(queue, damage, damage_d)
         return damage
 
+    def _bond_force(self, u, nlist, n_neigh):
+        """
+        Calculate the force due to bonds acting on each node.
+
+        :arg u: A (nnodes, 3) array of the displacements of each node.
+        :type u: :class:`numpy.ndarray`
+        :arg nlist: The neighbour list.
+        :type nlist: :class:`numpy.ndarray`
+        :arg n_neigh: The number of neighbours of each node.
+        :type n_neigh: :class:`numpy.ndarray`
+
+        :returns: A (`nnodes`, 3) array of the component of the force in each
+            dimension for each node.
+        :rtype: :class:`numpy.ndarray`
+        """
+        context = self.context
+        queue = self.queue
+
+        force = np.empty_like(self.coords)
+
+        # Create buffers
+        r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                        hostbuf=self.coords+u)
+        r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                         hostbuf=self.coords)
+        nlist_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                            hostbuf=nlist)
+        n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                              hostbuf=n_neigh)
+        volume_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                             hostbuf=self.volume)
+        force_d = cl.Buffer(context, mf.WRITE_ONLY, force.nbytes)
+
+        # Call kernel
+        self.bond_force_kernel(queue, n_neigh.shape, None, r_d, r0_d, nlist_d,
+                               n_neigh_d, np.int32(self.max_neighbours),
+                               volume_d, np.float64(self.bond_stiffness),
+                               force_d)
+        cl.enqueue_copy(queue, force, force_d)
+        return force
+
 
 class ContextError(Exception):
     """No suitable context was found by :func:`get_context`."""
