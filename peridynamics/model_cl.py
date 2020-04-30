@@ -1,6 +1,6 @@
 """Peridynamics model using OpenCL kernels."""
 from .model import Model
-from .cl import get_context, kernel_source
+from .cl import double_fp_support, get_context, kernel_source
 import numpy as np
 import pyopencl as cl
 from pyopencl import mem_flags as mf
@@ -24,6 +24,10 @@ class ModelCL(Model):
             # Ensure that self.context is a pyopencl context object
             if type(self.context) is not cl._cl.Context:
                 raise TypeError("context must be a pyopencl Context object")
+            # Ensure that self.context supports double floating-point precssion
+            if not double_fp_support(self.context.devices[0]):
+                raise ValueError("device 0 of context must support double"
+                                 "floating-point precision")
 
         # Build kernels
         self.program = cl.Program(self.context, kernel_source).build()

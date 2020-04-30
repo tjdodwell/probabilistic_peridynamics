@@ -11,6 +11,20 @@ DOUBLE_FP_SUPPORT = (
     )
 
 
+def double_fp_support(device):
+    """
+    Test whether a context supports double floating-point precission.
+
+    :arg device: The OpenCL context to test.
+    :type device: :class:`pyopencl._cl.Device`
+
+    :returns: `True` if the device supports double floating-point precision,
+    `False` otherwise.
+    :rtype: `bool`
+    """
+    return device.get_info(cl.device_info.DOUBLE_FP_CONFIG) & DOUBLE_FP_SUPPORT
+
+
 def get_context():
     """
     Find an appropriate OpenCL context.
@@ -25,8 +39,7 @@ def get_context():
     for platform in cl.get_platforms():
         for device_type in [cl.device_type.GPU, cl.device_type.ALL]:
             for device in platform.get_devices(device_type):
-                if (device.get_info(cl.device_info.DOUBLE_FP_CONFIG)
-                        & DOUBLE_FP_SUPPORT):
+                if double_fp_support(device):
                     return cl.Context([device])
     return None
 

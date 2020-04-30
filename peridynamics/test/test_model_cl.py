@@ -37,6 +37,8 @@ def test_custom_context(data_path):
 def test_invalid_custom_context(data_path):
     """Test constructing a ModelCL object using the context argument."""
     mesh_file = data_path / "example_mesh_3d.vtk"
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError) as exception:
         ModelCL(mesh_file, horizon=0.1, critical_strain=0.05,
                 elastic_modulus=0.05, dimensions=3, context=5)
+
+        assert "context must be a pyopencl Context object" in exception.value
