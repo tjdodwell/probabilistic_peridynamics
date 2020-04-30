@@ -396,9 +396,6 @@ class Model(object):
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
 
-            # Calculate the current damage
-            damage = self._damage(n_neigh)
-
             # Calculate the force due to bonds on each node
             f = self._bond_force(u, nlist, n_neigh)
 
@@ -409,6 +406,9 @@ class Model(object):
 
             # Update neighbour list
             self._break_bonds(u, nlist, n_neigh)
+
+            # Calculate the current damage
+            damage = self._damage(n_neigh)
 
             if write:
                 if step % write == 0:
