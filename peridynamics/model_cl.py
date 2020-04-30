@@ -13,15 +13,17 @@ class ModelCL(Model):
         """Create a :class:`ModelCL` object."""
         super().__init__(*args, **kwargs)
 
-        # Get an OpenCL context
+        # Get an OpenCL context if none was provided
         if context is None:
             self.context = get_context()
+            # Ensure that self.context is a pyopencl context object
+            if type(self.context) is not cl._cl.Context:
+                raise ContextError
         else:
             self.context = context
-
-        # Ensure that self.context is a pyopencl context object
-        if type(self.context) is not cl._cl.Context:
-            raise ContextError
+            # Ensure that self.context is a pyopencl context object
+            if type(self.context) is not cl._cl.Context:
+                raise TypeError("context must be a pyopencl Context object")
 
         # Build kernels
         self.program = cl.Program(self.context, kernel_source).build()

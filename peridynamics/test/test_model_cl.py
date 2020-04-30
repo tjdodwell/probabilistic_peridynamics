@@ -1,5 +1,7 @@
 """Test the ModelCL class."""
+from .conftest import context_available
 from ..model_cl import ModelCL, ContextError
+from ..cl import get_context
 import pytest
 
 
@@ -19,3 +21,22 @@ def test_no_context(data_path, monkeypatch):
                 elastic_modulus=0.05)
 
         assert "No suitable context was found." in exception.value
+
+
+@context_available
+def test_custom_context(data_path):
+    """Test constructing a ModelCL object using the context argument."""
+    mesh_file = data_path / "example_mesh_3d.vtk"
+    context = get_context()
+    model = ModelCL(mesh_file, horizon=0.1, critical_strain=0.05,
+                    elastic_modulus=0.05, dimensions=3, context=context)
+
+    assert model.context is context
+
+
+def test_invalid_custom_context(data_path):
+    """Test constructing a ModelCL object using the context argument."""
+    mesh_file = data_path / "example_mesh_3d.vtk"
+    with pytest.raises(TypeError):
+        ModelCL(mesh_file, horizon=0.1, critical_strain=0.05,
+                elastic_modulus=0.05, dimensions=3, context=5)
