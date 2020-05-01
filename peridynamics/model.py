@@ -376,10 +376,10 @@ class Model(object):
             nlist, n_neigh = self.initial_connectivity
         elif type(connectivity) == tuple:
             if len(connectivity) != 2:
-                raise ValueError
+                raise ValueError("connectivity must be of size 2")
             nlist, n_neigh = connectivity
         else:
-            raise ValueError
+            raise TypeError("connectivity must be a tuple or None")
 
         # Create dummy boundary conditions function is none is provided
         if boundary_function is None:

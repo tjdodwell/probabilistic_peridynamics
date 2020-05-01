@@ -334,14 +334,16 @@ class TestSimulate:
     def test_invalid_connectivity(self, basic_model_2d):
         """Test passing an invalid connectivity argument to simulate."""
         euler = Euler(dt=1e-3)
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError) as exception:
             basic_model_2d.simulate(10, euler, connectivity=[1, 2, 3])
+            assert "connectivity must be a tuple or None" in exception.value
 
     def test_invalid_connectivity2(self, basic_model_2d):
         """Test passing an invalid connectivity argument to simulate."""
         euler = Euler(dt=1e-3)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError) as exception:
             basic_model_2d.simulate(10, euler, connectivity=(1, 2, 3))
+            assert "connectivity must be of size 2" in exception.value
 
     def test_stateless(self, simple_model, simple_boundary_function):
         """Ensure the simulate method does not affect the state of Models."""
