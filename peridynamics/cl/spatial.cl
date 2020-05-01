@@ -14,14 +14,7 @@ double euclid(__global const double* r, int i, int j) {
 
 
 double strain(__global const double* r0, int i, int j, double l) {
-    int il = i*3;
-    int jl = j*3;
-
-    double dx = r0[jl] - r0[il];
-    double dy = r0[jl+1] - r0[il+1];
-    double dz = r0[jl+2] - r0[il+2];
-
-    double l0 = sqrt(dx*dx + dy*dy + dz*dz);
+    double l0 = euclid(r0, i, j);
     double dl = l - l0;
 
     return dl / l0;
