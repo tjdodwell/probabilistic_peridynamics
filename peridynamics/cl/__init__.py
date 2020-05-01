@@ -2,7 +2,16 @@
 from .utilities import double_fp_support, get_context, pad
 import pathlib
 
-kernel_source_file = pathlib.Path(__file__).parent.absolute()/"peridynamics.cl"
-kernel_source = open(kernel_source_file).read()
+kernel_source_files = [
+    pathlib.Path(__file__).parent.absolute()/source for source in [
+        "spatial.cl",
+        "peridynamics.cl",
+        "neighbour_list.cl"
+        ]
+    ]
+
+kernel_source = "".join(
+    [open(source).read() for source in kernel_source_files]
+    )
 
 __all__ = ["kernel_source", "double_fp_support", "get_context", "pad"]

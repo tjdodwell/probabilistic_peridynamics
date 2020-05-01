@@ -1,33 +1,6 @@
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
 
 
-double euclid(__global const double* r, int i, int j) {
-    int il = i*3;
-    int jl = j*3;
-
-    double dx = r[jl] - r[il];
-    double dy = r[jl+1] - r[il+1];
-    double dz = r[jl+2] - r[il+2];
-
-    return sqrt(dx*dx + dy*dy + dz*dz);
-}
-
-
-double strain(__global const double* r0, int i, int j, double l) {
-    int il = i*3;
-    int jl = j*3;
-
-    double dx = r0[jl] - r0[il];
-    double dy = r0[jl+1] - r0[il+1];
-    double dz = r0[jl+2] - r0[il+2];
-
-    double l0 = sqrt(dx*dx + dy*dy + dz*dz);
-    double dl = l - l0;
-
-    return dl / l0;
-}
-
-
 __kernel void damage(__global const int* n_neigh, __global const int* family,
                      __global double* damage){
     int i = get_global_id(0);
@@ -68,37 +41,4 @@ __kernel void bond_force(__global const double* r, __global const double* r0,
     for(int dim=0; dim<3; dim++) {
         f[i*3 + dim] = fi[dim];
     }
-}
-
-
-double strain2(__global const double* r, __global const double* r0, int i,
-               int j) {
-    double l = euclid(r, i, j);
-    double l0 = euclid(r0, i, j);
-    double dl = l - l0;
-
-    return dl / l0;
-}
-
-
-__kernel void break_bonds(__global const double* r, global const double* r0,
-                          __global int* nlist, __global int* n_neigh,
-                          int max_neigh, double critical_strain) {
-    int i = get_global_id(0);
-
-    int i_n_neigh = n_neigh[i];
-
-    int neigh = 0;
-    while (neigh < i_n_neigh) {
-        int j = nlist[i*max_neigh + neigh];
-
-        if (fabs(strain2(r, r0, i, j)) < critical_strain) {
-            neigh += 1;
-        } else {
-            nlist[i*max_neigh + neigh] = nlist[i*max_neigh + i_n_neigh-1];
-            i_n_neigh -= 1;
-        }
-    }
-
-    n_neigh[i] = i_n_neigh;
 }
