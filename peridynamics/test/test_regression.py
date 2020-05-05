@@ -16,13 +16,13 @@ def regression(simple_model, simple_boundary_function):
 
     integrator = Euler(dt=1e-3)
 
-    u, damage, *_ = model.simulate(
+    u, damage, connectivity, *_ = model.simulate(
         steps=10,
         integrator=integrator,
         boundary_function=boundary_function
         )
 
-    return model, u, damage
+    return model, u, damage, connectivity
 
 
 class TestRegression:
@@ -38,15 +38,29 @@ class TestRegression:
 
     def test_damage(self, regression, data_path):
         """Ensure damage is correct."""
-        _, _, damage = regression
+        _, _, damage, *_ = regression
         path = data_path
 
         expected_damage = np.load(path/"expected_damage.npy")
-        assert np.all(damage == expected_damage)
+        assert np.allclose(damage, expected_damage)
+
+    def test_connectivity(self, regression, data_path):
+        """Ensure connectivity is correct."""
+        _, _, _, connectivity = regression
+        path = data_path
+
+        expected_connectivity = np.load(path/"expected_connectivity.npz")
+        expected_nlist = expected_connectivity["nlist"]
+        expected_n_neigh = expected_connectivity["n_neigh"]
+
+        actual_nlist = connectivity[0]
+        actual_n_neigh = connectivity[1]
+        assert np.all(expected_nlist == actual_nlist)
+        assert np.all(expected_n_neigh == actual_n_neigh)
 
     def test_mesh(self, regression, data_path, tmp_path):
         """Ensure mesh file is identical."""
-        model, displacements, damage = regression
+        model, displacements, damage, *_ = regression
         path = data_path
 
         mesh = tmp_path / "mesh.vtk"

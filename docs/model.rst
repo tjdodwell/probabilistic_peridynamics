@@ -17,4 +17,4 @@ Exceptions
 ----------
 
 .. autoexception:: DimensionalityError
-.. autoexception:: InvalidIntegrator
+.. autoexception:: FamilyError
