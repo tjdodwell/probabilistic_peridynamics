@@ -222,6 +222,8 @@ class ModelCL(Model):
         # Create buffers
         r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                          hostbuf=self.coords)
+        family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                             hostbuf=self.family)
 
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
@@ -282,8 +284,6 @@ class ModelCL(Model):
             # Create buffers
             n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                                   hostbuf=n_neigh)
-            family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                                 hostbuf=self.family)
             damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
 
             # Call kernel
