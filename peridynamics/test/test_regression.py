@@ -44,7 +44,6 @@ class TestRegression:
         expected_damage = np.load(path/"expected_damage.npy")
         assert np.allclose(damage, expected_damage)
 
-    @pytest.mark.skip(reason="Stalling")
     def test_connectivity(self, regression, data_path):
         """Ensure connectivity is correct."""
         _, _, _, connectivity = regression
@@ -59,6 +58,7 @@ class TestRegression:
         assert np.all(expected_nlist == actual_nlist)
         assert np.all(expected_n_neigh == actual_n_neigh)
 
+    @pytest.mark.skip(reason="Stalling")
     def test_mesh(self, regression, data_path, tmp_path):
         """Ensure mesh file is identical."""
         model, displacements, damage, *_ = regression
