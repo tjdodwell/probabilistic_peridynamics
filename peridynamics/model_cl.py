@@ -281,12 +281,13 @@ class ModelCL(Model):
             self.damage_kernel(queue, damage.shape, None, n_neigh_d, family_d,
                                damage_d)
             queue.finish()
-            cl.enqueue_copy(queue, damage, damage_d)
 
             if write:
                 if step % write == 0:
+                    cl.enqueue_copy(queue, damage, damage_d)
                     self.write_mesh(write_path/f"U_{step}.vtk", damage, u)
 
+        cl.enqueue_copy(queue, damage, damage_d)
         cl.enqueue_copy(queue, nlist, nlist_d)
         cl.enqueue_copy(queue, n_neigh, n_neigh_d)
         return u, damage, (nlist, n_neigh)
