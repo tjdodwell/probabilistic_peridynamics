@@ -215,8 +215,13 @@ class ModelCL(Model):
         else:
             write_path = pathlib.Path(write_path)
 
+        # Get context and queue
         context = self.context
         queue = self.queue
+
+        # Create buffers
+        r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                         hostbuf=self.coords)
 
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
@@ -228,8 +233,6 @@ class ModelCL(Model):
             # Create buffers
             r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                             hostbuf=self.coords+u)
-            r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                             hostbuf=self.coords)
             nlist_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                                 hostbuf=nlist)
             n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
@@ -256,8 +259,6 @@ class ModelCL(Model):
             # Update neighbour list
             # self._break_bonds(u, nlist, n_neigh)
             # Create buffers
-            r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                            hostbuf=self.coords+u)
             r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                              hostbuf=self.coords)
             nlist_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
