@@ -219,7 +219,7 @@ class ModelCL(Model):
         context = self.context
         queue = self.queue
 
-        # Create buffers
+        # Create constant buffers
         r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                          hostbuf=self.coords)
         volume_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
@@ -261,8 +261,6 @@ class ModelCL(Model):
             # Update neighbour list
             # self._break_bonds(u, nlist, n_neigh)
             # Create buffers
-            r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                             hostbuf=self.coords)
             nlist_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                                 hostbuf=nlist)
             n_neigh_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
