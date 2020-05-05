@@ -227,11 +227,15 @@ class ModelCL(Model):
         family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                              hostbuf=self.family)
 
+        # Create variable buffers
         # Create neighbourlist buffers
-        nlist_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+        nlist_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                             hostbuf=nlist)
-        n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+        n_neigh_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                               hostbuf=n_neigh)
+        # Damage buffer
+        damage = np.empty(n_neigh.shape, dtype=np.float64)
+        damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
 
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
@@ -272,10 +276,6 @@ class ModelCL(Model):
 
             # Calculate the current damage
             # damage = self._damage(n_neigh)
-            damage = np.empty(n_neigh.shape, dtype=np.float64)
-
-            # Create buffers
-            damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
 
             # Call kernel
             self.damage_kernel(queue, damage.shape, None, n_neigh_d, family_d,
