@@ -227,6 +227,12 @@ class ModelCL(Model):
         family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                              hostbuf=self.family)
 
+        # Create neighbourlist buffers
+        nlist_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                            hostbuf=nlist)
+        n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                              hostbuf=n_neigh)
+
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
 
@@ -237,10 +243,6 @@ class ModelCL(Model):
             # Create buffers
             r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                             hostbuf=self.coords+u)
-            nlist_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                                hostbuf=nlist)
-            n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                                  hostbuf=n_neigh)
             force_d = cl.Buffer(context, mf.WRITE_ONLY, force.nbytes)
 
             # Call kernel
@@ -260,11 +262,6 @@ class ModelCL(Model):
 
             # Update neighbour list
             # self._break_bonds(u, nlist, n_neigh)
-            # Create buffers
-            nlist_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
-                                hostbuf=nlist)
-            n_neigh_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
-                                  hostbuf=n_neigh)
 
             # Call kernel
             self.break_bonds_kernel(queue, n_neigh.shape, None, r_d, r0_d,
@@ -272,16 +269,12 @@ class ModelCL(Model):
                                     n_neigh_d, np.int32(self.max_neighbours),
                                     np.float64(self.critical_strain))
             queue.finish()
-            cl.enqueue_copy(queue, nlist, nlist_d)
-            cl.enqueue_copy(queue, n_neigh, n_neigh_d)
 
             # Calculate the current damage
             # damage = self._damage(n_neigh)
             damage = np.empty(n_neigh.shape, dtype=np.float64)
 
             # Create buffers
-            n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                                  hostbuf=n_neigh)
             damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
 
             # Call kernel
@@ -294,6 +287,8 @@ class ModelCL(Model):
                 if step % write == 0:
                     self.write_mesh(write_path/f"U_{step}.vtk", damage, u)
 
+        cl.enqueue_copy(queue, nlist, nlist_d)
+        cl.enqueue_copy(queue, n_neigh, n_neigh_d)
         return u, damage, (nlist, n_neigh)
 
 
