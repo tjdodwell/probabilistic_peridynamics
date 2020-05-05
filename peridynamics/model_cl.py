@@ -222,6 +222,8 @@ class ModelCL(Model):
         # Create buffers
         r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                          hostbuf=self.coords)
+        volume_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                             hostbuf=self.volume)
         family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                              hostbuf=self.family)
 
@@ -239,8 +241,6 @@ class ModelCL(Model):
                                 hostbuf=nlist)
             n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                                   hostbuf=n_neigh)
-            volume_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                                 hostbuf=self.volume)
             force_d = cl.Buffer(context, mf.WRITE_ONLY, force.nbytes)
 
             # Call kernel
