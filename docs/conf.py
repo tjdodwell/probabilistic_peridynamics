@@ -39,7 +39,6 @@ autoclass_content = 'both'
 # intersphinx configuration
 intersphinx_mapping = {
     'numpy': ('https://docs.scipy.org/doc/numpy/', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy/reference', None)
     }
 
 # Add any paths that contain templates here, relative to this directory.
@@ -57,6 +56,13 @@ exclude_patterns = []
 # a list of builtin themes.
 #
 html_theme = 'alabaster'
+html_theme_options = {
+    'github_user': 'alan-turing-institute',
+    'github_repo': 'probabilistic-peridynamics',
+    'github_banner': True,
+    'fixed_sidebar': True,
+    'sidebar_width': '250px'
+    }
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
