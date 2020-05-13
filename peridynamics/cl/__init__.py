@@ -4,6 +4,7 @@ import pathlib
 
 kernel_source_files = [
     pathlib.Path(__file__).parent.absolute()/source for source in [
+        "spatial.h",
         "spatial.cl",
         "peridynamics.cl",
         "neighbour_list.cl"
