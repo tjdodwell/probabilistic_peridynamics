@@ -182,10 +182,9 @@ class ModelCL(Model):
                              self.max_neighbours, volume_d,
                              self.bond_stiffness, force_d)
             cl.enqueue_copy(queue, force, force_d)
-            f = force
 
             # Conduct one integration step
-            u = integrator(u, f)
+            u = integrator(u, force)
             # Apply boundary conditions
             u = boundary_function(self, u, step)
             # Update coordinates

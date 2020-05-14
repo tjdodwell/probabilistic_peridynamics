@@ -397,10 +397,10 @@ class Model(object):
                            desc="Simulation Progress", unit="steps"):
 
             # Calculate the force due to bonds on each node
-            f = self._bond_force(u, nlist, n_neigh)
+            force = self._bond_force(u, nlist, n_neigh)
 
             # Conduct one integration step
-            u = integrator(u, f)
+            u = integrator(u, force)
             # Apply boundary conditions
             u = boundary_function(self, u, step)
 
