@@ -363,6 +363,71 @@ class Model(object):
         :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
             tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`))
         """
+        (nlist,
+         n_neigh,
+         u,
+         boundary_function,
+         write_path) = self._simulate_initialise(
+            integrator, boundary_function, u, connectivity, write_path
+            )
+
+        for step in trange(first_step, first_step+steps,
+                           desc="Simulation Progress", unit="steps"):
+
+            # Calculate the force due to bonds on each node
+            force = self._bond_force(u, nlist, n_neigh)
+
+            # Conduct one integration step
+            u = integrator(u, force)
+            # Apply boundary conditions
+            u = boundary_function(self, u, step)
+
+            # Update neighbour list
+            self._break_bonds(u, nlist, n_neigh)
+
+            # Calculate the current damage
+            damage = self._damage(n_neigh)
+
+            if write:
+                if step % write == 0:
+                    self.write_mesh(write_path/f"U_{step}.vtk", damage, u)
+
+        return u, damage, (nlist, n_neigh)
+
+    def _simulate_initialise(self, integrator, boundary_function, u,
+                             connectivity, write_path):
+        """
+        Initialise simulation variables.
+
+        :arg  integrator: The integrator to use, see
+            :mod:`peridynamics.integrators` for options.
+        :type integrator: :class:`peridynamics.integrators.Integrator`
+        :arg boundary_function: A function to apply the boundary conditions for
+            the simlation. It has the form
+            boundary_function(:class:`peridynamics.model.Model`,
+            :class:`numpy.ndarray`, `int`). The arguments are the model being
+            simulated, the current displacements, and the current step number
+            (beginning from 1). `boundary_function` returns a (nnodes, 3)
+            :class:`numpy.ndarray` of the updated displacements
+            after applying the boundary conditions. Default `None`.
+        :type boundary_function: function
+        :arg u: The initial displacements for the simulation. If `None` the
+            displacements will be initialised to zero. Default `None`.
+        :type u: :class:`numpy.ndarray`
+        :arg connectivity: The initial connectivity for the simulation. A tuple
+            of a neighbour list and the number of neighbours for each node. If
+            `None` the connectivity at the time of construction of the
+            :class:`Model` object will be used. Default `None`.
+        :type connectivity: tuple(:class:`numpy.ndarray`,
+            :class:`numpy.ndarray`)
+        :arg write_path: The path where the periodic mesh files should be
+            written.
+        :type write_path: path-like or str
+
+        :returns: A tuple of initialised variables used for simulation.
+        :type: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
+            :class:`numpy.ndarray`, function, :class`pathlib.Path`)
+        """
         if not isinstance(integrator, Integrator):
             raise InvalidIntegrator(integrator)
 
@@ -393,28 +458,7 @@ class Model(object):
         else:
             write_path = pathlib.Path(write_path)
 
-        for step in trange(first_step, first_step+steps,
-                           desc="Simulation Progress", unit="steps"):
-
-            # Calculate the force due to bonds on each node
-            f = self._bond_force(u, nlist, n_neigh)
-
-            # Conduct one integration step
-            u = integrator(u, f)
-            # Apply boundary conditions
-            u = boundary_function(self, u, step)
-
-            # Update neighbour list
-            self._break_bonds(u, nlist, n_neigh)
-
-            # Calculate the current damage
-            damage = self._damage(n_neigh)
-
-            if write:
-                if step % write == 0:
-                    self.write_mesh(write_path/f"U_{step}.vtk", damage, u)
-
-        return u, damage, (nlist, n_neigh)
+        return nlist, n_neigh, u, boundary_function, write_path
 
 
 def initial_crack_helper(crack_function):
