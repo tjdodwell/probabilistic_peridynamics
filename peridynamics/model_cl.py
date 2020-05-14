@@ -41,15 +41,7 @@ class ModelCL(Model):
         self.bond_force_kernel = self.program.bond_force
 
     def _damage(self, n_neigh_d, family_d, damage_d):
-        """
-        Calculate bond damage.
-
-        :arg n_neigh: The number of neighbours of each node.
-        :type n_neigh: :class:`numpy.ndarray`
-
-        :returns: A (`nnodes`, ) array containing the damage for each node.
-        :rtype: :class:`numpy.ndarray`
-        """
+        """Calculate bond damage."""
         queue = self.queue
 
         # Call kernel
@@ -89,47 +81,17 @@ class ModelCL(Model):
         cl.enqueue_copy(queue, nlist, nlist_d)
         cl.enqueue_copy(queue, n_neigh, n_neigh_d)
 
-    def _bond_force(self, u, nlist, n_neigh):
-        """
-        Calculate the force due to bonds acting on each node.
-
-        :arg u: A (nnodes, 3) array of the displacements of each node.
-        :type u: :class:`numpy.ndarray`
-        :arg nlist: The neighbour list.
-        :type nlist: :class:`numpy.ndarray`
-        :arg n_neigh: The number of neighbours of each node.
-        :type n_neigh: :class:`numpy.ndarray`
-
-        :returns: A (`nnodes`, 3) array of the component of the force in each
-            dimension for each node.
-        :rtype: :class:`numpy.ndarray`
-        """
-        context = self.context
+    def _bond_force(self, r_d, r0_d, nlist_d, n_neigh_d, max_neighbours,
+                    volume_d, bond_stiffness, force_d):
+        """Calculate the force due to bonds acting on each node."""
         queue = self.queue
 
-        force = np.empty_like(self.coords)
-
-        # Create buffers
-        r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                        hostbuf=self.coords+u)
-        r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                         hostbuf=self.coords)
-        nlist_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                            hostbuf=nlist)
-        n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                              hostbuf=n_neigh)
-        volume_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                             hostbuf=self.volume)
-        force_d = cl.Buffer(context, mf.WRITE_ONLY, force.nbytes)
-
         # Call kernel
-        self.bond_force_kernel(queue, n_neigh.shape, None, r_d, r0_d, nlist_d,
+        self.bond_force_kernel(queue, (self.nnodes,), None, r_d, r0_d, nlist_d,
                                n_neigh_d, np.int32(self.max_neighbours),
                                volume_d, np.float64(self.bond_stiffness),
                                force_d)
         queue.finish()
-        cl.enqueue_copy(queue, force, force_d)
-        return force
 
     def simulate(self, steps, integrator, boundary_function=None, u=None,
                  connectivity=None, first_step=1, write=None, write_path=None):
@@ -232,20 +194,14 @@ class ModelCL(Model):
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
 
-            # Calculate the force due to bonds on each node
-            # f = self._bond_force(u, nlist, n_neigh)
-
-            # Create buffers
+            # Calculate current coordiantes
             r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                             hostbuf=self.coords+u)
 
-            # Call kernel
-            self.bond_force_kernel(queue, n_neigh.shape, None, r_d, r0_d,
-                                   nlist_d,
-                                   n_neigh_d, np.int32(self.max_neighbours),
-                                   volume_d, np.float64(self.bond_stiffness),
-                                   force_d)
-            queue.finish()
+            # Calculate the force due to bonds on each node
+            self._bond_force(r_d, r0_d, nlist_d, n_neigh_d,
+                             self.max_neighbours, volume_d,
+                             self.bond_stiffness, force_d)
             cl.enqueue_copy(queue, force, force_d)
             f = force
 
