@@ -1,9 +1,7 @@
 """Peridynamics model using OpenCL kernels."""
-from .integrators import Integrator
-from .model import Model, InvalidIntegrator
+from .model import Model
 from .cl import double_fp_support, get_context, kernel_source
 import numpy as np
-import pathlib
 import pyopencl as cl
 from pyopencl import mem_flags as mf
 from tqdm import trange
@@ -114,35 +112,13 @@ class ModelCL(Model):
         :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
             tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`))
         """
-        if not isinstance(integrator, Integrator):
-            raise InvalidIntegrator(integrator)
-
-        # Create initial displacements is none is provided
-        if u is None:
-            u = np.zeros((self.nnodes, 3))
-
-        # Use the initial connectivity (when the Model was constructed) if none
-        # is provided
-        if connectivity is None:
-            nlist, n_neigh = self.initial_connectivity
-        elif type(connectivity) == tuple:
-            if len(connectivity) != 2:
-                raise ValueError("connectivity must be of size 2")
-            nlist, n_neigh = connectivity
-        else:
-            raise TypeError("connectivity must be a tuple or None")
-
-        # Create dummy boundary conditions function is none is provided
-        if boundary_function is None:
-            def boundary_function(model, u, step):
-                return u
-
-        # If no write path was provided use the current directory, otherwise
-        # ensure write_path is a Path object.
-        if write_path is None:
-            write_path = pathlib.Path()
-        else:
-            write_path = pathlib.Path(write_path)
+        (nlist,
+         n_neigh,
+         u,
+         boundary_function,
+         write_path) = self._simulate_initialise(
+            integrator, boundary_function, u, connectivity, write_path
+            )
 
         # Get context and queue
         context = self.context
