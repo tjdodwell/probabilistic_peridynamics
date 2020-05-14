@@ -49,37 +49,16 @@ class ModelCL(Model):
                            damage_d)
         queue.finish()
 
-    def _break_bonds(self, u, nlist, n_neigh):
-        """
-        Break bonds which have exceeded the critical strain.
-
-        :arg u: A (nnodes, 3) array of the displacements of each node.
-        :type u: :class:`numpy.ndarray`
-        :arg nlist: The neighbour list.
-        :type nlist: :class:`numpy.ndarray`
-        :arg n_neigh: The number of neighbours of each node.
-        :type n_neigh: :class:`numpy.ndarray`
-        """
-        context = self.context
+    def _break_bonds(self, r_d, r0_d, nlist_d, n_neigh_d, max_neighbours,
+                     critical_strain):
+        """Break bonds which have exceeded the critical strain."""
         queue = self.queue
 
-        # Create buffers
-        r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                        hostbuf=self.coords+u)
-        r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                         hostbuf=self.coords)
-        nlist_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
-                            hostbuf=nlist)
-        n_neigh_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
-                              hostbuf=n_neigh)
-
         # Call kernel
-        self.break_bonds_kernel(queue, n_neigh.shape, None, r_d, r0_d, nlist_d,
-                                n_neigh_d, np.int32(self.max_neighbours),
-                                np.float64(self.critical_strain))
+        self.break_bonds_kernel(queue, (self.nnodes,), None, r_d, r0_d,
+                                nlist_d, n_neigh_d, np.int32(max_neighbours),
+                                np.float64(critical_strain))
         queue.finish()
-        cl.enqueue_copy(queue, nlist, nlist_d)
-        cl.enqueue_copy(queue, n_neigh, n_neigh_d)
 
     def _bond_force(self, r_d, r0_d, nlist_d, n_neigh_d, max_neighbours,
                     volume_d, bond_stiffness, force_d):
@@ -178,7 +157,11 @@ class ModelCL(Model):
                              hostbuf=self.family)
 
         # Create variable buffers
-        # Create neighbourlist buffers
+        # Coordinate buffer
+        r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                        hostbuf=self.coords+u)
+
+        # Neighbour list buffers
         nlist_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                             hostbuf=nlist)
         n_neigh_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
@@ -194,10 +177,6 @@ class ModelCL(Model):
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
 
-            # Calculate current coordiantes
-            r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                            hostbuf=self.coords+u)
-
             # Calculate the force due to bonds on each node
             self._bond_force(r_d, r0_d, nlist_d, n_neigh_d,
                              self.max_neighbours, volume_d,
@@ -209,16 +188,13 @@ class ModelCL(Model):
             u = integrator(u, f)
             # Apply boundary conditions
             u = boundary_function(self, u, step)
+            # Update coordinates
+            r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                            hostbuf=self.coords+u)
 
             # Update neighbour list
-            # self._break_bonds(u, nlist, n_neigh)
-
-            # Call kernel
-            self.break_bonds_kernel(queue, n_neigh.shape, None, r_d, r0_d,
-                                    nlist_d,
-                                    n_neigh_d, np.int32(self.max_neighbours),
-                                    np.float64(self.critical_strain))
-            queue.finish()
+            self._break_bonds(r_d, r0_d, nlist_d, n_neigh_d,
+                              self.max_neighbours, self.critical_strain)
 
             # Calculate the current damage
             self._damage(n_neigh_d, family_d, damage_d)
