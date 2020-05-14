@@ -40,7 +40,7 @@ class ModelCL(Model):
         self.break_bonds_kernel = self.program.break_bonds
         self.bond_force_kernel = self.program.bond_force
 
-    def _damage(self, n_neigh):
+    def _damage(self, n_neigh_d, family_d, damage_d):
         """
         Calculate bond damage.
 
@@ -50,24 +50,12 @@ class ModelCL(Model):
         :returns: A (`nnodes`, ) array containing the damage for each node.
         :rtype: :class:`numpy.ndarray`
         """
-        context = self.context
         queue = self.queue
 
-        damage = np.empty(n_neigh.shape, dtype=np.float64)
-
-        # Create buffers
-        n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                              hostbuf=n_neigh)
-        family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                             hostbuf=self.family)
-        damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
-
         # Call kernel
-        self.damage_kernel(queue, damage.shape, None, n_neigh_d, family_d,
+        self.damage_kernel(queue, (self.nnodes,), None, n_neigh_d, family_d,
                            damage_d)
         queue.finish()
-        cl.enqueue_copy(queue, damage, damage_d)
-        return damage
 
     def _break_bonds(self, u, nlist, n_neigh):
         """
@@ -275,12 +263,7 @@ class ModelCL(Model):
             queue.finish()
 
             # Calculate the current damage
-            # damage = self._damage(n_neigh)
-
-            # Call kernel
-            self.damage_kernel(queue, damage.shape, None, n_neigh_d, family_d,
-                               damage_d)
-            queue.finish()
+            self._damage(n_neigh_d, family_d, damage_d)
 
             if write:
                 if step % write == 0:
