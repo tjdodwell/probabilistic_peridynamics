@@ -225,17 +225,19 @@ class ModelCL(Model):
         damage = np.empty(n_neigh.shape, dtype=np.float64)
         damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
 
+        # Force buffer
+        force = np.empty_like(self.coords)
+        force_d = cl.Buffer(context, mf.WRITE_ONLY, force.nbytes)
+
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
 
             # Calculate the force due to bonds on each node
             # f = self._bond_force(u, nlist, n_neigh)
-            force = np.empty_like(self.coords)
 
             # Create buffers
             r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                             hostbuf=self.coords+u)
-            force_d = cl.Buffer(context, mf.WRITE_ONLY, force.nbytes)
 
             # Call kernel
             self.bond_force_kernel(queue, n_neigh.shape, None, r_d, r0_d,
