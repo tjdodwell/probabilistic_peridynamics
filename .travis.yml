@@ -9,11 +9,15 @@ python:
 
 before_install:
   - pip install cython
+  - sudo apt-get -y install pocl-opencl-icd clinfo
 
 install:
   - pip install -e .
 
-before_script: pip install pytest pytest-cov codecov
+before_script:
+  - pip install pytest pytest-cov codecov
+  - clinfo
+  - python .travis/context_info.py
 
 script:
   - pytest -v --cov-config=.coveragerc --cov=./peridynamics
