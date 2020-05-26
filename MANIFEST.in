@@ -1,5 +1,5 @@
 include peridynamics/cl/*.cl
-include peridynamics/cl/spatical.h
+include peridynamics/cl/spatial.h
 
 include peridynamics/spatial.pxd
 
