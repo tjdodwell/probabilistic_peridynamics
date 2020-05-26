@@ -2,3 +2,5 @@ include peridynamics/cl/*.cl
 include peridynamics/cl/spatical.h
 
 include peridynamics/spatial.pxd
+
+recursive/exclude peridynamics/test/*
