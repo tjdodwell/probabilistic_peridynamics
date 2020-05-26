@@ -31,6 +31,7 @@ setup(
     name="peridynamics",
     version="0.1",
     packages=find_packages(),
+    include_package_data=True,
     ext_modules=cythonize(ext_modules),
     install_requires=[
         'meshio',
