@@ -30,11 +30,13 @@ ext_modules = [
 setup(
     name="peridynamics",
     version="0.1",
-    packages=find_packages(),
+    packages=find_packages(exclude=['*.test']),
+    include_package_data=True,
     ext_modules=cythonize(ext_modules),
     install_requires=[
         'meshio',
         'numpy',
+        'pyopencl',
         'scipy',
         'tqdm'
         ]
