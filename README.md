@@ -7,6 +7,7 @@ Probabilistic Peridynamics, a collaboration between Exeter, Cambridge &amp; the 
 
 # Building and Installation
 
+- The package requires Python 3.7+
 - Clone the repository `git clone
   git@github.com:alan-turing-institute/probabilistic_peridynamics.git`
 - Install cython, a build dependency, `pip install cython`
