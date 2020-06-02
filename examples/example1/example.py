@@ -4,7 +4,7 @@ import cProfile
 from io import StringIO
 import numpy as np
 import pathlib
-from peridynamics import Model
+from peridynamics import Model, ModelCL
 from peridynamics.model import initial_crack_helper
 from peridynamics.integrators import Euler
 from pstats import SortKey, Stats
@@ -58,14 +58,19 @@ def main():
     """Conduct a peridynamics simulation."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--profile', action='store_const', const=True)
+    parser.add_argument('--opencl', action='store_const', const=True)
     args = parser.parse_args()
 
     if args.profile:
         profile = cProfile.Profile()
         profile.enable()
 
-    model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
-                  elastic_modulus=0.05, initial_crack=is_crack)
+    if args.opencl:
+        model = ModelCL(mesh_file, horizon=0.1, critical_strain=0.005,
+                        elastic_modulus=0.05, initial_crack=is_crack)
+    else:
+        model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
+                      elastic_modulus=0.05, initial_crack=is_crack)
 
     # Set left-hand side and right-hand side of boundary
     model.lhs = np.nonzero(model.coords[:, 0] < 1.5*model.horizon)
@@ -74,17 +79,17 @@ def main():
     integrator = Euler(dt=1e-3)
 
     u, damage, *_ = model.simulate(
-        steps=100,
+        steps=1000,
         integrator=integrator,
         boundary_function=boundary_function,
-        write=1000
+        write=10000
         )
 
     if args.profile:
         profile.disable()
         s = StringIO()
         stats = Stats(profile, stream=s).sort_stats(SortKey.CUMULATIVE)
-        stats.print_stats()
+        stats.print_stats(.05)
         print(s.getvalue())
 
 

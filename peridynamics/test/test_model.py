@@ -1,13 +1,27 @@
 """Tests for the model class."""
+from .conftest import context_available
 from ..model import (Model, DimensionalityError, FamilyError,
                      initial_crack_helper, InvalidIntegrator)
+from ..model_cl import ModelCL
 from ..integrators import Euler
 import meshio
 import numpy as np
 import pytest
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(
+    scope="session",
+    params=[Model, pytest.param(ModelCL, marks=context_available)]
+    )
+def basic_models_2d(data_path, request):
+    """Create a basic 2D model object."""
+    mesh_file = data_path / "example_mesh.vtk"
+    model = request.param(mesh_file, horizon=0.1, critical_strain=0.05,
+                          elastic_modulus=0.05)
+    return model
+
+
+@pytest.fixture()
 def basic_model_2d(data_path):
     """Create a basic 2D model object."""
     mesh_file = data_path / "example_mesh.vtk"
@@ -16,7 +30,19 @@ def basic_model_2d(data_path):
     return model
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(
+    scope="session",
+    params=[Model, pytest.param(ModelCL, marks=context_available)]
+    )
+def basic_models_3d(data_path, request):
+    """Create a basic 3D model object."""
+    mesh_file = data_path / "example_mesh_3d.vtk"
+    model = request.param(mesh_file, horizon=0.1, critical_strain=0.05,
+                          elastic_modulus=0.05, dimensions=3)
+    return model
+
+
+@pytest.fixture()
 def basic_model_3d(data_path):
     """Create a basic 3D model object."""
     mesh_file = data_path / "example_mesh_3d.vtk"
@@ -28,16 +54,16 @@ def basic_model_3d(data_path):
 class TestDimension:
     """Test the dimension argument of the Model class."""
 
-    def test_2d(self, basic_model_2d):
+    def test_2d(self, basic_models_2d):
         """Test initialisation of a 2D model."""
-        model = basic_model_2d
+        model = basic_models_2d
 
         assert model.mesh_elements.connectivity == 'triangle'
         assert model.mesh_elements.boundary == 'line'
 
-    def test_3d(self, basic_model_3d):
+    def test_3d(self, basic_models_3d):
         """Test initialisation of a 3D model."""
-        model = basic_model_3d
+        model = basic_models_3d
 
         assert model.mesh_elements.connectivity == 'tetra'
         assert model.mesh_elements.boundary == 'triangle'
@@ -48,15 +74,15 @@ class TestDimension:
         with pytest.raises(DimensionalityError) as exception:
             Model("abc.msh", horizon=0.1, critical_strain=0.05,
                   elastic_modulus=0.05, dimensions=dimensions)
-            assert str(dimensions) in str(exception.value)
+            assert str(dimensions) in exception.value
 
 
 class TestRead2D:
     """Test reading a mesh with a 2D model."""
 
-    def test_coords(self, basic_model_2d):
+    def test_coords(self, basic_models_2d):
         """Test coordinates are read correctly."""
-        model = basic_model_2d
+        model = basic_models_2d
 
         assert model.coords.shape == (2113, 3)
         assert model.nnodes == 2113
@@ -64,18 +90,18 @@ class TestRead2D:
             model.coords[42] == np.array([1., 0.2499999999994083, 0.])
             )
 
-    def test_mesh_connectivity(self, basic_model_2d):
+    def test_mesh_connectivity(self, basic_models_2d):
         """Test mesh connectivity is read correctly."""
-        model = basic_model_2d
+        model = basic_models_2d
 
         assert model.mesh_connectivity.shape == (4096, 3)
         assert np.all(
             model.mesh_connectivity[100] == np.array([252, 651, 650])
             )
 
-    def test_mesh_boundary(self, basic_model_2d):
+    def test_mesh_boundary(self, basic_models_2d):
         """Test mesh boundary is read correctly."""
-        model = basic_model_2d
+        model = basic_models_2d
 
         assert model.mesh_boundary.shape == (128, 2)
         assert np.all(model.mesh_boundary[100] == np.array([100, 101]))
@@ -84,54 +110,35 @@ class TestRead2D:
 class TestRead3D:
     """Test reading a mesh with a 3D model."""
 
-    def test_coords(self, basic_model_3d):
+    def test_coords(self, basic_models_3d):
         """Test coordinates are read correctly."""
-        model = basic_model_3d
+        model = basic_models_3d
 
         assert model.coords.shape == (1175, 3)
         assert model.nnodes == 1175
         assert np.allclose(model.coords[42], np.array([0.5, 0.1, 0.]))
 
-    def test_connectivity(self, basic_model_3d):
+    def test_connectivity(self, basic_models_3d):
         """Test mesh connectivity is read correctly."""
-        model = basic_model_3d
+        model = basic_models_3d
 
         assert model.mesh_connectivity.shape == (4788, 4)
         assert np.all(
             model.mesh_connectivity[100] == np.array([833, 841, 817, 1168])
             )
 
-    def test_boundary_connectivity(self, basic_model_3d):
+    def test_boundary_connectivity(self, basic_models_3d):
         """Test mesh boundary is read correctly."""
-        model = basic_model_3d
+        model = basic_models_3d
 
         assert model.mesh_boundary.shape == (1474, 3)
         assert np.all(model.mesh_boundary[100] == np.array([172, 185, 124]))
 
 
-@pytest.fixture
-def written_model(basic_model_3d, tmp_path):
-    """Write an example mesh file from a model."""
-    model = basic_model_3d
-    mesh_file = tmp_path / "out_mesh.vtk"
-
-    # Create synthetic damage and displacements
-    # The damange is simply the number of the node (begining at 0) divided by
-    # the total
-    damage = np.arange(model.nnodes)/model.nnodes
-    # The displacements are three columns of the damage array
-    displacements = np.tile(damage, (3, 1)).T
-
-    model.write_mesh(mesh_file, damage, displacements, file_format="vtk-ascii")
-    model.write_mesh("abc.vtk", damage, displacements, file_format="vtk-ascii")
-
-    return mesh_file
-
-
 @pytest.fixture(scope="class")
-def written_example(basic_model_3d, tmp_path_factory):
+def written_example(basic_models_3d, tmp_path_factory):
     """Write an example model to a mesh object."""
-    model = basic_model_3d
+    model = basic_models_3d
 
     damage = np.random.random(model.nnodes)
     u = np.random.random((model.nnodes, 3))
@@ -181,27 +188,27 @@ class TestWrite:
         assert np.all(u == mesh.point_data["displacements"])
 
 
-def test_volume_2d(basic_model_2d, data_path):
+def test_volume_2d(basic_models_2d, data_path):
     """Test volume calculation."""
     expected_volume = np.load(data_path/"expected_volume.npy")
-    assert np.allclose(basic_model_2d.volume, expected_volume)
+    assert np.allclose(basic_models_2d.volume, expected_volume)
 
 
-def test_volume_3d(basic_model_3d, data_path):
+def test_volume_3d(basic_models_3d, data_path):
     """Test volume calculation."""
     expected_volume = np.load(data_path/"expected_volume_3d.npy")
-    assert np.allclose(basic_model_3d.volume, expected_volume)
+    assert np.allclose(basic_models_3d.volume, expected_volume)
 
 
-def test_bond_stiffness_2d(basic_model_2d):
+def test_bond_stiffness_2d(basic_models_2d):
     """Test bond stiffness calculation."""
-    assert np.isclose(basic_model_2d.bond_stiffness, 2864.7889756)
+    assert np.isclose(basic_models_2d.bond_stiffness, 2864.7889756)
 
 
 class TestConnectivity:
     """Test the initial neighbour list."""
 
-    def test_basic_connectivity(self, basic_model_2d, data_path):
+    def test_basic_connectivity(self, basic_models_2d, data_path):
         """Test connectivity calculation with no initial crack."""
         npz_file = np.load(
             data_path/"expected_connectivity_basic.npz"
@@ -209,7 +216,7 @@ class TestConnectivity:
         expected_nlist = npz_file["nlist"]
         expected_n_neigh = npz_file["n_neigh"]
 
-        actual_nlist, actual_n_neigh = basic_model_2d.initial_connectivity
+        actual_nlist, actual_n_neigh = basic_models_2d.initial_connectivity
         assert np.all(expected_nlist == actual_nlist)
         assert np.all(expected_n_neigh == actual_n_neigh)
 
@@ -335,24 +342,26 @@ class TestSimulate:
     Further tests of simulation are in test_regression.py
     """
 
-    def test_invalid_integrator(self, basic_model_2d):
+    def test_invalid_integrator(self, basic_models_2d):
         """Test passing an invalid integrator to simulate."""
-        model = basic_model_2d
+        model = basic_models_2d
 
         with pytest.raises(InvalidIntegrator):
             model.simulate(10, None)
 
-    def test_invalid_connectivity(self, basic_model_2d):
+    def test_invalid_connectivity(self, basic_models_2d):
         """Test passing an invalid connectivity argument to simulate."""
         euler = Euler(dt=1e-3)
-        with pytest.raises(ValueError):
-            basic_model_2d.simulate(10, euler, connectivity=[1, 2, 3])
+        with pytest.raises(TypeError) as exception:
+            basic_models_2d.simulate(10, euler, connectivity=[1, 2, 3])
+            assert "connectivity must be a tuple or None" in exception.value
 
-    def test_invalid_connectivity2(self, basic_model_2d):
+    def test_invalid_connectivity2(self, basic_models_2d):
         """Test passing an invalid connectivity argument to simulate."""
         euler = Euler(dt=1e-3)
-        with pytest.raises(ValueError):
-            basic_model_2d.simulate(10, euler, connectivity=(1, 2, 3))
+        with pytest.raises(ValueError) as exception:
+            basic_models_2d.simulate(10, euler, connectivity=(1, 2, 3))
+            assert "connectivity must be of size 2" in exception.value
 
     def test_stateless(self, simple_model, simple_boundary_function):
         """Ensure the simulate method does not affect the state of Models."""
