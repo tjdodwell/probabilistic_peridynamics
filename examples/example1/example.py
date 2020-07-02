@@ -4,7 +4,7 @@ import cProfile
 from io import StringIO
 import numpy as np
 import pathlib
-from peridynamics import Model, ModelCL
+from peridynamics import Model, ModelCL, ModelCLBen
 from peridynamics.model import initial_crack_helper
 from peridynamics.integrators import Euler
 from pstats import SortKey, Stats
@@ -34,6 +34,17 @@ def is_crack(x, y):
             output = 1
     return output
 
+def bond_type(x, y):
+    """ 
+    Determines bond type given pair of node coordinates.
+    Usage:
+        'plain = 1' will return a plain concrete bond for all bonds, an so a
+    plain concrete beam.
+        'plain = 0' will return a concrete beam with some rebar as specified
+        in "is_rebar()"
+    """
+    output = 'concrete' # default to concrete
+    return output
 
 def boundary_function(model, u, step):
     """
@@ -59,6 +70,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--profile', action='store_const', const=True)
     parser.add_argument('--opencl', action='store_const', const=True)
+    parser.add_argument('--ben', action='store_const', const=True)
     args = parser.parse_args()
 
     if args.profile:
@@ -66,8 +78,25 @@ def main():
         profile.enable()
 
     if args.opencl:
-        model = ModelCL(mesh_file, horizon=0.1, critical_strain=0.005,
-                        elastic_modulus=0.05, initial_crack=is_crack)
+        if args.ben:
+            model = ModelCLBen(mesh_file, horizon=0.1, critical_strain=0.005,
+                               elastic_modulus=0.05, initial_crack=is_crack,
+                               density=1.0, damping = 1.0,
+                               bond_stiffness_concrete = (
+                                   np.double((18.00 * 0.05) /
+                                                 (np.pi * np.power(0.1, 4)))),
+                               critical_strain_concrete = 0.005,
+                               crack_length = 0.3,
+                               volume_total=1.0,
+                               bond_type=bond_type,
+                               network_file_name = 'Network_2.vtk',
+                               dimensions=2,
+                               transfinite=0,
+                               precise_stiffness_correction=1,
+                               displacement_rate = 0.00001) 
+        else:
+            model = ModelCL(mesh_file, horizon=0.1, critical_strain=0.005,
+                            elastic_modulus=0.05, initial_crack=is_crack)
     else:
         model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
                       elastic_modulus=0.05, initial_crack=is_crack)
