@@ -6,6 +6,7 @@ import pyopencl as cl
 from pyopencl import mem_flags as mf
 from peridynamics.post_processing import vtk # For _set_network
 import pathlib
+from tqdm import trange
 import sys # for output device info 
 
 class ModelCLBen(Model):
@@ -34,6 +35,7 @@ class ModelCLBen(Model):
                  max_displacement = None,
                  initial_crack = [], # remove this
                  crack_length = None,
+                 dt = None,
                  context=None, **kwargs):
         """Create a :class:`ModelCLBen` object.
         :arg float density: Density of the bulk material in kg/m^3 .
@@ -60,6 +62,11 @@ class ModelCLBen(Model):
         :rtype: Model
         """
         super().__init__(*args, **kwargs)
+        
+        if self.dimensions == 2:
+            self.family_volume = np.pi*np.power(self.horizon, 2) * 0.001
+        elif self.dimensions == 3:
+            self.family_volume = (4./3)*np.pi*np.power(self.horizon, 3)
 
         self.degrees_freedom = 3
         self.precise_stiffness_correction = precise_stiffness_correction
@@ -70,9 +77,13 @@ class ModelCLBen(Model):
         self.critical_strain_concrete = critical_strain_concrete
         self.critical_strain_steel = critical_strain_steel
         self.network_file_name = network_file_name
-        self.dt = None
-        self.max_reaction = None
-        self.load_scale_rate = None
+        self.dt = dt
+        self.max_reaction = max_reaction
+        self.build_load = build_load
+        self.damping = damping
+        self.build_displacement = build_displacement
+        self.displacement_rate = displacement_rate
+        self.max_displacement = max_displacement
 
         self._set_volume(volume_total)
 
@@ -132,14 +143,14 @@ class ModelCLBen(Model):
 
         # Call kernel
         self.damage_kernel(self.queue, (self.nnodes * self.max_horizon_length,),
-                                  (self.max_horizon_length,), self.horizons_d,
-                                           self.horizons_lengths_d, damage_d, local_mem)
+                                  (self.max_horizon_length,), horizons_d,
+                                           horizons_lengths_d, damage_d, local_mem)
         queue.finish()
 
     def _bond_force(self, u_d, ud_d, r0_d, vols_d, horizons_d, bond_stiffness_d,
                     bond_critical_stretch_d, force_bc_types_d, force_bc_values_d,
                     local_mem_x, local_mem_y, local_mem_z, force_load_scale,
-                    displacement_load_scale):
+                    stiffness, critical_strain):
         """Calculate the force due to bonds acting on each node."""
         queue = self.queue
         # Call kernel
@@ -158,9 +169,11 @@ class ModelCLBen(Model):
                 local_mem_y,
                 local_mem_z,
                 force_load_scale,
-                displacement_load_scale
+                stiffness,
+                critical_strain
                 )
         queue.finish()
+        return ud_d, horizons_d
 
     def _update_displacement(self, ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale):
         """Update displacements."""
@@ -173,6 +186,7 @@ class ModelCLBen(Model):
                 bc_values_d,
                 displacement_load_scale
                 )
+        return u_d
 
     def _set_connectivity(self, initial_crack):
         """
@@ -193,8 +207,6 @@ class ModelCLBen(Model):
         also see self.family, which is a verlet list:
             self.horizons and self.horizons_lengths are neccessary OpenCL cannot deal with non fixed length arrays
         """
-        if self.v == True:
-            print("defining crack")
         # This code is the fastest because it doesn't have to iterate through
         # all possible initial crack bonds.
         def is_crack(x, y):
@@ -259,13 +271,11 @@ class ModelCLBen(Model):
             # Read the Max horizons length first
             row_as_list, iline = find_string('MAX_HORIZON_LENGTH', iline)
             max_horizon_length = int(row_as_list[1])
-            if self.v == True:
-                print('max_horizon_length', max_horizon_length)
+            print('max_horizon_length', max_horizon_length)
             # Read nnodes
             row_as_list, iline = find_string('NNODES', iline)
             nnodes = int(row_as_list[1])
-            if self.v == True:
-                print('nnodes', nnodes)
+            print('nnodes', nnodes)
             # Read horizons lengths
             row_as_list, iline = find_string('HORIZONS_LENGTHS', iline)
             horizons_lengths = np.zeros(nnodes, dtype=int)
@@ -275,8 +285,7 @@ class ModelCLBen(Model):
                 horizons_lengths[i] = np.intc(line.split())
 
             # Read family matrix
-            if self.v == True:
-                print('Building family matrix from file')
+            print('Building family matrix from file')
             row_as_list, iline = find_string('FAMILY', iline)
             family = []
             for i in range(nnodes):
@@ -289,8 +298,7 @@ class ModelCLBen(Model):
                     family[i][j] = np.intc(row_as_list[j])
 
             # Read stiffness values
-            if self.v == True:
-                print('Building stiffnesses from file')
+            print('Building stiffnesses from file')
             row_as_list, iline = find_string('STIFFNESS', iline)
             bond_stiffness_family = []
             for i in range(nnodes):
@@ -303,8 +311,7 @@ class ModelCLBen(Model):
                     bond_stiffness_family[i][j] = (row_as_list[j])
 
             # Now read critcal stretch values
-            if self.v == True:
-                print('Building critical stretch values from file')
+            print('Building critical stretch values from file')
             row_as_list, iline = find_string('STRETCH', iline)
             bond_critical_stretch_family = []
             for i in range(nnodes):
@@ -547,16 +554,32 @@ class ModelCLBen(Model):
                       self.max_horizon_length, self.horizons_lengths,
                       self.family, self.bond_stiffness_family, self.bond_critical_stretch_family)
 
-    def _increment_load(self, model, load_scale):
+    def _increment_load(self, load_scale):
         if model.num_force_bc_nodes != 0:
             # update the host force load scale
             self.force_load_scale_h = np.float64(load_scale)
-    def _increment_displacement(self, model, displacement_scale):
-        # update the host force load scale
-        self.displacement_load_scale_h = np.float64(displacement_scale)
+    def _increment_displacement(self):
+        if not ((self.displacement_rate is None) or (self.build_displacement is None) or (self.final_displacement is None)):
+            # 5th order polynomial/ linear curve used to calculate displacement_scale
+            displacement_scale, ease_off = _calc_load_displacement_rate(a, b, c,
+                                                             self.final_displacement,
+                                                             build_time,
+                                                             self.displacement_rate,
+                                                             step, 
+                                                             self.build_displacement,
+                                                             ease_off)
+            if displacement_scale != 0.0:
+                # update the host force load scale
+                displacement_load_scale = np.float64(displacement_scale)
+        # No user specified build up parameters case
+        elif not (self.displacement_rate is None):
+            # update the host force load scale
+            displacement_load_scale = np.float64(1.0)
+        return displacement_load_scale
 
     def simulate(self, steps, integrator, boundary_function=None, u=None,
-                 connectivity=None, first_step=1, write=None, write_path=None):
+                 ud=None, connectivity=None, first_step=1, write=None, 
+                 write_path=None):
         """
         Simulate the peridynamics model.
         :arg int steps: The number of simulation steps to conduct.
@@ -585,8 +608,7 @@ class ModelCLBen(Model):
          damage,
          boundary_function,
          write_path) = self._simulate_initialise(
-            integrator, boundary_function, u, connectivity, write_path
-            )
+            integrator, boundary_function, u, ud, connectivity, write_path)
              
         # Calculate number of time steps that displacement load is in the 'build-up' phase
         if not ((self.displacement_rate is None) or (self.build_displacement is None) or (self.final_displacement is None)):
@@ -604,6 +626,9 @@ class ModelCLBen(Model):
         force_load_scale = np.float64(0.0)
         # For applying displacement in incriments
         displacement_load_scale = np.float64(0.0)
+        # Temporary value
+        critical_strain = np.float64(1.0)
+        stiffness = np.float64(1.0)
 
         # Build OpenCL data structures
 
@@ -646,8 +671,9 @@ class ModelCLBen(Model):
         # Write only
         damage_d = cl.Buffer(self.context, cl.mem_flags.WRITE_ONLY, np.empty(self.nnodes).astype(np.float64).nbytes)
         # Initialize kernel parameters TODO: no sign of this in Jim's code, is it relevant?
-        self.cl_kernel_time_integration.set_scalar_arg_dtypes(
+        self.bond_force_kernel.set_scalar_arg_dtypes(
             [None,
+             None,
              None,
              None,
              None,
@@ -663,14 +689,14 @@ class ModelCLBen(Model):
              None
              ])
         # Initialize kernel parameters
-        self.cl_kernel_update_displacement.set_scalar_arg_dtypes(
+        self.update_displacement_kernel.set_scalar_arg_dtypes(
             [None,
              None,
              None,
              None,
              None
              ])
-        self.cl_kernel_reduce_damage.set_scalar_arg_dtypes(
+        self.damage_kernel.set_scalar_arg_dtypes(
             [None, None, None, None])
 
         # Container for plotting data
@@ -680,16 +706,17 @@ class ModelCLBen(Model):
 
         # Ease off displacement loading switch
         ease_off = 0
-        for step in range(1, steps+1):
+        for step in trange(first_step, first_step+steps,
+                           desc="Simulation Progress", unit="steps"):
             
             # Update displacements
-            self._update_displacement(ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale)
+            u_d = self._update_displacement(ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale)
                 
-            # Calculate the force due to bonds on each node
-            self._bond_force(u_d, ud_d, r0_d, vols_d, horizons_d, bond_stiffness_d,
+            # Calculate the force due to bonds on each node, and update connectivity
+            ud_d, horizons_d = self._bond_force(u_d, ud_d, r0_d, vols_d, horizons_d, bond_stiffness_d,
                     bond_critical_stretch_d, force_bc_types_d, force_bc_values_d,
                     local_mem_x, local_mem_y, local_mem_z, force_load_scale,
-                    displacement_load_scale)
+                    stiffness, critical_strain)
 
             if write:
                 if step % write == 0:
@@ -726,25 +753,14 @@ class ModelCLBen(Model):
                         break
 
             # Increase load in linear increments
-            if not (self.load_scale_rate is None):
-                load_scale = min(1.0, self.load_scale_rate * step)
+            if not (self.build_load is None):
+                load_scale = min(1.0, self.build_load * step)
                 if load_scale != 1.0:
-                    self._increment_load(self, load_scale)
+                    self._increment_load(load_scale)
             # Increase dispalcement in 5th order polynomial increments
-            if not ((self.displacement_rate is None) or (self.build_displacement is None) or (self.final_displacement is None)):
-                # 5th order polynomial/ linear curve used to calculate displacement_scale
-                displacement_scale, ease_off = _calc_load_displacement_rate(a, b, c,
-                                                                 self.final_displacement,
-                                                                 build_time,
-                                                                 self.displacement_rate,
-                                                                 step, 
-                                                                 self.build_displacement,
-                                                                 ease_off)
-                if displacement_scale != 0.0:
-                    self._increment_displacement(displacement_scale)
-            # No user specified build up parameters case
-            elif not (self.displacement_rate is None):
-                self._increment_displacement(1.0)
+            displacement_load_scale = self._increment_displacement()
+            
+            
 
         return damage_sum_data, tip_displacement_data, tip_force_data
 

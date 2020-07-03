@@ -34,6 +34,29 @@ def is_crack(x, y):
             output = 1
     return output
 
+def is_tip(horizon, x):
+    output = 0
+    if x[0] > 1.0 - 1. * horizon:
+        output = 1
+    return output
+
+def is_boundary(horizon, x):
+    """
+    Function which marks displacement boundary constrained particles
+    2 is no boundary condition (the number here is an arbitrary choice)
+    -1 is displacement loaded IN -ve direction
+    1 is displacement loaded IN +ve direction
+    0 is clamped boundary
+    """
+    # Does not live on a boundary
+    bnd = 2
+    # Does live on boundary
+    if x[0] < 1.5 * horizon:
+        bnd = -1
+    elif x[0] > 1.0 - 1.5 * horizon:
+        bnd = 1
+    return bnd
+
 def bond_type(x, y):
     """ 
     Determines bond type given pair of node coordinates.
@@ -64,6 +87,60 @@ def boundary_function(model, u, step):
 
     return u
 
+def is_forces_boundary(horizon, x):
+    """
+    Marks types of body force on the particles
+    2 is no boundary condition (the number here is an arbitrary choice)
+    -1 is force loaded IN -ve direction
+    1 is force loaded IN +ve direction
+    """
+    bnd = [2, 2, 2]
+    return bnd
+
+def boundary_function_cl(model, displacement_rate):
+    """ 
+    Initiates displacement boundary conditions,
+    also define the 'tip' (for plotting displacements)
+    """
+    #initiate containers
+    model.bc_types = np.zeros((model.nnodes, model.degrees_freedom), dtype=np.intc)
+    model.bc_values = np.zeros((model.nnodes, model.degrees_freedom), dtype=np.float64)
+    model.tip_types = np.zeros(model.nnodes, dtype=np.intc)
+
+    # Find the boundary nodes and apply the displacement values
+    for i in range(0, model.nnodes):
+        # Define boundary types and values
+        bnd = is_boundary(model.horizon, model.coords[i][:])
+        model.bc_types[i, 0] = np.intc((bnd))
+        model.bc_types[i, 1] = np.intc((bnd))
+        model.bc_types[i, 2] = np.intc((bnd))
+        model.bc_values[i, 0] = np.float64(bnd * 0.5 * displacement_rate)
+
+        # Define tip here
+        tip = is_tip(model.horizon, model.coords[i][:])
+        model.tip_types[i] = np.intc(tip)
+
+def boundary_forces_function(model):
+    """ 
+    Initiates boundary forces
+    """
+    model.force_bc_types = np.zeros((model.nnodes, model.degrees_freedom), dtype=np.intc)
+    model.force_bc_values = np.zeros((model.nnodes, model.degrees_freedom), dtype=np.float64)
+
+    # Find the force boundary nodes and find amount of boundary nodes
+    num_force_bc_nodes = 0
+    for i in range(0, model.nnodes):
+        bnd = is_forces_boundary(model.horizon, model.coords[i][:])
+        if -1 in bnd:
+            num_force_bc_nodes += 1
+        elif 1 in bnd:
+            num_force_bc_nodes += 1
+        model.force_bc_types[i, 0] = np.intc((bnd[0]))
+        model.force_bc_types[i, 1] = np.intc((bnd[1]))
+        model.force_bc_types[i, 2] = np.intc((bnd[2]))
+
+    model.num_force_bc_nodes = num_force_bc_nodes
+
 
 def main():
     """Conduct a peridynamics simulation."""
@@ -72,7 +149,6 @@ def main():
     parser.add_argument('--opencl', action='store_const', const=True)
     parser.add_argument('--ben', action='store_const', const=True)
     args = parser.parse_args()
-
     if args.profile:
         profile = cProfile.Profile()
         profile.enable()
@@ -92,8 +168,11 @@ def main():
                                network_file_name = 'Network_2.vtk',
                                dimensions=2,
                                transfinite=0,
-                               precise_stiffness_correction=1,
-                               displacement_rate = 0.00001) 
+                               precise_stiffness_correction=2,
+                               displacement_rate = 0.00001,
+                               dt = 1e-3) 
+            boundary_function_cl(model, displacement_rate=0.00001)
+            boundary_forces_function(model)
         else:
             model = ModelCL(mesh_file, horizon=0.1, critical_strain=0.005,
                             elastic_modulus=0.05, initial_crack=is_crack)
@@ -111,7 +190,7 @@ def main():
         steps=1000,
         integrator=integrator,
         boundary_function=boundary_function,
-        write=10000
+        write=100
         )
 
     if args.profile:
@@ -120,7 +199,6 @@ def main():
         stats = Stats(profile, stream=s).sort_stats(SortKey.CUMULATIVE)
         stats.print_stats(.05)
         print(s.getvalue())
-
 
 if __name__ == "__main__":
     main()

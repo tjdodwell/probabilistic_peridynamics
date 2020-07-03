@@ -99,7 +99,7 @@ __kernel void
         const double cy = xi_eta_y / y;
         const double cz = xi_eta_z / y;
 
-        const double _E = PD_stiffness * stiffness_corrections[global_id];
+        const double _E = stiffness * stiffness_corrections[global_id];
         const double _A = vols[node_id_j];
         const double _L = xi;
 
@@ -111,10 +111,10 @@ __kernel void
         local_cache_z[local_id] = _EAL * cz * y_xi;
 
         // Check for state of bonds here, and break it if necessary
-        const double s0 = PD_stretch * critical_strains[global_id];
+        const double s0 = critical_strain * critical_strains[global_id];
         const double s = (y - xi) / xi;
         if (s > s0) {
-            Horizons[global_id] = -1;  // Break the bond
+            horizons[global_id] = -1;  // Break the bond
         }
     }
     // bond is broken
@@ -223,7 +223,7 @@ __kernel void
 			const double xi = sqrt(xi_x * xi_x + xi_y * xi_y + xi_z * xi_z);
 			const double y = sqrt(xi_eta_x * xi_eta_x + xi_eta_y * xi_eta_y + xi_eta_z * xi_eta_z);
 
-			const double s0 = crtical_strains[i * MAX_HORIZON_LENGTH + j];
+			const double s0 = critical_strains[i * MAX_HORIZON_LENGTH + j];
 
 			const double s = (y - xi) / xi;
 
