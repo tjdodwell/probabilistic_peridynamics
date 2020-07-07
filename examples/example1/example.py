@@ -76,7 +76,7 @@ def boundary_function(model, u, step):
     Particles on each of the sides of the system are pulled apart with
     increasing time step.
     """
-    load_rate = 0.00001
+    load_rate = 0.000005
 
     u[model.lhs, 1:3] = 0.
     u[model.rhs, 1:3] = 0.
@@ -169,9 +169,9 @@ def main():
                                dimensions=2,
                                transfinite=0,
                                precise_stiffness_correction=2,
-                               displacement_rate = 0.00001,
+                               displacement_rate = 0.000005,
                                dt = 1e-3) 
-            boundary_function_cl(model, displacement_rate=0.00001)
+            boundary_function_cl(model, displacement_rate=0.000005)
             boundary_forces_function(model)
         else:
             model = ModelCL(mesh_file, horizon=0.1, critical_strain=0.005,
@@ -190,7 +190,7 @@ def main():
         steps=1000,
         integrator=integrator,
         boundary_function=boundary_function,
-        write=100
+        write=50
         )
 
     if args.profile:

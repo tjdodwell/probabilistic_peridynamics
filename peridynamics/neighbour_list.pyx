@@ -48,7 +48,7 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
     """
     cdef int nnodes = r.shape[0]
 
-    result = np.zeros((nnodes, size), dtype=np.intc)
+    result = -1.*np.ones((nnodes, size), dtype=np.intc)
     cdef int[:, :] result_view = result
     n_neigh = np.zeros(nnodes, dtype=np.intc)
     cdef int[:] n_neigh_view = n_neigh
@@ -64,7 +64,8 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
                 # Add i as a neighbour of j
                 result_view[j, n_neigh_view[j]] = i
                 n_neigh_view[j] = n_neigh_view[j] + 1
-
+    print(result)
+    print(n_neigh)
     return result, n_neigh
 
 
