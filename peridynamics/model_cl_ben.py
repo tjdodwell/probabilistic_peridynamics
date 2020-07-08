@@ -226,22 +226,24 @@ class ModelCLBen(Model):
         f.write("ASCII\n")
         f.write("\n")
         f.write("DATASET ARRAY\n")
-        
-        if type(array[0][0]) is (float or np.float64):
+        if type(array[0][0]) is (np.float64 or float):
             for i in range(0, np.shape(array)[0]):
                 tmp = array[i]
                 for j in range(0, len(tmp)):
                     f.write("{:f} ".format(tmp[j]))
                 f.write("\n")
-        elif type(array[0][0]) is (int or np.intc):
+            f.close()
+        elif type(array[0][0]) is (np.intc or int):
             for i in range(0, np.shape(array)[0]):
                 tmp = array[i]
                 for j in range(0, len(tmp)):
                     f.write("{:d} ".format(np.intc(tmp[j])))
                 f.write("\n")
+            f.close()
         else:
-            ValueError('values','type not recognised, could not write to file.\
-                       Type must be float, numpy.float64, int or numpy.intc')
+            raise ValueError(
+                'values type not recognised, could not write to file.\
+                Type must be float, numpy.float64, int or numpy.intc')
 
     def _set_material_types(self, initial_connectivity, bond_type, write_path):
         """
@@ -257,10 +259,11 @@ class ModelCLBen(Model):
         nlist, n_neigh = initial_connectivity
         material_types = np.zeros(
             (self.nnodes, self.max_neighbours), dtype=np.intc)
+        print(material_types.shape, nlist.shape, self.coords.shape)
         for i in range(self.nnodes):
-            for neighbour in range(n_neigh[i]):
-                j = nlist[i][neighbour]
-                material_types[i][j] = bond_type(
+            for neigh in range(n_neigh[i]):
+                j = nlist[i][neigh]
+                material_types[i][neigh] = bond_type(
                     self.coords[i, :], self.coords[j, :])
         material_types = material_types.astype(np.intc)
         self.write_array(write_path/"material_types", material_types)
@@ -290,7 +293,6 @@ class ModelCLBen(Model):
             each node.
         :rtype: numpy.ndarray
         """
-        
         nlist, n_neigh = initial_connectivity
         stiffness_corrections = np.ones((self.nnodes, self.max_neighbours))
         family_volumes = np.zeros(self.nnodes)
@@ -306,27 +308,29 @@ class ModelCLBen(Model):
         elif self.dimensions == 3:
             family_volume_bulk = (4./3)*np.pi*np.power(horizon, 3)
 
-        if precise_stiffness_correction ==1:
+        if precise_stiffness_correction == 1:
             for i in range(0, self.nnodes):
-                neighbour_list = nlist[i][:self.family[i]]
                 family_volume_i = family_volumes[i]
-                for j in range(self.family[i]):
-                    family_volume_j = family_volumes[neighbour_list[j]]
+                for neigh in range(n_neigh[i]):
+                    family_volume_j = family_volumes[nlist[i][neigh]]
                     stiffness_correction_factor = 2. * family_volume_bulk / \
                     (family_volume_i + family_volume_j)
-                    stiffness_corrections[i][j]= stiffness_correction_factor
+                    stiffness_corrections[i][neigh] = (
+                        stiffness_correction_factor)
 
         elif precise_stiffness_correction == 0:
-            average_node_volume = self.volume_total/self.nnodes
+            average_node_volume = self.volume_total / self.nnodes
             for i in range(0, self.nnodes):
-                nnodes_i_family = self.family[i]
+                nnodes_i_family = n_neigh[i]
                 nodei_family_volume = nnodes_i_family * average_node_volume
-                for j in nnodes_i_family:
-                    nnodes_j_family = self.family[j]
+                for neigh in nnodes_i_family:
+                    j = nlist[i][neigh]
+                    nnodes_j_family = n_neigh[j]
                     nodej_family_volume = nnodes_j_family * average_node_volume
                     stiffness_correction_factor = 2. * family_volume_bulk / (
                         nodej_family_volume + nodei_family_volume)
-                    stiffness_corrections[i][j]= stiffness_correction_factor
+                    stiffness_corrections[i][neigh]= (
+                        stiffness_correction_factor)
 
         elif precise_stiffness_correction == None:
             pass
