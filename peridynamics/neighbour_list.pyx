@@ -48,7 +48,7 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
     """
     cdef int nnodes = r.shape[0]
 
-    result = -1.*np.ones((nnodes, size), dtype=np.intc)
+    result = np.zeros((nnodes, size), dtype=np.intc)
     cdef int[:, :] result_view = result
     n_neigh = np.zeros(nnodes, dtype=np.intc)
     cdef int[:] n_neigh_view = n_neigh
@@ -64,8 +64,7 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
                 # Add i as a neighbour of j
                 result_view[j, n_neigh_view[j]] = i
                 n_neigh_view[j] = n_neigh_view[j] + 1
-    print(result)
-    print(n_neigh)
+
     return result, n_neigh
 
 
@@ -163,3 +162,43 @@ def create_crack(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):
                 nlist[j, neigh] = nlist[j, n_neigh[j]-1]
                 n_neigh[j] = n_neigh[j] - 1
                 break
+
+def create_neighbour_list_BB(double[:, :] r, double horizon, int size):
+    """
+    Build a neighbour list.
+
+    :arg r: The coordinates of all nodes.
+    :type r: :class:`numpy.ndarray`
+    :arg float horizon: The horizon distance.
+    :arg int size: The size of each row of the neighbour list. This is the
+        smallest power of 2 which is larger than the maximum number of 
+        neighbours, :func:`peridynamics.neighbour_list.family`.
+
+    :return: A tuple of the neighbour list and number of neighbours for each
+        node.
+    :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`)
+    """
+    cdef int nnodes = r.shape[0]
+
+    nlist = -1*np.ones((nnodes, size), dtype=np.intc)
+    cdef int[:, :] nlist_view = nlist
+    n_neigh = np.zeros(nnodes, dtype=np.intc)
+    cdef int[:] n_neigh_view = n_neigh
+    material_type_list = -1*np.ones((nnodes, size), dtype=np.intc)
+    cdef int[:, :] material_type_list_view = material_type_list
+
+    cdef int i, j
+
+    for i in range(nnodes-1):
+        for j in range(i+1, nnodes):
+            if ceuclid(r[i], r[j]) < horizon:
+                # Add j as a neighbour of i
+                nlist_view[i, n_neigh_view[i]] = j
+                n_neigh_view[i] = n_neigh_view[i] + 1
+                # Add i as a neighbour of j
+                nlist_view[j, n_neigh_view[j]] = i
+                n_neigh_view[j] = n_neigh_view[j] + 1
+    print(nlist)
+    print(n_neigh)
+    
+    return nlist, n_neigh

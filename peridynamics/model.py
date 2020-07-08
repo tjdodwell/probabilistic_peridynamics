@@ -1,6 +1,6 @@
 """Peridynamics model."""
 from .integrators import Integrator
-from .neighbour_list import (family, create_neighbour_list, break_bonds,
+from .neighbour_list import (family, create_neighbour_list_BB, break_bonds,
                              create_crack)
 from .peridynamics import damage, bond_force
 from collections import namedtuple
@@ -104,7 +104,8 @@ class Model(object):
     """
 
     def __init__(self, mesh_file, horizon, critical_strain, elastic_modulus,
-                 initial_crack=[], dimensions=2):
+                 transfinite = 0, volume_total=None,
+                 connectivity=None, initial_crack=[], dimensions=2):
         """
         Construct a :class:`Model` object.
 
@@ -117,6 +118,12 @@ class Model(object):
             which exceed this strain are permanently broken.
         :arg float elastic_modulus: The appropriate elastic modulus of the
             material.
+        :arg bool transfinite: Is the mesh a transfinite(=1) or a triangular/
+            tetra(=0). Default 0. Tranfinite mode approximates the volumes of 
+            the nodes as the average volume of nodes on a cuboidal tensor-grid 
+            mesh.
+        :arg float volume_total: Total volume of the mesh. Must be provided if 
+            transfinite mode (transfinite=1) is used.
         :arg initial_crack: The initial crack of the system. The argument may
             be a list of tuples where each tuple is a pair of integers
             representing nodes between which to create a crack. Alternatively,
@@ -156,8 +163,14 @@ class Model(object):
             18.0 * elastic_modulus / (np.pi * self.horizon**4)
             )
 
+        if transfinite:
+            if volume_total is None:
+                raise ValueError("If the mesh is regular cuboidal tensor grid\
+                                 (transfinite), a total volume (key word arg\
+                                'volume_total') must be provided")
         # Calculate the volume for each node
-        self.volume = self._volume()
+        self.volume, self.sum_total_volume = self._volume(
+            transfinite, volume_total)
 
         # Calculate the family (number of bonds in the initial configuration)
         # for each node
@@ -165,13 +178,24 @@ class Model(object):
         if np.any(self.family == 0):
             raise FamilyError(self.family)
 
-        # Create the neighbourlist
-        self.max_neighbours = self.family.max()
-        nlist, n_neigh = create_neighbour_list(
-            self.coords, horizon, self.max_neighbours
-            )
+        if connectivity is None:
+            # Create the neighbourlist
+            # Maximum number of nodes that any one of the nodes is connected
+            # to, must be a power of 2 (for OpenCL reduction)
+            self.max_neighbours = np.intc(
+                        1<<(self.family.max()-1).bit_length()
+                    )
+            connectivity = create_neighbour_list_BB(
+                self.coords, horizon, self.max_neighbours
+                )
+        elif type(connectivity) == tuple:
+            if len(connectivity) != 2:
+                raise ValueError("connectivity must be of size 2")
+            nlist, n_neigh = connectivity
+        else:
+            raise TypeError("connectivity must be a tuple or None")
 
-        # Initialise inital crack
+        # Initialise initial crack
         if initial_crack:
             if callable(initial_crack):
                 initial_crack = initial_crack(self.coords, nlist, n_neigh)
@@ -234,17 +258,28 @@ class Model(object):
             file_format=file_format
             )
 
-    def _volume(self):
+    def _volume(self, transfinite, volume_total):
         """
         Calculate the value of each node.
+        
+        :arg float volume_total: User input for the total volume of the mesh, for checking
+        sum total of elemental volumes is equal to user input volume for simple
+        prismatic problems. In the case where no expected total volume is provided,
+        the check is not done.
+        :arg bool transfinite: Is the mesh a transfinite(=1) or a triangular/tetra(=0).
 
         :returns: None
         :rtype: NoneType
         """
         volume = np.zeros(self.nnodes)
         dimensions = self.dimensions
+        sum_total_volume = 0.0
 
-        if dimensions == 2:
+        if transfinite:
+            tmp = volume_total / self.nnodes
+            volume = tmp * np.ones(self.nnodes)
+            sum_total_volume = volume_total
+        elif dimensions == 2:
             # element is a triangle
             element_nodes = 3
         elif dimensions == 3:
@@ -260,6 +295,7 @@ class Model(object):
                 i = b - a
                 j = c - a
                 element_volume = 0.5 * np.linalg.norm(np.cross(i, j))
+                sum_total_volume += element_volume
             elif dimensions == 3:
                 a, b, c, d = self.coords[nodes]
 
@@ -268,12 +304,15 @@ class Model(object):
                 j = b - d
                 k = c - d
                 element_volume = abs(np.dot(i, np.cross(j, k))) / 6
+                sum_total_volume += element_volume
 
             # Add fraction element volume to all nodes belonging to that
             # element
             volume[nodes] += element_volume / element_nodes
 
-        return volume
+        volume = volume.astype(np.float64)
+        
+        return volume, sum_total_volume
 
     def _break_bonds(self, u, nlist, n_neigh):
         """

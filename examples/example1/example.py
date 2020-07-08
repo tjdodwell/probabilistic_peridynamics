@@ -57,18 +57,6 @@ def is_boundary(horizon, x):
         bnd = 1
     return bnd
 
-def bond_type(x, y):
-    """ 
-    Determines bond type given pair of node coordinates.
-    Usage:
-        'plain = 1' will return a plain concrete bond for all bonds, an so a
-    plain concrete beam.
-        'plain = 0' will return a concrete beam with some rebar as specified
-        in "is_rebar()"
-    """
-    output = 'concrete' # default to concrete
-    return output
-
 def boundary_function(model, u, step):
     """
     Apply a load to the system.
@@ -97,51 +85,6 @@ def is_forces_boundary(horizon, x):
     bnd = [2, 2, 2]
     return bnd
 
-def boundary_function_cl(model, displacement_rate):
-    """ 
-    Initiates displacement boundary conditions,
-    also define the 'tip' (for plotting displacements)
-    """
-    #initiate containers
-    model.bc_types = np.zeros((model.nnodes, model.degrees_freedom), dtype=np.intc)
-    model.bc_values = np.zeros((model.nnodes, model.degrees_freedom), dtype=np.float64)
-    model.tip_types = np.zeros(model.nnodes, dtype=np.intc)
-
-    # Find the boundary nodes and apply the displacement values
-    for i in range(0, model.nnodes):
-        # Define boundary types and values
-        bnd = is_boundary(model.horizon, model.coords[i][:])
-        model.bc_types[i, 0] = np.intc((bnd))
-        model.bc_types[i, 1] = np.intc((bnd))
-        model.bc_types[i, 2] = np.intc((bnd))
-        model.bc_values[i, 0] = np.float64(bnd * 0.5 * displacement_rate)
-
-        # Define tip here
-        tip = is_tip(model.horizon, model.coords[i][:])
-        model.tip_types[i] = np.intc(tip)
-
-def boundary_forces_function(model):
-    """ 
-    Initiates boundary forces
-    """
-    model.force_bc_types = np.zeros((model.nnodes, model.degrees_freedom), dtype=np.intc)
-    model.force_bc_values = np.zeros((model.nnodes, model.degrees_freedom), dtype=np.float64)
-
-    # Find the force boundary nodes and find amount of boundary nodes
-    num_force_bc_nodes = 0
-    for i in range(0, model.nnodes):
-        bnd = is_forces_boundary(model.horizon, model.coords[i][:])
-        if -1 in bnd:
-            num_force_bc_nodes += 1
-        elif 1 in bnd:
-            num_force_bc_nodes += 1
-        model.force_bc_types[i, 0] = np.intc((bnd[0]))
-        model.force_bc_types[i, 1] = np.intc((bnd[1]))
-        model.force_bc_types[i, 2] = np.intc((bnd[2]))
-
-    model.num_force_bc_nodes = num_force_bc_nodes
-
-
 def main():
     """Conduct a peridynamics simulation."""
     parser = argparse.ArgumentParser()
@@ -155,24 +98,12 @@ def main():
 
     if args.opencl:
         if args.ben:
-            model = ModelCLBen(mesh_file, horizon=0.1, critical_strain=0.005,
-                               elastic_modulus=0.05, initial_crack=is_crack,
-                               density=1.0, damping = 1.0,
-                               bond_stiffness_concrete = (
-                                   np.double((18.00 * 0.05) /
-                                                 (np.pi * np.power(0.1, 4)))),
-                               critical_strain_concrete = 0.005,
-                               crack_length = 0.3,
-                               volume_total=1.0,
-                               bond_type=bond_type,
-                               network_file_name = 'Network_2.vtk',
-                               dimensions=2,
-                               transfinite=0,
-                               precise_stiffness_correction=2,
-                               displacement_rate = 0.000005,
-                               dt = 1e-3) 
-            boundary_function_cl(model, displacement_rate=0.000005)
-            boundary_forces_function(model)
+            model = ModelCLBen(
+                mesh_file, horizon=0.1, critical_strain=0.005,
+                elastic_modulus=0.05, dimensions=2, density=2.0,
+                bond_stiffness=[np.double((18.00 * 0.05) /
+                                                 (np.pi * np.power(0.1, 4)))],
+                critical_stretch=[0.005], initial_crack=is_crack, dt=1e-3)
         else:
             model = ModelCL(mesh_file, horizon=0.1, critical_strain=0.005,
                             elastic_modulus=0.05, initial_crack=is_crack)
@@ -183,15 +114,22 @@ def main():
     # Set left-hand side and right-hand side of boundary
     model.lhs = np.nonzero(model.coords[:, 0] < 1.5*model.horizon)
     model.rhs = np.nonzero(model.coords[:, 0] > 1.0 - 1.5*model.horizon)
-
-    integrator = Euler(dt=1e-3)
-
-    u, damage, *_ = model.simulate(
-        steps=1000,
-        integrator=integrator,
-        boundary_function=boundary_function,
-        write=50
-        )
+    
+    if (args.opencl and args.ben):
+        u, damage, *_ = model.simulate(
+            steps=1000, is_forces_boundary=is_forces_boundary, 
+            is_boundary=is_boundary, is_tip=is_tip,
+                 displacement_rate=0.000005/2, write=50)
+    else:
+    
+        integrator = Euler(dt=1e-3)
+    
+        u, damage, *_ = model.simulate(
+            steps=1000,
+            integrator=integrator,
+            boundary_function=boundary_function,
+            write=50
+            )
 
     if args.profile:
         profile.disable()
