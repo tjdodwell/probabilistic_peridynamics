@@ -14,7 +14,7 @@ class ModelCLBen(Model):
     This class allows users to define an composite peridynamics system with
     any number of materials and damage laws from parameters and a set of
     initial conditions (coordinates, connectivity, material_types and
-    stiffness_correction_factors)."""
+    stiffness_corrections)."""
     
     def __init__(self,
                  *args,
@@ -23,7 +23,7 @@ class ModelCLBen(Model):
                  critical_stretch = None,
                  bond_type = None,
                  material_types=None, 
-                 stiffness_correction_factors=None,
+                 stiffness_corrections=None,
                  precise_stiffness_correction = None,
                  dt = None,
                  write_path = None,
@@ -46,11 +46,11 @@ class ModelCLBen(Model):
             If `None` the material_types at the time of construction of the
             :class:`Model` object will be used. Default `None`.
         :type material_types: :class:`numpy.ndarray`
-        :arg stiffness_correction_factors: The stiffness_correction_factors for
-            the model. If `None` the stiffness_correction_factors at the time
+        :arg stiffness_corrections: The stiffness_corrections for
+            the model. If `None` the stiffness_corrections at the time
             of construction of the :class:`Model` object will be used. Default 
             `None`.
-        :type stiffness_correction_factors:
+        :type stiffness_corrections:
         :arg bool transfinite: Cartesian cubic (tensor grid) mesh (1) or 
             tetra-hedral grid (default, 0).
         :arg bool precise_stiffness_correction: Boolean for stiffness 
@@ -65,7 +65,7 @@ class ModelCLBen(Model):
             for the displacement.
         :arg float max_displacement: The maximum displacement applied to the 
             loaded nodes.
-        :arg write_path: The path where the stiffness_correction_factors,
+        :arg write_path: The path where the stiffness_corrections,
             material_types and connectivity should be written.
         :type write_path: path-like or str
         :returns: A new :class:`Model` object.
@@ -91,19 +91,22 @@ class ModelCLBen(Model):
         self.bond_stiffness = bond_stiffness
         self.dt = dt
 
-        if stiffness_correction_factors is None:
+        if stiffness_corrections is None:
             # Calculate stiffness correction factors and write to file
-            self.stiffness_correction_factors = self._set_stiffness_correction_factors(
-                self.horizon, self.initial_connectivity, precise_stiffness_correction, 
-                write_path)
-        elif type(stiffness_correction_factors) == np.ndarray:
-            if np.shape(stiffness_correction_factors) != (self.nnodes, self.max_neighbours):
-                raise ValueError("stiffness_correction_factors must be of shape\
-                                 (nnodes, max_neighbours)")
+            self.stiffness_corrections = \
+            self._set_stiffness_corrections(
+                self.horizon, self.initial_connectivity, 
+                precise_stiffness_correction, write_path)
+        elif type(stiffness_corrections) == np.ndarray:
+            if np.shape(stiffness_corrections) != (
+                    self.nnodes, self.max_neighbours):
+                raise ValueError("stiffness_corrections must be of \
+                                 shape (nnodes, max_neighbours)")
             else:
-                self.stiffness_correction_factors = stiffness_correction_factors
+                self.stiffness_corrections = stiffness_corrections
         else:
-            raise TypeError("stiffness_correction_factors must be a numpy.ndarray or None")
+            raise TypeError(
+                "stiffness_corrections must be a numpy.ndarray or None")
 
         # Create dummy boundary conditions function is none is provided
         if bond_type is None:
@@ -112,8 +115,8 @@ class ModelCLBen(Model):
 
         if material_types is None:
             # Calculate material types and write to file
-            self.material_types = self._set_material_types(self.initial_connectivity, 
-                                                      bond_type, write_path)
+            self.material_types = self._set_material_types(
+                self.initial_connectivity, bond_type, write_path)
         elif type(material_types) == np.ndarray:
             if np.shape(material_types) != (self.nnodes, self.max_neighbours):
                 raise ValueError("material_types must be of shape\
@@ -121,7 +124,8 @@ class ModelCLBen(Model):
             else:
                 self.material_types = material_types
         else:
-            raise TypeError("stiffness_correction_factors must be a numpy.ndarray or None")
+            raise TypeError("stiffness_corrections must be an \
+                            numpy.ndarray or None")
 
         # Get an OpenCL context if none was provided
         if context is None:
@@ -145,14 +149,16 @@ class ModelCLBen(Model):
         SEP = " "
         options_string = (
             "-cl-fast-relaxed-math" + SEP
-            + "-DPD_DPN_NODE_NO=" + str(self.degrees_freedom * self.nnodes) + SEP
+            + "-DPD_DPN_NODE_NO=" + str(self.degrees_freedom * self.nnodes) 
+            + SEP
             + "-DPD_NODE_NO=" + str(self.nnodes) + SEP
             + "-DMAX_HORIZON_LENGTH=" + str(self.max_neighbours) + SEP
             + "-DPD_DT=" + str(self.dt) + SEP
             + "-DPD_REGIME_NO=" + str(self.n_regimes) + SEP)
 
         # Build kernels
-        self.program = cl.Program(self.context, kernel_source).build([options_string])
+        self.program = cl.Program(
+            self.context, kernel_source).build([options_string])
         self.queue = cl.CommandQueue(self.context)
 
         self.bond_force_kernel = self.program.bond_force_new
@@ -165,9 +171,9 @@ class ModelCLBen(Model):
         queue = self.queue
 
         # Call kernel
-        self.damage_kernel(self.queue, (self.nnodes * self.max_horizon_length,),
-                                  (self.max_horizon_length,), nlist_d,
-                                           family_d, damage_d, local_mem)
+        self.damage_kernel(
+            self.queue, (self.nnodes * self.max_horizon_length,),
+            (self.max_horizon_length,), nlist_d, family_d, damage_d, local_mem)
         queue.finish()
 
     def _damage_new(self, n_neigh_d, family_d, damage_d):
@@ -179,50 +185,34 @@ class ModelCLBen(Model):
                            damage_d)
         queue.finish()
 
-    def _bond_force(self, u_d, ud_d, r0_d, vols_d, nlist_d,
-                    n_neigh_d, stiffness_correction_factors_d,
-                    material_types_d, regimes_d, bond_stiffness_d, critical_stretch_d,
-                    plus_cs_d,
-                    force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y, local_mem_z, 
-                    force_load_scale):
+    def _bond_force(
+            self, u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d, 
+            stiffness_corrections_d, material_types_d, regimes_d,
+            bond_stiffness_d, critical_stretch_d, plus_cs_d, force_bc_types_d,
+            force_bc_values_d, local_mem_x, local_mem_y, local_mem_z, 
+            force_load_scale):
         """Calculate the force due to bonds acting on each node."""
         queue = self.queue
         # Call kernel
         self.bond_force_kernel(
-                queue, (self.nnodes * self.max_horizon_length,), (self.max_horizon_length,), 
-                u_d,
-                ud_d,
-                r0_d,
-                vols_d,
-                nlist_d,
-                n_neigh_d,
-                stiffness_correction_factors_d,
-                material_types_d,
-                regimes_d,
-                bond_stiffness_d,
-                critical_stretch_d,
-                plus_cs_d,
-                force_bc_types_d,
-                force_bc_values_d,
-                local_mem_x,
-                local_mem_y,
-                local_mem_z,
-                force_load_scale
-                )
+                queue, (self.nnodes * self.max_horizon_length,), 
+                (self.max_horizon_length,), u_d, ud_d, r0_d, vols_d, nlist_d,
+                n_neigh_d, stiffness_corrections_d, material_types_d,
+                regimes_d, bond_stiffness_d, critical_stretch_d, plus_cs_d,
+                force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
+                local_mem_z, force_load_scale)
         queue.finish()
         return ud_d, nlist_d, n_neigh_d, regimes_d
 
-    def _update_displacement(self, ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale):
+    def _update_displacement(
+            self, ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale):
         """Update displacements."""
+        queue = self.queue
         # Call kernel
         self.update_displacement_kernel(
                 self.queue, (self.degrees_freedom * self.nnodes,), None,
-                ud_d,
-                u_d,
-                bc_types_d,
-                bc_values_d,
-                displacement_load_scale
-                )
+                ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale)
+        queue.finish()
         return u_d
 
     def write_array(self, write_path, array):
@@ -265,42 +255,44 @@ class ModelCLBen(Model):
         :rtype:
         """
         nlist, n_neigh = initial_connectivity
-        material_types = np.zeros((self.nnodes, self.max_neighbours), dtype=np.intc)
+        material_types = np.zeros(
+            (self.nnodes, self.max_neighbours), dtype=np.intc)
         for i in range(self.nnodes):
             for neighbour in range(n_neigh[i]):
                 j = nlist[i][neighbour]
-                material_types[i][j] = bond_type(self.coords[i, :], self.coords[j, :])
+                material_types[i][j] = bond_type(
+                    self.coords[i, :], self.coords[j, :])
         material_types = material_types.astype(np.intc)
         self.write_array(write_path/"material_types", material_types)
         return material_types
 
-    def _set_stiffness_correction_factors(self, horizon, initial_connectivity,
-                                         precise_stiffness_correction, write_path):
+    def _set_stiffness_corrections(
+            self, horizon, initial_connectivity,
+            precise_stiffness_correction, write_path):
         """
-        Builds a list of stiffness correction factors that reduce the peridynamic
-        surface softening effect for 2D/3D problem and writes to file. The 'volume
-        method' proposed in Chapter 2 in Bobaru F, Foster JT, Geubelle PH, 
-        Silling SA (2017) Handbook of peridynamic modeling (p 51–52) is used here.
+        Builds a list of stiffness correction factors that reduce the 
+        peridynamics surface softening effect for 2D/3D problem and writes to 
+        file. The 'volume method' proposed in Chapter 2 in Bobaru F, Foster JT,
+        Geubelle PH, Silling SA (2017) Handbook of peridynamic modeling 
+        (p 51–52) is used here.
 
         :arg float horizon: The horizon distance.
         :arg initial_connec
         :arg int size: The size of each row of the neighbour list. This is the
             maximum number of neighbours and should be equal to the maximum of
             of :func:`peridynamics.neighbour_list.family`.
-        :arg precise_stiffness_correction int: A switch variable. (=1), Calculate precise
-                                                stiffening factor more accurately using 
-                                                actual nodal volumes.
-                                                (=0),Calculate non-precise stiffening
-                                                factor using average nodal volumes.
-                                                (=None), Don't apply a stiffness 
-                                                correction factor.
-        :return: A tuple of the neighbour list and number of neighbours for each
-            node.
+        :arg precise_stiffness_correction int: A switch variable. (=1), 
+            Calculate precise stiffening factor more accurately using actual
+                nodal volumes. (=0),Calculate non-precise stiffening factor 
+                using average nodal volumes. (=None), Don't apply a stiffness 
+                correction factor.
+        :return: A tuple of the neighbour list and number of neighbours for 
+            each node.
         :rtype: numpy.ndarray
         """
         
         nlist, n_neigh = initial_connectivity
-        stiffness_correction_factors = np.ones((self.nnodes, self.max_neighbours))
+        stiffness_corrections = np.ones((self.nnodes, self.max_neighbours))
         family_volumes = np.zeros(self.nnodes)
         for i in range(0, self.nnodes):
             tmp = 0.0
@@ -320,20 +312,21 @@ class ModelCLBen(Model):
                 family_volume_i = family_volumes[i]
                 for j in range(self.family[i]):
                     family_volume_j = family_volumes[neighbour_list[j]]
-                    stiffness_correction_factor = 2.* family_volume_bulk / \
+                    stiffness_correction_factor = 2. * family_volume_bulk / \
                     (family_volume_i + family_volume_j)
-                    stiffness_correction_factors[i][j]= stiffness_correction_factor
+                    stiffness_corrections[i][j]= stiffness_correction_factor
 
         elif precise_stiffness_correction == 0:
             average_node_volume = self.volume_total/self.nnodes
             for i in range(0, self.nnodes):
                 nnodes_i_family = self.family[i]
-                nodei_family_volume = nnodes_i_family * average_node_volume # Possible to calculate more exactly, we have the volumes for free
+                nodei_family_volume = nnodes_i_family * average_node_volume
                 for j in nnodes_i_family:
                     nnodes_j_family = self.family[j]
-                    nodej_family_volume = nnodes_j_family* average_node_volume # Possible to calculate more exactly, we have the volumes for free
-                    stiffness_correction_factor = 2.* family_volume_bulk /  (nodej_family_volume + nodei_family_volume)
-                    stiffness_correction_factors[i][j]= stiffness_correction_factor
+                    nodej_family_volume = nnodes_j_family * average_node_volume
+                    stiffness_correction_factor = 2. * family_volume_bulk / (
+                        nodej_family_volume + nodei_family_volume)
+                    stiffness_corrections[i][j]= stiffness_correction_factor
 
         elif precise_stiffness_correction == None:
             pass
@@ -341,8 +334,9 @@ class ModelCLBen(Model):
             raise ValueError('precise_stiffness_correction', 
                              'precise_stiffness_correction can \
                              only take values 0 or 1 or None')
-        self.write_array(write_path/"stiffness_correction_factors", stiffness_correction_factors)
-        return stiffness_correction_factors
+        self.write_array(
+            write_path/"stiffness_corrections", stiffness_corrections)
+        return stiffness_corrections
 
     def _set_plus_cs(self, bond_stiffness, critical_stretch, n_regimes):
         """
@@ -414,14 +408,10 @@ class ModelCLBen(Model):
         """
         if not ((displacement_rate is None) or (build_displacement is None)\
                 or (final_displacement is None)):
-            # 5th order polynomial/ linear curve used to calculate displacement_scale
-            displacement_scale, ease_off = _calc_load_displacement_rate(coefficients,
-                                                             final_displacement,
-                                                             build_time,
-                                                             displacement_rate,
-                                                             step, 
-                                                             build_displacement,
-                                                             ease_off)
+            # Calculate the scale applied to the displacements
+            displacement_scale, ease_off = _calc_load_displacement_rate(
+                coefficients, final_displacement, build_time,
+                displacement_rate, step, build_displacement, ease_off)
             if displacement_scale != 0.0:
                 # update the host force load scale
                 displacement_load_scale = np.float64(displacement_scale)
@@ -431,18 +421,13 @@ class ModelCLBen(Model):
             displacement_load_scale = np.float64(1.0)
         return displacement_load_scale, ease_off
 
-    def simulate(self, steps, u=None,
-                 ud=None, connectivity=None,
-                 bond_stiffness= None,
-                 critical_stretch=None,
-                 is_forces_boundary=None,
-                 is_boundary=None,      
-                 is_tip=None,
+    def simulate(self, steps, u=None, ud=None, connectivity=None,
+                 bond_stiffness= None, critical_stretch=None, 
+                 is_forces_boundary=None, is_boundary=None, is_tip=None,
                  displacement_rate=None, build_displacement=None,
-                 final_displacement=None, 
-                 build_load = None,
-                 max_reaction = None,
-                 first_step=1, write=None, write_path=None):
+                 final_displacement=None, build_load = None,
+                 max_reaction = None, first_step=1, write=None, 
+                 write_path=None):
         """
         Simulate the peridynamics model.
         :arg int steps: The number of simulation steps to conduct.
@@ -484,9 +469,13 @@ class ModelCLBen(Model):
             written.
         :type write_path: path-like or str
         """
-        (nlist, n_neigh, regimes, bond_stiffness, critical_stretch,
-         plus_cs,
-         u,
+        (nlist,
+         n_neigh,
+         regimes,
+         bond_stiffness,
+         critical_stretch,
+         plus_cs, 
+         u, 
          ud,
          damage,
          bc_types,
@@ -494,18 +483,24 @@ class ModelCLBen(Model):
          force_bc_types,
          force_bc_values,
          tip_types,
-         write_path) = self._simulate_initialise(is_forces_boundary, is_boundary, is_tip, displacement_rate,
-                             u, ud, connectivity, 
-                             bond_stiffness, critical_stretch, write_path)
-             
-        # Calculate number of time steps that displacement load is in the 'build-up' phase
-        if not ((displacement_rate is None) or (build_displacement is None) or (final_displacement is None)):
-            build_time, coefficients = _calc_build_time(build_displacement, displacement_rate, steps)
+         write_path) = self._simulate_initialise(
+             is_forces_boundary, is_boundary, is_tip, displacement_rate, u,
+             ud, connectivity, bond_stiffness, critical_stretch, write_path)
+
+        # Calculate no. of time steps that applied BCs are in the build phase
+        if ((displacement_rate is not None)
+                or (build_displacement is not None)
+                or (final_displacement is not None)):
+            build_time, coefficients = _calc_build_time(
+                build_displacement, displacement_rate, steps)
 
         # Local memory containers for Bond forces
-        local_mem_x = cl.LocalMemory(np.dtype(np.float64).itemsize * self.max_neighbours)
-        local_mem_y = cl.LocalMemory(np.dtype(np.float64).itemsize * self.max_neighbours)
-        local_mem_z = cl.LocalMemory(np.dtype(np.float64).itemsize * self.max_neighbours)
+        local_mem_x = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * self.max_neighbours)
+        local_mem_y = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * self.max_neighbours)
+        local_mem_z = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * self.max_neighbours)
 
         # For applying force in incriments
         force_load_scale = np.float64(0.0)
@@ -515,86 +510,76 @@ class ModelCLBen(Model):
         # Build OpenCL data structures
 
         # Read only
-        r0_d = cl.Buffer(self.context,
-                             cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-                             hostbuf=np.ascontiguousarray(self.coords, dtype=np.float64))
-        bc_types_d = cl.Buffer(self.context,
-                              cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-                              hostbuf=bc_types)
-        bc_values_d = cl.Buffer(self.context,
-                               cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-                               hostbuf=bc_values)
-        force_bc_types_d = cl.Buffer(self.context,
-                              cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-                              hostbuf=force_bc_types)
-        force_bc_values_d = cl.Buffer(self.context,
-                               cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-                               hostbuf=force_bc_values)
-        vols_d = cl.Buffer(self.context,
-                           cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-                           hostbuf=self.volume)
-        stiffness_correction_factors_d = cl.Buffer(self.context,
-                           cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-                           hostbuf=np.ascontiguousarray(self.stiffness_correction_factors, dtype=np.float64))
-        material_types_d = cl.Buffer(self.context,
-                           cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-                           hostbuf=np.ascontiguousarray(self.material_types, dtype=np.float64))
-        bond_stiffness_d = cl.Buffer(self.context,
-                           cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-                           hostbuf=np.ascontiguousarray(bond_stiffness, dtype=np.float64))
-        critical_stretch_d = cl.Buffer(self.context,
-                           cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-                           hostbuf=np.ascontiguousarray(critical_stretch, dtype=np.float64))
-        plus_cs_d = cl.Buffer(self.context,
-                           cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-                           hostbuf=np.ascontiguousarray(plus_cs, dtype=np.float64))
+        r0_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=np.ascontiguousarray(self.coords, dtype=np.float64))
+        bc_types_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=bc_types)
+        bc_values_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=bc_values)
+        force_bc_types_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=force_bc_types)
+        force_bc_values_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=force_bc_values)
+        vols_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=self.volume)
+        stiffness_corrections_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=np.ascontiguousarray(
+                self.stiffness_corrections, dtype=np.float64))
+        material_types_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=np.ascontiguousarray(
+                self.material_types, dtype=np.float64))
+        bond_stiffness_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=np.ascontiguousarray(
+                bond_stiffness, dtype=np.float64))
+        critical_stretch_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=np.ascontiguousarray(critical_stretch, dtype=np.float64))
+        plus_cs_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=np.ascontiguousarray(plus_cs, dtype=np.float64))
         family_d = cl.Buffer(
-                self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
-                hostbuf=self.family)
+            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=self.family)
         # Read and write
-        regimes_d = cl.Buffer(self.context,
-                           cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR,
-                           hostbuf=np.ascontiguousarray(regimes, dtype=np.float64))
+        regimes_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=np.ascontiguousarray(regimes, dtype=np.float64))
         nlist_d = cl.Buffer(
-                self.context, cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR,
-                hostbuf=nlist)
+            self.context, cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=nlist)
         n_neigh_d = cl.Buffer(
-                self.context, cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR,
-                hostbuf=n_neigh)
-        u_d = cl.Buffer(self.context, cl.mem_flags.READ_WRITE, np.empty((self.nnodes, self.degrees_freedom), dtype=np.float64).nbytes)
-        ud_d = cl.Buffer(self.context, cl.mem_flags.READ_WRITE, np.empty((self.nnodes, self.degrees_freedom), dtype=np.float64).nbytes)
+            self.context, cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR,
+            hostbuf=n_neigh)
+        u_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_WRITE, np.empty(
+                (self.nnodes, self.degrees_freedom), dtype=np.float64).nbytes)
+        ud_d = cl.Buffer(
+            self.context, cl.mem_flags.READ_WRITE, np.empty(
+                (self.nnodes, self.degrees_freedom), dtype=np.float64).nbytes)
 
         # Write only
-        damage_d = cl.Buffer(self.context, cl.mem_flags.WRITE_ONLY, np.empty(self.nnodes).astype(np.float64).nbytes)
-        # Initialize kernel parameters TODO: no sign of this in Jim's code, is it relevant?
+        damage_d = cl.Buffer(
+            self.context, cl.mem_flags.WRITE_ONLY, np.empty(
+                self.nnodes).astype(np.float64).nbytes)
+        # Initialize kernel parameters
+        #TODO: no sign of this in Jim's code, is it necessary?
         self.bond_force_kernel.set_scalar_arg_dtypes(
-            [None,
-             None,
-             None,
-             None,
-             None,
-             None,
-             None,
-             None,
-             None,
-             None,
-             None,
-             None,
-             None,
-             None,
-             None,
-             None,
-             None,
-             None
-             ])
+            [None, None, None, None, None,
+             None, None, None, None, None,
+             None, None, None, None, None,
+             None, None, None])
         # Initialize kernel parameters
         self.update_displacement_kernel.set_scalar_arg_dtypes(
-            [None,
-             None,
-             None,
-             None,
-             None
-             ])
+            [None, None, None, None, None])
         self.damage_kernel.set_scalar_arg_dtypes(
             [None, None, None, None])
         self.damage_kernel.set_scalar_arg_dtypes(
@@ -611,16 +596,17 @@ class ModelCLBen(Model):
                            desc="Simulation Progress", unit="steps"):
             
             # Update displacements
-            u_d = self._update_displacement(ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale)
+            u_d = self._update_displacement(
+                ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale)
                 
-            # Calculate the force due to bonds on each node, and update connectivity
-            ud_d, nlist_d, n_neigh_d, regimes_d = self._bond_force(u_d, ud_d, r0_d, vols_d, nlist_d, 
-                                             n_neigh_d, stiffness_correction_factors_d,
-                                             material_types_d, regimes_d, bond_stiffness_d,
-                                             critical_stretch_d, plus_cs_d,
-                                             force_bc_types_d, 
-                                             force_bc_values_d, local_mem_x, local_mem_y,
-                                             local_mem_z, force_load_scale)
+            # Calculate the force due to bonds on each node,
+            # and update connectivity
+            ud_d, nlist_d, n_neigh_d, regimes_d = self._bond_force(
+                u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d, 
+                stiffness_corrections_d, material_types_d, regimes_d,
+                bond_stiffness_d, critical_stretch_d, plus_cs_d, 
+                force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
+                local_mem_z, force_load_scale)
 
             if write:
                 if step % write == 0:
@@ -651,9 +637,11 @@ class ModelCLBen(Model):
                     damage_sum = np.sum(damage)
                     damage_sum_data.append(damage_sum)
                     if damage_sum > 0.02*self.nnodes:
-                        print('Warning: over 2% of bonds have broken! -- PERIDYNAMICS SIMULATION CONTINUING')
+                        print('Warning: over 2% of bonds have broken! \
+                              -- PERIDYNAMICS SIMULATION CONTINUING')
                     elif damage_sum > 0.7*self.nnodes:
-                        print('Warning: over 7% of bonds have broken! -- PERIDYNAMICS SIMULATION STOPPING')
+                        print('Warning: over 7% of bonds have broken! \
+                              -- PERIDYNAMICS SIMULATION STOPPING')
                         break
 
             # Increase load in linear increments
@@ -668,10 +656,10 @@ class ModelCLBen(Model):
 
         return damage_sum_data, tip_displacement_data, tip_force_data
 
-    def _simulate_initialise(self, is_forces_boundary, is_boundary, is_tip, displacement_rate,
-                             max_reaction,
-                             u, ud, connectivity, 
-                             bond_stiffness, critical_stretch, write_path):
+    def _simulate_initialise(
+            self, is_forces_boundary, is_boundary, is_tip, displacement_rate,
+            max_reaction, u, ud, connectivity, bond_stiffness, 
+            critical_stretch, write_path):
         """
         Initialise simulation variables.
 
@@ -724,10 +712,14 @@ class ModelCLBen(Model):
         
         #also define the 'tip' (for plotting displacements)
         # Initiate boundary condition containers
-        bc_types = np.zeros((self.nnodes, self.degrees_freedom), dtype=np.intc)
-        bc_values = np.zeros((self.nnodes, self.degrees_freedom), dtype=np.float64)
-        force_bc_types = np.zeros((self.nnodes, self.degrees_freedom), dtype=np.intc)
-        force_bc_values = np.zeros((self.nnodes, self.degrees_freedom), dtype=np.float64)
+        bc_types = np.zeros(
+            (self.nnodes, self.degrees_freedom), dtype=np.intc)
+        bc_values = np.zeros(
+            (self.nnodes, self.degrees_freedom), dtype=np.float64)
+        force_bc_types = np.zeros(
+            (self.nnodes, self.degrees_freedom), dtype=np.intc)
+        force_bc_values = np.zeros(
+            (self.nnodes, self.degrees_freedom), dtype=np.float64)
         tip_types = np.zeros(self.nnodes, dtype=np.intc)
 
         # Find the boundary nodes and apply the displacement values
@@ -748,13 +740,16 @@ class ModelCLBen(Model):
                 bc_values[i, j] = np.float64(bnd[j] * displacement_rate)
                 force_bc_types[i, j] = np.intc(forces_bnd_j)
                 if forces_bnd_j != 2:
-                    force_bc_values[i, j] = forces_bnd_j * max_reaction / (self.volume[i])
+                    force_bc_values[i, j] = forces_bnd_j * max_reaction / (
+                        self.volume[i])
             # Define tip #TODO: generalise to 3D
             tip = is_tip(self.horizon, self.coords[i][:])
             tip_types[i] = np.intc(tip)
-        force_bc_values = np.float64(np.divide(force_bc_values,num_force_bc_nodes))
+        force_bc_values = np.float64(
+            np.divide(force_bc_values,num_force_bc_nodes))
         regimes = np.zeros((self.nnodes, self.max_neighbours), dtype=np.intc)
-        plus_cs = self._set_plus_cs(bond_stiffness, critical_stretch, self.n_regimes)
+        plus_cs = self._set_plus_cs(
+            bond_stiffness, critical_stretch, self.n_regimes)
 
         # If no write path was provided use the current directory, otherwise
         # ensure write_path is a Path object.
@@ -764,16 +759,8 @@ class ModelCLBen(Model):
             write_path = pathlib.Path(write_path)
 
         return (nlist, n_neigh, regimes, bond_stiffness, critical_stretch,
-         plus_cs,
-         u,
-         ud,
-         damage,
-         bc_types,
-         bc_values,
-         force_bc_types,
-         force_bc_values,
-         tip_types,
-         write_path)
+                plus_cs, u, ud, damage, bc_types, bc_values, force_bc_types,
+                force_bc_values, tip_types, write_path)
 
 class ContextError(Exception):
     """No suitable context was found by :func:`get_context`."""

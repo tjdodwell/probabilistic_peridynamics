@@ -262,11 +262,12 @@ class Model(object):
         """
         Calculate the value of each node.
         
-        :arg float volume_total: User input for the total volume of the mesh, for checking
-        sum total of elemental volumes is equal to user input volume for simple
-        prismatic problems. In the case where no expected total volume is provided,
-        the check is not done.
-        :arg bool transfinite: Is the mesh a transfinite(=1) or a triangular/tetra(=0).
+        :arg float volume_total: User input for the total volume of the mesh, 
+            for checking the sum total of elemental volumes is equal to user 
+            input volume for simple prismatic problems. In the case where no
+            expected total volume is provided, the check is not done.
+        :arg bool transfinite: Is the mesh a transfinite(=1) or a 
+            triangular/tetra(=0).
 
         :returns: None
         :rtype: NoneType
