@@ -183,9 +183,9 @@ class Model(object):
             # Maximum number of nodes that any one of the nodes is connected
             # to, must be a power of 2 (for OpenCL reduction)
             self.max_neighbours = np.intc(
-                        1<<(self.family.max()-1).bit_length()
+                        1<<(int(self.family.max()-1)).bit_length()
                     )
-            connectivity = create_neighbour_list_BB(
+            nlist, n_neigh = create_neighbour_list_BB(
                 self.coords, horizon, self.max_neighbours
                 )
         elif type(connectivity) == tuple:

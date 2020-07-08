@@ -225,7 +225,7 @@ class ModelCLBen(Model):
                 )
         return u_d
 
-    def write_array(write_path, array):
+    def write_array(self, write_path, array):
         """
         :arg write_path: TYPE
         :type write_path: string or PATHFILE
@@ -274,7 +274,7 @@ class ModelCLBen(Model):
         self.write_array(write_path/"material_types", material_types)
         return material_types
 
-    def _set_stiffness_correction_factor(self, horizon, initial_connectivity,
+    def _set_stiffness_correction_factors(self, horizon, initial_connectivity,
                                          precise_stiffness_correction, write_path):
         """
         Builds a list of stiffness correction factors that reduce the peridynamic
@@ -283,6 +283,7 @@ class ModelCLBen(Model):
         Silling SA (2017) Handbook of peridynamic modeling (p 51–52) is used here.
 
         :arg float horizon: The horizon distance.
+        :arg initial_connec
         :arg int size: The size of each row of the neighbour list. This is the
             maximum number of neighbours and should be equal to the maximum of
             of :func:`peridynamics.neighbour_list.family`.
@@ -299,7 +300,7 @@ class ModelCLBen(Model):
         """
         
         nlist, n_neigh = initial_connectivity
-        stiffness_correction_factors = np.ones((self.nnodes, n_neigh))
+        stiffness_correction_factors = np.ones((self.nnodes, self.max_neighbours))
         family_volumes = np.zeros(self.nnodes)
         for i in range(0, self.nnodes):
             tmp = 0.0
