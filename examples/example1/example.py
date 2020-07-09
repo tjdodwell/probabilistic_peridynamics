@@ -118,9 +118,9 @@ def main():
 
     if (args.opencl and args.ben):
         u, damage, *_ = model.simulate(
-            steps=1000, is_forces_boundary=is_forces_boundary, 
-            is_boundary=is_boundary, is_tip=is_tip,
-                 displacement_rate=0.000005/2, write=50)
+            steps=1000, is_boundary=is_boundary, 
+            is_forces_boundary=is_forces_boundary, is_tip=is_tip,
+            displacement_rate=0.000005/2, write=50)
     else:
 
         integrator = Euler(dt=1e-3)

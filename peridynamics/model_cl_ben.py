@@ -24,10 +24,12 @@ class ModelCLBen(Model):
         Create a :class:`ModelCLBen` object.
 
         :arg float density: Density of the bulk material in kg/m^3.
-        :arg float bond_stiffness: An (m, n_regimes) array of the different
-            bond stiffnesses for m material types.
-        :arg float critical_stretch: An (m, n_regimes) array of
-            different critical strains for m material types.
+        :arg bond_stiffness: An (n_regimes, n_materials) array of bond
+            stiffness values, each corresponding to a material and a regime.
+        :type bond_stiffness: list or :class `numpy.ndarray`:
+        :arg critical_stretch: An (n_regimes, n_materials) array of critical
+            stretch values, each corresponding to a material and a regime.
+        :type critical_stretch: list or :class `numpy.ndarray`:
         :arg method bond_type: A method which outputs the material type,
             an integer value, of the bond.
         :arg connectivity: The initial connectivity for the model. A tuple
@@ -255,8 +257,9 @@ class ModelCLBen(Model):
         :arg write_path: The path where the vtk files should be written.
         :type write_path: path-like or str
 
-        :return:
-        :rtype:
+        :returns: A (`nnodes`, `max_neighbours`) array of the material type 
+            of each bond for each node.
+        :rtype: :class:`numpy.ndarray`
         """
         nlist, n_neigh = connectivity
         material_types = np.zeros(
@@ -297,9 +300,9 @@ class ModelCLBen(Model):
         :arg write_path: The path where the vtk files should be written.
         :type write_path: path-like or str
 
-        :return: An array of size (model.nnodes, model.max_neighbours) 
-            of the stiffness correction factor for each bond.
-        :rtype: numpy.ndarray
+        :returns: A (`nnodes`, `max_neighbours`) array of the stiffness
+            correction factor of each bond for each node.
+        :rtype: :class:`numpy.ndarray`
         """
         nlist, n_neigh = connectivity
         stiffness_corrections = np.ones((self.nnodes, self.max_neighbours))
@@ -356,16 +359,19 @@ class ModelCLBen(Model):
         damage-model, where n is n_regimes, e.g. linear, bi-linear, tri-linear,
         etc. from the bond_stiffness and critical_stretch values provided.
 
-        :arg array bond_stiffness: A list or array of bond stiffness values, 
-            each corresponding to a regime.
-        :arg array critical_stretch:
-        :arg n_regimes: The number of `regimes` in the damage model. e.g. 
+        :arg bond_stiffness: An (n_regimes, n_materials) array of bond
+            stiffness values, each corresponding to a material and a regime.
+        :type bond_stiffness: list or :class `numpy.ndarray`:
+        :arg critical_stretch: An (n_regimes, n_materials) array of critical
+            stretch values, each corresponding to a material and a regime.
+        :type critical_stretch: list or :class `numpy.ndarray`:
+        :arg int n_regimes: The number of `regimes` in the damage model. e.g. 
             linear has n_regimes = 1, bi-linear has n_regimes = 2, etc.
         :arg n_materials: The number of materials in the model.
 
-        :return: An array of size (model.nnodes, model.max_neighbours) 
-            of the stiffness correction factor for each bond.
-        :rtype: numpy.ndarray
+        :returns: A (`n_regimes`, `n_materials`) array of the `+cs` for each
+            linear part of the bond damage models for each material.
+        :rtype: :class:`numpy.ndarray`
         """
         #TODO: generalise for n-material types.
         # For initial elastic regime, the bond force density at 0 stretch is 0
@@ -393,7 +399,7 @@ class ModelCLBen(Model):
 
         :returns: The force_load_scale between [0.0, 1.0], a scale applied to
             the force boundary conditions.
-        :rtype: numpy.float64
+        :rtype: :class:`numpy.float64`
         """
         # Increase load in linear increments
         if not (build_load is None):
@@ -422,7 +428,7 @@ class ModelCLBen(Model):
             during the linear phase of the displacement-time graph.
         :arg float build_displacement: The displacement in [m] over which the
             displacement-time graph is the smooth 5th order polynomial.
-        :arg float final_displacement: The final displacement in [m].
+        :arg float final_displacement: The final applied displacement in [m].
 
         :returns: The displacement_load_scale between [0.0, 1.0], a scale
             applied to the displacement boundary conditions.
@@ -446,8 +452,8 @@ class ModelCLBen(Model):
         return displacement_load_scale, ease_off
 
     def simulate(self, steps, u=None, ud=None, connectivity=None,
-                 bond_stiffness= None, critical_stretch=None, 
-                 is_forces_boundary=None, is_boundary=None, is_tip=None,
+                 regimes=None, bond_stiffness= None, critical_stretch=None, 
+                 is_boundary=None, is_forces_boundary=None, is_tip=None,
                  displacement_rate=None, build_displacement=None,
                  final_displacement=None, build_load = None,
                  max_reaction = None, first_step=1, write=None, 
@@ -456,34 +462,62 @@ class ModelCLBen(Model):
         Simulate the peridynamics model.
 
         :arg int steps: The number of simulation steps to conduct.
-        :arg boundary_function: A function to apply the boundary conditions for
-            the simlation. It has the form
-            boundary_function(:class:`peridynamics.model.Model`,
-            :class:`numpy.ndarray`, `int`). The arguments are the model being
-            simulated, the current displacements, and the current step number
-            (beginning from 1). `boundary_function` returns a (nnodes, 3)
-            :class:`numpy.ndarray` of the updated displacements
-            after applying the boundary conditions. Default `None`.
-        :type boundary_function: function
         :arg u: The initial displacements for the simulation. If `None` the
             displacements will be initialised to zero. Default `None`.
         :type u: :class:`numpy.ndarray`
         :arg ud: The initial velocities for the simulation. If `None` the
             velocities will be initialised to zero. Default `None`.
         :type ud: :class:`numpy.ndarray`
-        :arg ud: The initial velocities for the simulation. If `None` the
-            velocities will be initialised to zero. Default `None`.
-        :type ud: :class:`numpy.ndarray`
-        :arg displacement_rate:
-        :type displacement_rate:
-        :arg build_displacement:
-        :type build_displacement:
-        :arg final_displacement:
-        :type final_displacement:
-        :arg build_load:
-        :type build_load:
-        :arg max_reaction:
-        :type max_reaction:
+        :arg connectivity: The initial connectivity for the simulation. A tuple
+            of a neighbour list and the number of neighbours for each node. If
+            `None` the connectivity at the time of construction of the
+            :class:`Model` object will be used. Default `None`.
+        :type connectivity: tuple(:class:`numpy.ndarray`,
+            :class:`numpy.ndarray`)
+        :arg regimes: The initial regimes for the simulation. A
+            (`nodes`, `max_neighbours`) array of type
+            :class:`numpy.ndarray` of the regimes of the bonds
+            of a neighbour list and the number of neighbours for each node.
+        :type connectivity: tuple(:class:`numpy.ndarray`,
+            :class:`numpy.ndarray`)
+        :arg is_boundary: A function to determine if a node is on the boundary
+            for a displacement boundary condition, and if it is, which
+            direction the boundary conditions are applied
+            (positive or negative cartesian direction). It has the form
+            is_boundary(:class:`numpy.ndarray`). The argument is the initial
+            coordinates of a particle being simulated. `is_boundary` returns a
+            (3) list of the boundary types in each cartesian direction.
+            A boundary type with an int value of 2 if the particle is not on a 
+            displacement controlled boundary, a value of 1 if is is on a
+            boundary and loaded in the positive cartesian direction, and a
+            value of -1 if it is on the boundary and loaded in the negative
+            direction, and a value of 0 if it is not loaded.
+        :type is_boundary: function
+        :arg is_forces_boundary: As 'is_boundary' but applying to force
+            boundary conditions as opposed to displacement boundary conditions.
+        :type is_forces_boundary: function
+        :arg is_tip: A function to determine if a node is to be measured for
+            its reaction force or displacement over time, and if it is, which
+            direction the measurements are made
+            (positive or negative cartesian direction). It has the form
+            is_tip(:class:`numpy.ndarray`). The argument is the initial
+            coordinates of a particle being simulated. `is_tip` returns a
+            (3) list of the measurement types in each cartesian direction.
+            A boundary type with an int value of 2 if the particle is not on
+            the `tip` to be measured, a value of 1 if is is on the `tip` and
+            measured in the positive cartesian direction, and a value of -1 if
+            it is on the `tip` and measured in the negative direction.
+        :type is_tip: function
+        :arg float displacement_rate: The displacement rate in [m] per step
+            during the linear phase of the displacement-time graph, and the
+            maximum displacement rate of any part of the simulation.
+        :arg float build_displacement: The displacement in [m] over which the
+            displacement-time graph is the smooth 5th order polynomial.
+        :arg float final_displacement: The final applied displacement in [m].
+        :arg float build_load: The inverse of the number of steps required to
+            build up to full external force loading.
+        :arg float max_reaction: The maximum total load applied to the loaded
+            nodes.
         :arg int first_step: The starting step number. This is useful when
             restarting a simulation, especially if `boundary_function` depends
             on the absolute step number.
@@ -493,6 +527,15 @@ class ModelCLBen(Model):
         :arg write_path: The path where the periodic mesh files should be
             written.
         :type write_path: path-like or str
+
+        :returns: A tuple of the final displacements (`u`), the final
+            velocities (`ud`), damage, connectivity, a (steps) list of the 
+            total sum of all damage over the time steps, a (steps, 3) array of
+            the tip displacements over the time-steps and a (steps, 3) array of
+            the tip resultant force over the time-steps.
+        :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
+                      :class:`numpy.ndarray`,
+            tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`))
         """
         (nlist,
          n_neigh,
@@ -509,8 +552,8 @@ class ModelCLBen(Model):
          force_bc_values,
          tip_types,
          write_path) = self._simulate_initialise(
-             is_forces_boundary, is_boundary, is_tip, displacement_rate, 
-             max_reaction, u, ud, connectivity, bond_stiffness,
+             is_boundary, is_forces_boundary, is_tip, displacement_rate, 
+             max_reaction, u, ud, connectivity, regimes, bond_stiffness,
              critical_stretch, write_path)
 
         # Calculate no. of time steps that applied BCs are in the build phase
@@ -678,40 +721,83 @@ class ModelCLBen(Model):
                 coefficients, build_time, step, ease_off, displacement_rate, 
                 build_displacement, final_displacement)
 
-        return damage_sum_data, tip_displacement_data, tip_force_data
+        return (u, ud, damage, (nlist, n_neigh), damage_sum_data,
+                tip_displacement_data, tip_force_data)
 
     def _simulate_initialise(
-            self, is_forces_boundary, is_boundary, is_tip, displacement_rate,
+            self, is_boundary, is_forces_boundary, is_tip, displacement_rate,
             max_reaction, u, ud, connectivity, bond_stiffness, 
             critical_stretch, write_path):
         """
         Initialise simulation variables.
 
-        :arg boundary_function: A function to apply the boundary conditions for
-            the simlation. It has the form
-            boundary_function(:class:`peridynamics.model.Model`,
-            :class:`numpy.ndarray`, `int`). The arguments are the model being
-            simulated, the current displacements, and the current step number
-            (beginning from 1). `boundary_function` returns a (nnodes, 3)
-            :class:`numpy.ndarray` of the updated displacements
-            after applying the boundary conditions. Default `None`.
-        :type boundary_function: function
+        :arg is_boundary: A function to determine if a node is on the boundary
+            for a displacement boundary condition, and if it is, which
+            direction the boundary conditions are applied
+            (positive or negative cartesian direction). It has the form
+            is_boundary(:class:`numpy.ndarray`). The argument is the initial
+            coordinates of a particle being simulated. `is_boundary` returns a
+            (3) list of the boundary types in each cartesian direction.
+            A boundary type with an int value of 2 if the particle is not on a 
+            displacement controlled boundary, a value of 1 if is is on a
+            boundary and loaded in the positive cartesian direction, and a
+            value of -1 if it is on the boundary and loaded in the negative
+            direction, and a value of 0 if it is not loaded.
+        :type is_boundary: function
+        :arg is_forces_boundary: As 'is_boundary' but applying to force
+            boundary conditions as opposed to displacement boundary conditions.
+        :type is_forces_boundary: function
+        :arg is_tip: A function to determine if a node is to be measured for
+            its reaction force or displacement over time, and if it is, which
+            direction the measurements are made
+            (positive or negative cartesian direction). It has the form
+            is_tip(:class:`numpy.ndarray`). The argument is the initial
+            coordinates of a particle being simulated. `is_tip` returns a
+            (3) list of the measurement types in each cartesian direction.
+            A boundary type with an int value of 2 if the particle is not on
+            the `tip` to be measured, a value of 1 if is is on the `tip` and
+            measured in the positive cartesian direction, and a value of -1 if
+            it is on the `tip` and measured in the negative direction.
+        :type is_tip: function
+        :arg float displacement_rate: The displacement rate in [m] per step
+            during the linear phase of the displacement-time graph, and the
+            maximum displacement rate of any part of the simulation.
+        :arg float max_reaction: The maximum total load applied to the loaded
+            nodes.
         :arg u: The initial displacements for the simulation. If `None` the
             displacements will be initialised to zero. Default `None`.
         :type u: :class:`numpy.ndarray`
+        :arg u: The initial displacements for the simulation. If `None` the
+            displacements will be initialised to zero. Default `None`.
+        :type u: :class:`numpy.ndarray`
+        :arg ud: The initial velocities for the simulation. If `None` the
+            velocities will be initialised to zero. Default `None`.
+        :type ud: :class:`numpy.ndarray`
         :arg connectivity: The initial connectivity for the simulation. A tuple
             of a neighbour list and the number of neighbours for each node. If
             `None` the connectivity at the time of construction of the
             :class:`Model` object will be used. Default `None`.
         :type connectivity: tuple(:class:`numpy.ndarray`,
             :class:`numpy.ndarray`)
+        :arg bond_stiffness: An (n_regimes, n_materials) array of bond
+            stiffness values, each corresponding to a material and a regime.
+        :type bond_stiffness: list or :class `numpy.ndarray`:
+        :arg critical_stretch: An (n_regimes, n_materials) array of critical
+            stretch values, each corresponding to a material and a regime.
+        :type critical_stretch: list or :class `numpy.ndarray`:
         :arg write_path: The path where the periodic mesh files should be
             written.
         :type write_path: path-like or str
 
         :returns: A tuple of initialised variables used for simulation.
         :type: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
-            :class:`numpy.ndarray`, function, :class`pathlib.Path`)
+                     :class:`numpy.ndarray`, :class:`numpy.ndarray`,
+                     :class:`numpy.ndarray`, :class:`numpy.ndarray`,
+                     :class:`numpy.ndarray`, :class:`numpy.ndarray`,
+                     :class:`numpy.ndarray`, :class:`numpy.ndarray`,
+                     :class:`numpy.ndarray`, :class:`numpy.ndarray`,
+                     :class:`numpy.ndarray`, :class:`numpy.ndarray`,
+                     :class`pathlib.Path`)
         """
 
         # Create initial displacements is none is provided
@@ -872,30 +958,53 @@ def _calc_build_time(build_displacement, displacement_rate, steps):
     return(T, coefficients)
 
 def _calc_load_displacement_rate(coefficients, final_displacement, build_time,
-                                 displacement_scale_rate, step, 
+                                 displacement_rate, step, 
                                  build_displacement, ease_off):
+    """
+    Calculates the displacement boundary condition scale according to a
+    5th order polynomial/ linear displacement-time curve for which initial
+    acceleration is 0.
+
+    :arg tuple coefficients: Tuple containing the 3 free coefficients
+        of the 5th order polynomial.
+    :arg float final_displacement: The final applied displacement in [m].
+    :arg int build_time: The number of time steps over which the
+        applied displacement-time curve is not linear.
+    :arg float displacement_rate: The displacement rate in [m] per step
+        during the linear phase of the displacement-time graph.
+    :arg int step: The current time-step of the simulation.
+    :arg float build_displacement: The displacement in [m] over which the
+        displacement-time graph is the smooth 5th order polynomial.
+    :arg int ease_off: A boolean-like variable which is 0 if the
+        displacement-rate hasn't started decreasing yet. Equal to the step
+        at which the displacement rate starts decreasing once it does so.
+
+    :returns: The displacement_scale between [0.0, 1.0], a scale
+        applied to the displacement boundary conditions.
+    :rtype: np.float64
+    """
     a, b, c = coefficients
-    if step < build_time/2:
-        m = 5*a*step**4 + 4*b*step**3 + 3*c*step**2
-        load_displacement_rate = m/displacement_scale_rate
+    if step < build_time / 2:
+        m = 5 * a * step**4 + 4 * b * step**3 + 3 * c * step**2
+        displacement_scale = m / displacement_rate
     elif ease_off != 0:
-        t = step - ease_off + build_time/2
+        t = step - ease_off + build_time / 2
         if t > build_time:
-            load_displacement_rate = 0.0
+            displacement_scale = 0.0
         else:
-            m = 5*a*t**4 + 4*b*t**3 + 3*c*t**2
-            load_displacement_rate = m/displacement_scale_rate
+            m = 5 * a * t**4 + 4 * b * t**3 + 3 * c * t**2
+            displacement_scale = m / displacement_rate
     else: # linear increments
         # calculate displacement
         linear_time = step - build_time/2
-        linear_displacement = linear_time * displacement_scale_rate
+        linear_displacement = linear_time * displacement_rate
         displacement = linear_displacement + build_displacement/2
-        if displacement + build_displacement/2 < final_displacement:
-            load_displacement_rate = 1.0
+        if displacement + build_displacement / 2 < final_displacement:
+            displacement_scale = 1.0
         else:
             ease_off = step
-            load_displacement_rate = 1.0
-    return(load_displacement_rate, ease_off)
+            displacement_scale = 1.0
+    return(displacement_scale, ease_off)
 
 #TODO: move to a utility package?
 def output_device_info(device_id):
