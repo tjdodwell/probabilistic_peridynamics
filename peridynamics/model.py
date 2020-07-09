@@ -157,11 +157,17 @@ class Model(object):
 
         self.horizon = horizon
         if type(bond_stiffness) is (list or np.ndarray):
-            if len(bond_stiffness) != len(critical_stretch):
+            if np.shape(bond_stiffness) != np.shape(critical_stretch):
                 raise ValueError("number of bond stiffnesses must be equal to\
                                  the number of critical stretches")
             else:
-                self.n_regimes = len(bond_stiffness)
+                if np.shape(bond_stiffness) == (1,):
+                    self.n_regimes = 1
+                    self.n_materials = 1
+                else:
+                    print(np.shape(bond_stiffness))
+                    self.n_regimes = np.shape(bond_stiffness)[1]
+                    self.n_materials = np.shape(bond_stiffness)[0]
 
         self.critical_stretch = critical_stretch
         self.bond_stiffness = bond_stiffness

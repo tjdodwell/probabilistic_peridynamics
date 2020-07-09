@@ -732,7 +732,7 @@ class ModelCLBen(Model):
 
     def _simulate_initialise(
             self, is_boundary, is_forces_boundary, is_tip, displacement_rate,
-            max_reaction, u, ud, connectivity, bond_stiffness,
+            regimes, max_reaction, u, ud, connectivity, bond_stiffness,
             critical_stretch, write_path):
         """
         Initialise simulation variables.
@@ -821,6 +821,19 @@ class ModelCLBen(Model):
             nlist, n_neigh = connectivity
         else:
             raise TypeError("connectivity must be a tuple or None")
+        # Use the initial regimes of linear elastic (0 values) if none
+        # is provided
+        if regimes is None:
+            regimes = np.zeros(
+                (self.nnodes, self.max_neighbours), dtype=np.intc)
+        elif type(regimes) == np.ndarray:
+            if np.shape(regimes) != (self.nnodes, self.max_neighbours):
+                raise ValueError("regimes must be a :class `numpy.ndarray`: \
+                                 of shape (`nnodes`, `max_neighbours`)")
+            regimes = regimes.astype(np.intc)
+        else:
+            raise TypeError("regimes must be a :class `numpy.ndarray`: or \
+                            None")
         # Write down the initial connectivity in a file
         # Generate material types from connectivity and write to file
         # Generate stiffness correction factors and write to file
@@ -863,9 +876,8 @@ class ModelCLBen(Model):
             tip_types[i] = np.intc(tip)
         force_bc_values = np.float64(
             np.divide(force_bc_values, num_force_bc_nodes))
-        regimes = np.zeros((self.nnodes, self.max_neighbours), dtype=np.intc)
         plus_cs = self._set_plus_cs(
-            bond_stiffness, critical_stretch, self.n_regimes)
+            bond_stiffness, critical_stretch, self.n_regimes, self.n_materials)
 
         # If no write path was provided use the current directory, otherwise
         # ensure write_path is a Path object.
