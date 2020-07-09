@@ -17,9 +17,10 @@ class ModelCLBen(Model):
     initial conditions (coordinates, connectivity, material_types and
     stiffness_corrections)."""
     
-    def __init__(self, *args, density=None, bond_type=None, material_types=None, 
-                 stiffness_corrections=None, precise_stiffness_correction=None,
-                 dt=None, write_path=None, context=None, **kwargs):
+    def __init__(self, *args, density=None, bond_type=None, 
+                 material_types=None, stiffness_corrections=None,
+                 precise_stiffness_correction=None, dt=None, write_path=None,
+                 context=None, **kwargs):
         """
         Create a :class:`ModelCLBen` object.
 
@@ -413,8 +414,8 @@ class ModelCLBen(Model):
                                 final_displacement):
         """
         Increment the displacement boundary condition values according to a
-            5th order polynomial/ linear displacement-time curve for which initial
-            acceleration is 0.
+            5th order polynomial/ linear displacement-time curve for which 
+            initial acceleration is 0.
 
         :arg tuple coefficients: Tuple containing the 3 free coefficients
             of the 5th order polynomial.
