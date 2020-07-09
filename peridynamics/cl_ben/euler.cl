@@ -155,7 +155,7 @@ __kernel void
     __global double const* r0,
     __global double const* vols,
 	__global int* nlist,
-    __global const int* n_neigh,
+    __global int* n_neigh,
 	__global double const* stiffness_correction_factors,
 	__global int const* material_types,
     __global int* regimes,
@@ -206,7 +206,7 @@ __kernel void
         const int node_id_j = nlist[global_id];
         // Acess material type
         const int material_type = material_types[global_id];
-        const int regime = regimes[global_id];
+        int regime = regimes[global_id];
 
         // If bond is not broken
         if (node_id_j != -1) {
@@ -220,7 +220,7 @@ __kernel void
 
             const double xi = sqrt(xi_x * xi_x + xi_y * xi_y + xi_z * xi_z);
             const double y = sqrt(xi_eta_x * xi_eta_x + xi_eta_y * xi_eta_y + xi_eta_z * xi_eta_z);
-            const double s = (y - xi) / xi;
+            const double stretch = (y - xi) / xi;
 
             const double cx = xi_eta_x / y;
             const double cy = xi_eta_y / y;
@@ -228,7 +228,7 @@ __kernel void
 
             const double stiffness = stiffnesses[material_type * PD_REGIME_NO + regime] * stiffness_correction_factors[global_id];
             const double volume = vols[node_id_j];
-            const double force_density = stiffness* stretch + plus_cs[material_type * PD_REGIME_NO + regime];
+            const double force_density = stiffness * stretch + plus_cs[material_type * PD_REGIME_NO + regime];
 
             // Copy bond forces into local memory
             local_cache_x[local_id] = force_density * volume * cx;
@@ -237,7 +237,7 @@ __kernel void
 
             // Check for state of bonds here, and break it if necessary
             const double s0 = critical_stretches[material_type * PD_REGIME_NO + regime];
-            if (s > s0) {
+            if (stretch > s0) {
                 regime += 1;
                 regimes[global_id] = regime; // Enter the next regime
                 // If final regime has been reached (i.e. broken bond)

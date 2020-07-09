@@ -29,7 +29,7 @@ class Model(object):
         >>> model = Model(
         >>>     mesh_file="./example.msh",
         >>>     horizon=0.1,
-        >>>     critical_strain=0.005,
+        >>>     critical_stretch=0.005,
         >>>     elastic_modulus=0.05
         >>>     )
 
@@ -40,7 +40,7 @@ class Model(object):
         >>> model = Model(
         >>>     mesh_file="./example.msh",
         >>>     horizon=0.1,
-        >>>     critical_strain=0.005,
+        >>>     critical_stretch=0.005,
         >>>     elastic_modulus=0.05,
         >>>     initial_crack=initial_crack
         >>>     )
@@ -65,7 +65,7 @@ class Model(object):
         >>> model = Model(
         >>>     mesh_file="./example.msh",
         >>>     horizon=0.1,
-        >>>     critical_strain=0.005,
+        >>>     critical_stretch=0.005,
         >>>     elastic_modulus=0.05,
         >>>     initial_crack=initial_crack
         >>>     )
@@ -103,7 +103,7 @@ class Model(object):
         >>>     )
     """
 
-    def __init__(self, mesh_file, horizon, critical_strain, elastic_modulus,
+    def __init__(self, mesh_file, horizon, critical_stretch, bond_stiffness,
                  transfinite = 0, volume_total=None,
                  connectivity=None, initial_crack=[], dimensions=2):
         """
@@ -114,7 +114,7 @@ class Model(object):
         :arg float horizon: The horizon radius. Nodes within `horizon` of
             another interact with that node and are said to be within its
             neighbourhood.
-        :arg float critical_strain: The critical strain of the model. Bonds
+        :arg float critical_stretch: The critical strain of the model. Bonds
             which exceed this strain are permanently broken.
         :arg float elastic_modulus: The appropriate elastic modulus of the
             material.
@@ -156,12 +156,15 @@ class Model(object):
         self._read_mesh(mesh_file)
 
         self.horizon = horizon
-        self.critical_strain = critical_strain
-
-        # Determine bond stiffness
-        self.bond_stiffness = (
-            18.0 * elastic_modulus / (np.pi * self.horizon**4)
-            )
+        if type(bond_stiffness) is (list or np.ndarray):
+            if len(bond_stiffness) != len(critical_stretch):
+                raise ValueError("number of bond stiffnesses must be equal to\
+                                 the number of critical stretches")
+            else:
+                self.n_regimes = len(bond_stiffness)
+        
+        self.critical_stretch = critical_stretch
+        self.bond_stiffness =  bond_stiffness
 
         if transfinite:
             if volume_total is None:
@@ -327,7 +330,7 @@ class Model(object):
         :type n_neigh: :class:`numpy.ndarray`
         """
         break_bonds(self.coords+u, self.coords, nlist, n_neigh,
-                    self.critical_strain)
+                    self.critical_stretch)
 
     def _damage(self, n_neigh):
         """

@@ -19,8 +19,6 @@ class ModelCLBen(Model):
     def __init__(self,
                  *args,
                  density = None,
-                 bond_stiffness = None,
-                 critical_stretch = None,
                  bond_type = None,
                  material_types=None, 
                  stiffness_corrections=None,
@@ -29,6 +27,7 @@ class ModelCLBen(Model):
                  write_path = None,
                  context=None, **kwargs):
         """Create a :class:`ModelCLBen` object.
+
         :arg float density: Density of the bulk material in kg/m^3.
         :arg float bond_stiffness: An (m, n_regimes) array of the different 
             bond stiffnesses for m material types.
@@ -82,13 +81,6 @@ class ModelCLBen(Model):
         self.degrees_freedom = 3
         self.precise_stiffness_correction = precise_stiffness_correction
         self.density = density
-        if len(bond_stiffness) != len(critical_stretch):
-            raise ValueError("number of bond stiffnesses must be equal to\
-                             the number of critical stretches")
-        else:
-            self.n_regimes = len(bond_stiffness)
-        self.critical_stretch = critical_stretch
-        self.bond_stiffness = bond_stiffness
         self.dt = dt
 
         if stiffness_corrections is None:
@@ -488,8 +480,9 @@ class ModelCLBen(Model):
          force_bc_values,
          tip_types,
          write_path) = self._simulate_initialise(
-             is_forces_boundary, is_boundary, is_tip, displacement_rate, u,
-             ud, connectivity, bond_stiffness, critical_stretch, write_path)
+             is_forces_boundary, is_boundary, is_tip, displacement_rate, 
+             max_reaction, u, ud, connectivity, bond_stiffness,
+             critical_stretch, write_path)
 
         # Calculate no. of time steps that applied BCs are in the build phase
         if ((displacement_rate is not None)
@@ -728,6 +721,7 @@ class ModelCLBen(Model):
 
         # Find the boundary nodes and apply the displacement values
         # Find the force boundary nodes and find amount of boundary nodes
+        # TODO: generalise displacement boundary to 3D
         num_force_bc_nodes = 0
         for i in range(self.nnodes):
             # Define boundary types and values
@@ -741,7 +735,7 @@ class ModelCLBen(Model):
             for j in range(self.degrees_freedom):
                 forces_bnd_j = forces_bnd[j]
                 bc_types[i, j] = np.intc((bnd))
-                bc_values[i, j] = np.float64(bnd[j] * displacement_rate)
+                bc_values[i, j] = np.float64(bnd * displacement_rate)
                 force_bc_types[i, j] = np.intc(forces_bnd_j)
                 if forces_bnd_j != 2:
                     force_bc_values[i, j] = forces_bnd_j * max_reaction / (

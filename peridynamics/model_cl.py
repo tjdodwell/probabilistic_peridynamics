@@ -48,14 +48,14 @@ class ModelCL(Model):
         queue.finish()
 
     def _break_bonds(self, r_d, r0_d, nlist_d, n_neigh_d, max_neighbours,
-                     critical_strain):
+                     critical_stretch):
         """Break bonds which have exceeded the critical strain."""
         queue = self.queue
 
         # Call kernel
         self.break_bonds_kernel(queue, (self.nnodes,), None, r_d, r0_d,
                                 nlist_d, n_neigh_d, np.int32(max_neighbours),
-                                np.float64(critical_strain))
+                                np.float64(critical_stretch))
         queue.finish()
 
     def _bond_force(self, r_d, r0_d, nlist_d, n_neigh_d, max_neighbours,
@@ -169,7 +169,7 @@ class ModelCL(Model):
 
             # Update neighbour list
             self._break_bonds(r_d, r0_d, nlist_d, n_neigh_d,
-                              self.max_neighbours, self.critical_strain)
+                              self.max_neighbours, self.critical_stretch)
 
             # Calculate the current damage
             self._damage(n_neigh_d, family_d, damage_d)

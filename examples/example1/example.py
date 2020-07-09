@@ -99,31 +99,32 @@ def main():
     if args.opencl:
         if args.ben:
             model = ModelCLBen(
-                mesh_file, horizon=0.1, critical_strain=0.005,
-                elastic_modulus=0.05, dimensions=2, density=2.0,
-                bond_stiffness=[np.double((18.00 * 0.05) /
-                                                 (np.pi * np.power(0.1, 4)))],
-                critical_stretch=[0.005], initial_crack=is_crack, dt=1e-3)
+                mesh_file, horizon=0.1, critical_stretch=[0.005],
+                bond_stiffness=[18.00 * 0.05 / (np.pi * 0.1**4)],
+                dimensions=2, density=2.0,
+                 initial_crack=is_crack, dt=1e-3)
         else:
-            model = ModelCL(mesh_file, horizon=0.1, critical_strain=0.005,
-                            elastic_modulus=0.05, initial_crack=is_crack)
+            model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.005,
+                            bond_stiffness=18.0 * 0.05 / (np.pi* 0.1**4),
+                            initial_crack=is_crack)
     else:
-        model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
-                      elastic_modulus=0.05, initial_crack=is_crack)
+        model = Model(mesh_file, horizon=0.1, critical_stretch=0.005,
+                      bond_stiffness=18.0 * 0.05 / (np.pi* 0.1**4),
+                      initial_crack=is_crack)
 
     # Set left-hand side and right-hand side of boundary
     model.lhs = np.nonzero(model.coords[:, 0] < 1.5*model.horizon)
     model.rhs = np.nonzero(model.coords[:, 0] > 1.0 - 1.5*model.horizon)
-    
+
     if (args.opencl and args.ben):
         u, damage, *_ = model.simulate(
             steps=1000, is_forces_boundary=is_forces_boundary, 
             is_boundary=is_boundary, is_tip=is_tip,
                  displacement_rate=0.000005/2, write=50)
     else:
-    
+
         integrator = Euler(dt=1e-3)
-    
+
         u, damage, *_ = model.simulate(
             steps=1000,
             integrator=integrator,
