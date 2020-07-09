@@ -15,9 +15,10 @@ class ModelCLBen(Model):
     This class allows users to define an composite peridynamics system with
     any number of materials and damage laws from parameters and a set of
     initial conditions (coordinates, connectivity, material_types and
-    stiffness_corrections)."""
-    
-    def __init__(self, *args, density=None, bond_type=None, 
+    stiffness_corrections).
+    """
+
+    def __init__(self, *args, density=None, bond_type=None,
                  material_types=None, stiffness_corrections=None,
                  precise_stiffness_correction=None, dt=None, write_path=None,
                  context=None, **kwargs):
@@ -45,7 +46,7 @@ class ModelCLBen(Model):
         :type material_types: :class:`numpy.ndarray`
         :arg stiffness_corrections: The stiffness_corrections for
             the model. If `None` the stiffness_corrections at the time
-            of construction of the :class:`Model` object will be used. Default 
+            of construction of the :class:`Model` object will be used. Default
             `None`.
         :type stiffness_corrections:
         :arg bool transfinite: Cartesian cubic (tensor grid) mesh (1) or
@@ -85,9 +86,9 @@ class ModelCLBen(Model):
         if stiffness_corrections is None:
             # Calculate stiffness correction factors and write to file
             self.stiffness_corrections = \
-            self._set_stiffness_corrections(
-                self.horizon, self.initial_connectivity,
-                precise_stiffness_correction, write_path)
+                self._set_stiffness_corrections(
+                    self.horizon, self.initial_connectivity,
+                    precise_stiffness_correction, write_path)
         elif type(stiffness_corrections) == np.ndarray:
             if np.shape(stiffness_corrections) != (
                     self.nnodes, self.max_neighbours):
@@ -177,16 +178,16 @@ class ModelCLBen(Model):
         queue.finish()
 
     def _bond_force(
-            self, u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d, 
+            self, u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d,
             stiffness_corrections_d, material_types_d, regimes_d,
             bond_stiffness_d, critical_stretch_d, plus_cs_d, force_bc_types_d,
-            force_bc_values_d, local_mem_x, local_mem_y, local_mem_z, 
+            force_bc_values_d, local_mem_x, local_mem_y, local_mem_z,
             force_load_scale):
         """Calculate the force due to bonds acting on each node."""
         queue = self.queue
         # Call kernel
         self.bond_force_kernel(
-                queue, (self.nnodes * self.max_horizon_length,), 
+                queue, (self.nnodes * self.max_horizon_length,),
                 (self.max_horizon_length,), u_d, ud_d, r0_d, vols_d, nlist_d,
                 n_neigh_d, stiffness_corrections_d, material_types_d,
                 regimes_d, bond_stiffness_d, critical_stretch_d, plus_cs_d,
@@ -244,8 +245,8 @@ class ModelCLBen(Model):
 
     def _set_material_types(self, connectivity, bond_type, write_path):
         """
-        Builds a list of indices for the material types. The indices are used
-        to index into the bond_stiffness and critical_stretch.
+        Build a list of indices for the material types where indices are used
+        to index into the bond_stiffness and critical_stretch arrays.
 
         :arg connectivity: The initial connectivity for the simulation. A tuple
             of a neighbour list and the number of neighbours for each node. If
@@ -258,7 +259,7 @@ class ModelCLBen(Model):
         :arg write_path: The path where the vtk files should be written.
         :type write_path: path-like or str
 
-        :returns: A (`nnodes`, `max_neighbours`) array of the material type 
+        :returns: A (`nnodes`, `max_neighbours`) array of the material type
             of each bond for each node.
         :rtype: :class:`numpy.ndarray`
         """
@@ -279,11 +280,12 @@ class ModelCLBen(Model):
             self, horizon, connectivity,
             precise_stiffness_correction, write_path):
         """
-        Builds a list of stiffness correction factors that reduce the
-        peridynamics surface softening effect for 2D/3D problem and writes to
-        file. The 'volume method' proposed in Chapter 2 in Bobaru F, Foster JT,
-        Geubelle PH, Silling SA (2017) Handbook of peridynamic modeling
-        (p 51–52) is used here.
+        Build a list of stiffness correction factors.
+
+        Stiffness correction factors reduce the peridynamics surface softening
+        effect for 2D/3D problem and writes to file. The 'volume method'
+        proposed in Chapter 2 in Bobaru F, Foster JT, Geubelle PH, Silling SA
+        (2017) Handbook of peridynamic modeling (p51 – 52) is used here.
 
         :arg float horizon: The horizon distance.
         :arg connectivity: The initial connectivity for the simulation. A tuple
@@ -295,7 +297,7 @@ class ModelCLBen(Model):
         :arg precise_stiffness_correction int: A switch variable. Set to 1:
             Stiffness corrections are calculated more accurately using
             actual nodal volumes. Set to 0: Stiffness corrections are calculate
-            using an average nodal volume. Set to None: All stiffness 
+            using an average nodal volume. Set to None: All stiffness
             corrections are set to 1.0, i.e. no stiffness correction is
             applied.
         :arg write_path: The path where the vtk files should be written.
@@ -325,8 +327,8 @@ class ModelCLBen(Model):
                 family_volume_i = family_volumes[i]
                 for neigh in range(n_neigh[i]):
                     family_volume_j = family_volumes[nlist[i][neigh]]
-                    stiffness_correction_factor = 2. * family_volume_bulk / \
-                    (family_volume_i + family_volume_j)
+                    stiffness_correction_factor = 2. * family_volume_bulk / (
+                        family_volume_i + family_volume_j)
                     stiffness_corrections[i][neigh] = (
                         stiffness_correction_factor)
 
@@ -341,10 +343,10 @@ class ModelCLBen(Model):
                     nodej_family_volume = nnodes_j_family * average_node_volume
                     stiffness_correction_factor = 2. * family_volume_bulk / (
                         nodej_family_volume + nodei_family_volume)
-                    stiffness_corrections[i][neigh]= (
+                    stiffness_corrections[i][neigh] = (
                         stiffness_correction_factor)
 
-        elif precise_stiffness_correction == None:
+        elif precise_stiffness_correction is None:
             pass
         else:
             raise ValueError('precise_stiffness_correction can \
@@ -356,6 +358,8 @@ class ModelCLBen(Model):
     def _set_plus_cs(self, bond_stiffness, critical_stretch, n_regimes,
                      n_materials):
         """
+        Calculate `+ c`s for the damage models.
+
         Calculates the `+ c`s (c.f. `y = mx + c`) for the n-linear
         damage-model, where n is n_regimes, e.g. linear, bi-linear, tri-linear,
         etc. from the bond_stiffness and critical_stretch values provided.
@@ -366,7 +370,7 @@ class ModelCLBen(Model):
         :arg critical_stretch: An (n_regimes, n_materials) array of critical
             stretch values, each corresponding to a material and a regime.
         :type critical_stretch: list or :class `numpy.ndarray`:
-        :arg int n_regimes: The number of `regimes` in the damage model. e.g. 
+        :arg int n_regimes: The number of `regimes` in the damage model. e.g.
             linear has n_regimes = 1, bi-linear has n_regimes = 2, etc.
         :arg n_materials: The number of materials in the model.
 
@@ -374,22 +378,21 @@ class ModelCLBen(Model):
             linear part of the bond damage models for each material.
         :rtype: :class:`numpy.ndarray`
         """
-        #TODO: generalise for n-material types.
         # For initial elastic regime, the bond force density at 0 stretch is 0
         c0 = 0.0
         c_prev = c0
         plus_cs = [c0]
         if n_regimes != 1:
             # infer the number of materials in the model from the array shape
-            
+            # TODO: generalise for n-material types.
             for i in range(n_regimes -1):
-                c_i = c_prev + bond_stiffness[i-1]*critical_stretch[i-1] -\
-                    bond_stiffness[i]*critical_stretch[i-1]
+                c_i = c_prev + bond_stiffness[i-1] * critical_stretch[i-1]\
+                    - bond_stiffness[i] * critical_stretch[i-1]
                 plus_cs.append[c_i]
                 c_prev = c_i
         assert len(plus_cs) == n_regimes
         return plus_cs
-        
+
     def _increment_load(self, build_load, step):
         """
         Increment and update the force boundary conditions
@@ -413,9 +416,10 @@ class ModelCLBen(Model):
                                 displacement_rate, build_displacement ,
                                 final_displacement):
         """
-        Increment the displacement boundary condition values according to a
-            5th order polynomial/ linear displacement-time curve for which 
-            initial acceleration is 0.
+        Increment the displacement boundary condition values.
+
+        According to a 5th order polynomial/ linear displacement-time curve
+        for which initial acceleration is 0.
 
         :arg tuple coefficients: Tuple containing the 3 free coefficients
             of the 5th order polynomial.
@@ -437,7 +441,7 @@ class ModelCLBen(Model):
         :returns: ease_off
         :rtype: int
         """
-        if not ((displacement_rate is None) or (build_displacement is None)\
+        if not ((displacement_rate is None) or (build_displacement is None)
                 or (final_displacement is None)):
             # Calculate the scale applied to the displacements
             displacement_scale, ease_off = _calc_load_displacement_rate(
@@ -453,11 +457,11 @@ class ModelCLBen(Model):
         return displacement_load_scale, ease_off
 
     def simulate(self, steps, u=None, ud=None, connectivity=None,
-                 regimes=None, bond_stiffness= None, critical_stretch=None, 
+                 regimes=None, bond_stiffness=None, critical_stretch=None,
                  is_boundary=None, is_forces_boundary=None, is_tip=None,
                  displacement_rate=None, build_displacement=None,
-                 final_displacement=None, build_load = None,
-                 max_reaction = None, first_step=1, write=None, 
+                 final_displacement=None, build_load=None,
+                 max_reaction=None, first_step=1, write=None,
                  write_path=None):
         """
         Simulate the peridynamics model.
@@ -488,7 +492,7 @@ class ModelCLBen(Model):
             is_boundary(:class:`numpy.ndarray`). The argument is the initial
             coordinates of a particle being simulated. `is_boundary` returns a
             (3) list of the boundary types in each cartesian direction.
-            A boundary type with an int value of 2 if the particle is not on a 
+            A boundary type with an int value of 2 if the particle is not on a
             displacement controlled boundary, a value of 1 if is is on a
             boundary and loaded in the positive cartesian direction, and a
             value of -1 if it is on the boundary and loaded in the negative
@@ -530,7 +534,7 @@ class ModelCLBen(Model):
         :type write_path: path-like or str
 
         :returns: A tuple of the final displacements (`u`), the final
-            velocities (`ud`), damage, connectivity, a (steps) list of the 
+            velocities (`ud`), damage, connectivity, a (steps) list of the
             total sum of all damage over the time steps, a (steps, 3) array of
             the tip displacements over the time-steps and a (steps, 3) array of
             the tip resultant force over the time-steps.
@@ -543,8 +547,8 @@ class ModelCLBen(Model):
          regimes,
          bond_stiffness,
          critical_stretch,
-         plus_cs, 
-         u, 
+         plus_cs,
+         u,
          ud,
          damage,
          bc_types,
@@ -553,7 +557,7 @@ class ModelCLBen(Model):
          force_bc_values,
          tip_types,
          write_path) = self._simulate_initialise(
-             is_boundary, is_forces_boundary, is_tip, displacement_rate, 
+             is_boundary, is_forces_boundary, is_tip, displacement_rate,
              max_reaction, u, ud, connectivity, regimes, bond_stiffness,
              critical_stretch, write_path)
 
@@ -641,7 +645,7 @@ class ModelCLBen(Model):
             self.context, cl.mem_flags.WRITE_ONLY, np.empty(
                 self.nnodes).astype(np.float64).nbytes)
         # Initialize kernel parameters
-        #TODO: no sign of this in Jim's code, is it necessary?
+        # TODO: no sign of this in Jim's code, is it necessary?
         self.bond_force_kernel.set_scalar_arg_dtypes(
             [None, None, None, None, None,
              None, None, None, None, None,
@@ -664,17 +668,17 @@ class ModelCLBen(Model):
         ease_off = 0
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
-            
+
             # Update displacements
             u_d = self._update_displacement(
                 ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale)
-                
+
             # Calculate the force due to bonds on each node,
             # and update connectivity
             ud_d, nlist_d, n_neigh_d, regimes_d = self._bond_force(
-                u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d, 
+                u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d,
                 stiffness_corrections_d, material_types_d, regimes_d,
-                bond_stiffness_d, critical_stretch_d, plus_cs_d, 
+                bond_stiffness_d, critical_stretch_d, plus_cs_d,
                 force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
                 local_mem_z, force_load_scale)
 
@@ -694,7 +698,7 @@ class ModelCLBen(Model):
                     tmp = 0
                     for i in range(self.nnodes):
                         if self.tip_types[i] == 1:
-                            tmp +=1
+                            tmp += 1
                             tip_displacement += u[i][2]
                             tip_shear_force += ud[i][2]
                     if tmp != 0:
@@ -719,7 +723,7 @@ class ModelCLBen(Model):
                 force_load_scale = self._increment_load(build_load, step)
             # Increase displacement in 5th order polynomial increments
             displacement_load_scale = self._increment_displacement(
-                coefficients, build_time, step, ease_off, displacement_rate, 
+                coefficients, build_time, step, ease_off, displacement_rate,
                 build_displacement, final_displacement)
 
         return (u, ud, damage, (nlist, n_neigh), damage_sum_data,
@@ -727,7 +731,7 @@ class ModelCLBen(Model):
 
     def _simulate_initialise(
             self, is_boundary, is_forces_boundary, is_tip, displacement_rate,
-            max_reaction, u, ud, connectivity, bond_stiffness, 
+            max_reaction, u, ud, connectivity, bond_stiffness,
             critical_stretch, write_path):
         """
         Initialise simulation variables.
@@ -739,7 +743,7 @@ class ModelCLBen(Model):
             is_boundary(:class:`numpy.ndarray`). The argument is the initial
             coordinates of a particle being simulated. `is_boundary` returns a
             (3) list of the boundary types in each cartesian direction.
-            A boundary type with an int value of 2 if the particle is not on a 
+            A boundary type with an int value of 2 if the particle is not on a
             displacement controlled boundary, a value of 1 if is is on a
             boundary and loaded in the positive cartesian direction, and a
             value of -1 if it is on the boundary and loaded in the negative
@@ -800,7 +804,6 @@ class ModelCLBen(Model):
                      :class:`numpy.ndarray`, :class:`numpy.ndarray`,
                      :class`pathlib.Path`)
         """
-
         # Create initial displacements is none is provided
         if u is None:
             u = np.zeros((self.nnodes, 3))
@@ -820,8 +823,8 @@ class ModelCLBen(Model):
         # Write down the initial connectivity in a file
         # Generate material types from connectivity and write to file
         # Generate stiffness correction factors and write to file
-        
-        #also define the 'tip' (for plotting displacements)
+
+        # also define the 'tip' (for plotting displacements)
         # Initiate boundary condition containers
         bc_types = np.zeros(
             (self.nnodes, self.degrees_freedom), dtype=np.intc)
@@ -858,7 +861,7 @@ class ModelCLBen(Model):
             tip = is_tip(self.horizon, self.coords[i][:])
             tip_types[i] = np.intc(tip)
         force_bc_values = np.float64(
-            np.divide(force_bc_values,num_force_bc_nodes))
+            np.divide(force_bc_values, num_force_bc_nodes))
         regimes = np.zeros((self.nnodes, self.max_neighbours), dtype=np.intc)
         plus_cs = self._set_plus_cs(
             bond_stiffness, critical_stretch, self.n_regimes)
@@ -877,13 +880,13 @@ class ModelCLBen(Model):
 
 class ContextError(Exception):
     """No suitable context was found by :func:`get_context`."""
-
     def __init__(self):
         """Exception constructor."""
         message = ("No suitable context was found. You can manually specify"
                    "the context by passing it to ModelCL with the 'context'"
                    "argument.")
         super().__init__(message)
+
 
 def _calc_midpoint_gradient(T, displacement_scale_rate):
     """ 
@@ -901,9 +904,9 @@ def _calc_midpoint_gradient(T, displacement_scale_rate):
     :rtype: A tuple containing (:type float:, :type tuple:) 
     """
     A = np.array([
-        [(1*T**5)/1,(1*T**4)/1,(1*T**3)/1],
-        [(20*T**3)/1,(12*T**2)/1,(6*T**1)/1],
-        [(5*T**4)/1,(4*T**3)/1,(3*T**2)/1,]
+        [(1 * T**5) / 1, (1 * T**4) / 1, (1 * T**3) / 1],
+        [(20 * T**3) / 1, (12 * T**2) / 1, (6 * T**1) / 1],
+        [(5 * T**4) / 1, (4 * T**3) / 1, (3 * T**2) / 1]
         ]
         )
     b = np.array(
@@ -912,19 +915,20 @@ def _calc_midpoint_gradient(T, displacement_scale_rate):
             [0.0],
             [0.0]
                 ])
-    x = np.linalg.solve(A,b)
+    x = np.linalg.solve(A, b)
     a = x[0][0]
-
     b = x[1][0]
-
     c = x[2][0]
-    
     midpoint_gradient = (5./16)*a*T**4 + (4./8)*b*T**3 + (3./4)*c*T**2
     coefficients = (a, b, c)
     return(midpoint_gradient, coefficients)
 
+
 def _calc_build_time(build_displacement, displacement_rate, steps):
     """
+    Calculate the the number of steps over which the displacement-time
+    curve is a smooth 5th order polynomial.
+
     An iterative procedure to calculate the number of steps over which the
     displacement-time curve is a smooth 5th order polynomial.
 
@@ -957,6 +961,7 @@ def _calc_build_time(build_displacement, displacement_rate, steps):
                     max_displacement_rate. steps = {}'.format(steps))
             break
     return(T, coefficients)
+
 
 def _calc_load_displacement_rate(coefficients, final_displacement, build_time,
                                  displacement_rate, step, 
@@ -1007,6 +1012,7 @@ def _calc_load_displacement_rate(coefficients, final_displacement, build_time,
             displacement_scale = 1.0
     return(displacement_scale, ease_off)
 
+
 #TODO: move to a utility package?
 def output_device_info(device_id):
     """ Output the device info of the device."""
@@ -1033,4 +1039,3 @@ def output_device_info(device_id):
     sys.stdout.write(str(device_id.local_mem_size))
     sys.stdout.write(" bytes. \n")
     sys.stdout.flush()
-        

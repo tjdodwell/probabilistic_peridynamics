@@ -34,14 +34,19 @@ def is_crack(x, y):
             output = 1
     return output
 
+
 def is_tip(horizon, x):
+    """ Return if the particle coordinate is a `tip`."""
     output = 0
     if x[0] > 1.0 - 1. * horizon:
         output = 1
     return output
 
+
 def is_boundary(horizon, x):
     """
+    Return if the particle coordinate is a displacement boundary.
+
     Function which marks displacement boundary constrained particles
     2 is no boundary condition (the number here is an arbitrary choice)
     -1 is displacement loaded IN -ve direction
@@ -56,6 +61,20 @@ def is_boundary(horizon, x):
     elif x[0] > 1.0 - 1.5 * horizon:
         bnd = 1
     return bnd
+
+
+def is_forces_boundary(horizon, x):
+    """
+    Return if the particle coordinate is a force boundary.
+
+    Marks types of body force on the particles
+    2 is no boundary condition (the number here is an arbitrary choice)
+    -1 is force loaded IN -ve direction
+    1 is force loaded IN +ve direction
+    """
+    bnd = [2, 2, 2]
+    return bnd
+
 
 def boundary_function(model, u, step):
     """
@@ -75,15 +94,6 @@ def boundary_function(model, u, step):
 
     return u
 
-def is_forces_boundary(horizon, x):
-    """
-    Marks types of body force on the particles
-    2 is no boundary condition (the number here is an arbitrary choice)
-    -1 is force loaded IN -ve direction
-    1 is force loaded IN +ve direction
-    """
-    bnd = [2, 2, 2]
-    return bnd
 
 def main():
     """Conduct a peridynamics simulation."""
@@ -138,6 +148,7 @@ def main():
         stats = Stats(profile, stream=s).sort_stats(SortKey.CUMULATIVE)
         stats.print_stats(.05)
         print(s.getvalue())
+
 
 if __name__ == "__main__":
     main()
