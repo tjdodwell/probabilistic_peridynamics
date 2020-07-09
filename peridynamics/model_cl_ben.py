@@ -245,8 +245,8 @@ class ModelCLBen(Model):
 
     def _set_material_types(self, connectivity, bond_type, write_path):
         """
-        Build a list of indices for the material types where indices are used
-        to index into the bond_stiffness and critical_stretch arrays.
+        Build a (`nnodes`, `max_neighbours`) array of material types for each
+        bond for each node.
 
         :arg connectivity: The initial connectivity for the simulation. A tuple
             of a neighbour list and the number of neighbours for each node. If
@@ -260,7 +260,8 @@ class ModelCLBen(Model):
         :type write_path: path-like or str
 
         :returns: A (`nnodes`, `max_neighbours`) array of the material type
-            of each bond for each node.
+            of each bond for each node, which are used
+            to index into the bond_stiffness and critical_stretch arrays.
         :rtype: :class:`numpy.ndarray`
         """
         nlist, n_neigh = connectivity
@@ -386,8 +387,8 @@ class ModelCLBen(Model):
             # infer the number of materials in the model from the array shape
             # TODO: generalise for n-material types.
             for i in range(n_regimes -1):
-                c_i = c_prev + bond_stiffness[i-1] * critical_stretch[i-1]\
-                    - bond_stiffness[i] * critical_stretch[i-1]
+                c_i = c_prev + bond_stiffness[i - 1] * critical_stretch[i - 1]\
+                    - bond_stiffness[i] * critical_stretch[i - 1]
                 plus_cs.append[c_i]
                 c_prev = c_i
         assert len(plus_cs) == n_regimes
@@ -395,7 +396,7 @@ class ModelCLBen(Model):
 
     def _increment_load(self, build_load, step):
         """
-        Increment and update the force boundary conditions
+        Increment and update the force boundary conditions.
 
         :arg float build_load: The inverse of the number of steps required to
             build up to full external force loading.
@@ -413,7 +414,7 @@ class ModelCLBen(Model):
         return force_load_scale
 
     def _increment_displacement(self, coefficients, build_time, step, ease_off,
-                                displacement_rate, build_displacement ,
+                                displacement_rate, build_displacement,
                                 final_displacement):
         """
         Increment the displacement boundary condition values.
@@ -444,7 +445,7 @@ class ModelCLBen(Model):
         if not ((displacement_rate is None) or (build_displacement is None)
                 or (final_displacement is None)):
             # Calculate the scale applied to the displacements
-            displacement_scale, ease_off = _calc_load_displacement_rate(
+            displacement_scale, ease_off = _calc_displacement_scale(
                 coefficients, final_displacement, build_time,
                 displacement_rate, step, build_displacement, ease_off)
             if displacement_scale != 0.0:
@@ -705,7 +706,7 @@ class ModelCLBen(Model):
                         tip_displacement /= tmp
                     else:
                         tip_displacement = None
-                    
+
                     tip_displacement_data.append(tip_displacement)
                     tip_force_data.append(tip_shear_force)
                     damage_sum = np.sum(damage)
@@ -880,6 +881,7 @@ class ModelCLBen(Model):
 
 class ContextError(Exception):
     """No suitable context was found by :func:`get_context`."""
+
     def __init__(self):
         """Exception constructor."""
         message = ("No suitable context was found. You can manually specify"
@@ -890,7 +892,9 @@ class ContextError(Exception):
 
 def _calc_midpoint_gradient(T, displacement_scale_rate):
     """ 
-    Calculate the midpoint gradient and coefficients of a 5th order
+    Calculate the midpoint gradient and coefficients of a 5th order polynomial.
+
+    Calculates the midpoint gradient and coefficients of a 5th order
     polynomial displacement-time curve which is defined by acceleration being
     0 at t=0 and t=T and a midpoint gradient.
 
@@ -901,7 +905,7 @@ def _calc_midpoint_gradient(T, displacement_scale_rate):
         the midpoint gradient of the displacement-time curve and a tuple
         containing the 3 unconstrained coefficients of the 5th-order
         polynomial.
-    :rtype: A tuple containing (:type float:, :type tuple:) 
+    :rtype: A tuple containing (:type float:, :type tuple:)
     """
     A = np.array([
         [(1 * T**5) / 1, (1 * T**4) / 1, (1 * T**3) / 1],
@@ -926,8 +930,7 @@ def _calc_midpoint_gradient(T, displacement_scale_rate):
 
 def _calc_build_time(build_displacement, displacement_rate, steps):
     """
-    Calculate the the number of steps over which the displacement-time
-    curve is a smooth 5th order polynomial.
+    Calculate the the number of steps for the 5th order polynomial.
 
     An iterative procedure to calculate the number of steps over which the
     displacement-time curve is a smooth 5th order polynomial.
@@ -944,29 +947,32 @@ def _calc_build_time(build_displacement, displacement_rate, steps):
         polynomial.
     :rtype: A tuple containing (:type int:, :type tuple:)
     """
-    T = 0
+    build_time = 0
     midpoint_gradient = np.inf
     while midpoint_gradient > displacement_rate:
+        # Try to calculate gradient, if not, increase the build_time
         try:
             midpoint_gradient, coefficients = _calc_midpoint_gradient(
-                T, build_displacement)
-        except:
+                build_time, build_displacement)
+        except Exception:
             pass
-        T += 1
-        if T > steps:
+        build_time += 1
+        if build_time > steps:
             # TODO: suggest some valid values from the parameters given
             raise ValueError(
                 'Displacement build-up time was larger than total simulation \
                 time steps! \ntry decreasing build_displacement, or increase \
                     max_displacement_rate. steps = {}'.format(steps))
             break
-    return(T, coefficients)
+    return(build_time, coefficients)
 
 
-def _calc_load_displacement_rate(coefficients, final_displacement, build_time,
-                                 displacement_rate, step, 
+def _calc_displacement_scale(coefficients, final_displacement, build_time,
+                                 displacement_rate, step,
                                  build_displacement, ease_off):
     """
+    Calculate the displacement scale.
+
     Calculates the displacement boundary condition scale according to a
     5th order polynomial/ linear displacement-time curve for which initial
     acceleration is 0.
@@ -1000,7 +1006,7 @@ def _calc_load_displacement_rate(coefficients, final_displacement, build_time,
         else:
             m = 5 * a * t**4 + 4 * b * t**3 + 3 * c * t**2
             displacement_scale = m / displacement_rate
-    else: # linear increments
+    else:  # linear increments
         # calculate displacement
         linear_time = step - build_time/2
         linear_displacement = linear_time * displacement_rate
@@ -1013,9 +1019,9 @@ def _calc_load_displacement_rate(coefficients, final_displacement, build_time,
     return(displacement_scale, ease_off)
 
 
-#TODO: move to a utility package?
+# TODO: move to a utility package?
 def output_device_info(device_id):
-    """ Output the device info of the device."""
+    """Output the device info of the device."""
     sys.stdout.write("Device is ")
     sys.stdout.write(device_id.name)
     if device_id.type == cl.device_type.GPU:

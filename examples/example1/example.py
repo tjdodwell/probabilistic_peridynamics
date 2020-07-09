@@ -36,7 +36,7 @@ def is_crack(x, y):
 
 
 def is_tip(horizon, x):
-    """ Return if the particle coordinate is a `tip`."""
+    """Return if the particle coordinate is a `tip`."""
     output = 0
     if x[0] > 1.0 - 1. * horizon:
         output = 1
@@ -111,15 +111,14 @@ def main():
             model = ModelCLBen(
                 mesh_file, horizon=0.1, critical_stretch=[0.005],
                 bond_stiffness=[18.00 * 0.05 / (np.pi * 0.1**4)],
-                dimensions=2, density=2.0,
-                 initial_crack=is_crack, dt=1e-3)
+                dimensions=2, density=2.0, initial_crack=is_crack, dt=1e-3)
         else:
             model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.005,
-                            bond_stiffness=18.0 * 0.05 / (np.pi* 0.1**4),
+                            bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
                             initial_crack=is_crack)
     else:
         model = Model(mesh_file, horizon=0.1, critical_stretch=0.005,
-                      bond_stiffness=18.0 * 0.05 / (np.pi* 0.1**4),
+                      bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
                       initial_crack=is_crack)
 
     # Set left-hand side and right-hand side of boundary
@@ -128,7 +127,7 @@ def main():
 
     if (args.opencl and args.ben):
         u, damage, *_ = model.simulate(
-            steps=1000, is_boundary=is_boundary, 
+            steps=1000, is_boundary=is_boundary,
             is_forces_boundary=is_forces_boundary, is_tip=is_tip,
             displacement_rate=0.000005/2, write=50)
     else:
