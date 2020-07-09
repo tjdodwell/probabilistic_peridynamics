@@ -3,35 +3,30 @@ from .model import Model
 from .cl_ben import double_fp_support, get_context, kernel_source
 import numpy as np
 import pyopencl as cl
-from pyopencl import mem_flags as mf
 import pathlib
 from tqdm import trange
-import sys # for output device info 
+import sys
+
 
 class ModelCLBen(Model):
-    """A peridynamics model using Ben's optimised OpenCL code.
+    """
+    A peridynamics model using Ben's optimised OpenCL code.
 
     This class allows users to define an composite peridynamics system with
     any number of materials and damage laws from parameters and a set of
     initial conditions (coordinates, connectivity, material_types and
     stiffness_corrections)."""
     
-    def __init__(self,
-                 *args,
-                 density = None,
-                 bond_type = None,
-                 material_types=None, 
-                 stiffness_corrections=None,
-                 precise_stiffness_correction = None,
-                 dt = None,
-                 write_path = None,
-                 context=None, **kwargs):
-        """Create a :class:`ModelCLBen` object.
+    def __init__(self, *args, density=None, bond_type=None, material_types=None, 
+                 stiffness_corrections=None, precise_stiffness_correction=None,
+                 dt=None, write_path=None, context=None, **kwargs):
+        """
+        Create a :class:`ModelCLBen` object.
 
         :arg float density: Density of the bulk material in kg/m^3.
-        :arg float bond_stiffness: An (m, n_regimes) array of the different 
+        :arg float bond_stiffness: An (m, n_regimes) array of the different
             bond stiffnesses for m material types.
-        :arg float critical_stretch: An (m, n_regimes) array of 
+        :arg float critical_stretch: An (m, n_regimes) array of
             different critical strains for m material types.
         :arg method bond_type: A method which outputs the material type,
             an integer value, of the bond.
@@ -41,7 +36,7 @@ class ModelCLBen(Model):
             :class:`Model` object will be used. Default `None`.
         :type connectivity: tuple(:class:`numpy.ndarray`,
             :class:`numpy.ndarray`)
-        :arg material_types: The bond material_types for the model. 
+        :arg material_types: The bond material_types for the model.
             If `None` the material_types at the time of construction of the
             :class:`Model` object will be used. Default `None`.
         :type material_types: :class:`numpy.ndarray`
@@ -50,23 +45,24 @@ class ModelCLBen(Model):
             of construction of the :class:`Model` object will be used. Default 
             `None`.
         :type stiffness_corrections:
-        :arg bool transfinite: Cartesian cubic (tensor grid) mesh (1) or 
+        :arg bool transfinite: Cartesian cubic (tensor grid) mesh (1) or
             tetra-hedral grid (default, 0).
-        :arg bool precise_stiffness_correction: Boolean for stiffness 
+        :arg bool precise_stiffness_correction: Boolean for stiffness
             correction factors calculated using mesh element volumes (default
             'precise', 1) or average nodal volume of a transfinite mesh (0). If
             `None`, then no stiffness correction factors are provided.
-        :arg float max_reaction: The maximum total load applied to the loaded 
+        :arg float max_reaction: The maximum total load applied to the loaded
             nodes.
         :arg int build_load: The number of steps to apply the max reaction
             force to the loaded nodes at a linear rate.
-        :arg int build_displacement: The number of steps to apply the build up 
+        :arg int build_displacement: The number of steps to apply the build up
             for the displacement.
-        :arg float max_displacement: The maximum displacement applied to the 
+        :arg float max_displacement: The maximum displacement applied to the
             loaded nodes.
         :arg write_path: The path where the stiffness_corrections,
             material_types and connectivity should be written.
         :type write_path: path-like or str
+
         :returns: A new :class:`Model` object.
         :rtype: Model
         """
@@ -87,7 +83,7 @@ class ModelCLBen(Model):
             # Calculate stiffness correction factors and write to file
             self.stiffness_corrections = \
             self._set_stiffness_corrections(
-                self.horizon, self.initial_connectivity, 
+                self.horizon, self.initial_connectivity,
                 precise_stiffness_correction, write_path)
         elif type(stiffness_corrections) == np.ndarray:
             if np.shape(stiffness_corrections) != (
@@ -141,7 +137,7 @@ class ModelCLBen(Model):
         SEP = " "
         options_string = (
             "-cl-fast-relaxed-math" + SEP
-            + "-DPD_DPN_NODE_NO=" + str(self.degrees_freedom * self.nnodes) 
+            + "-DPD_DPN_NODE_NO=" + str(self.degrees_freedom * self.nnodes)
             + SEP
             + "-DPD_NODE_NO=" + str(self.nnodes) + SEP
             + "-DMAX_HORIZON_LENGTH=" + str(self.max_neighbours) + SEP
@@ -209,9 +205,15 @@ class ModelCLBen(Model):
 
     def write_array(self, write_path, array):
         """
-        :arg write_path: TYPE
-        :type write_path: string or PATHFILE
-        :arg numpy.ndarray array:
+        Write a numpy array to a vtk file.
+
+        :arg write_path: The path where the vtk files should be
+            written.
+        :type write_path: path-like or str
+        :arg numpy.ndarray array: The array to be written.
+
+        :return: None
+        :rtype: NoneType
         """
         f = open(write_path, "w")
         f.write("# vtk DataFile Version 2.0\n")
@@ -237,18 +239,26 @@ class ModelCLBen(Model):
                 'values type not recognised, could not write to file.\
                 Type must be float, numpy.float64, int or numpy.intc')
 
-    def _set_material_types(self, initial_connectivity, bond_type, write_path):
+    def _set_material_types(self, connectivity, bond_type, write_path):
         """
         Builds a list of indices for the material types. The indices are used
         to index into the bond_stiffness and critical_stretch.
-        
-        :arg initial_connectivity:
-        :arg bond_type:
-        :arg write_path:
+
+        :arg connectivity: The initial connectivity for the simulation. A tuple
+            of a neighbour list and the number of neighbours for each node. If
+            `None` the connectivity at the time of construction of the
+            :class:`Model` object will be used. Default `None`.
+        :type connectivity: tuple(:class:`numpy.ndarray`,
+            :class:`numpy.ndarray`)
+        :arg bond_type: A function that returns an integer value depending on
+            the material type.
+        :arg write_path: The path where the vtk files should be written.
+        :type write_path: path-like or str
+
         :return:
         :rtype:
         """
-        nlist, n_neigh = initial_connectivity
+        nlist, n_neigh = connectivity
         material_types = np.zeros(
             (self.nnodes, self.max_neighbours), dtype=np.intc)
         print(material_types.shape, nlist.shape, self.coords.shape)
@@ -262,30 +272,36 @@ class ModelCLBen(Model):
         return material_types
 
     def _set_stiffness_corrections(
-            self, horizon, initial_connectivity,
+            self, horizon, connectivity,
             precise_stiffness_correction, write_path):
         """
-        Builds a list of stiffness correction factors that reduce the 
-        peridynamics surface softening effect for 2D/3D problem and writes to 
+        Builds a list of stiffness correction factors that reduce the
+        peridynamics surface softening effect for 2D/3D problem and writes to
         file. The 'volume method' proposed in Chapter 2 in Bobaru F, Foster JT,
-        Geubelle PH, Silling SA (2017) Handbook of peridynamic modeling 
+        Geubelle PH, Silling SA (2017) Handbook of peridynamic modeling
         (p 51–52) is used here.
 
         :arg float horizon: The horizon distance.
-        :arg initial_connec
-        :arg int size: The size of each row of the neighbour list. This is the
-            maximum number of neighbours and should be equal to the maximum of
-            of :func:`peridynamics.neighbour_list.family`.
-        :arg precise_stiffness_correction int: A switch variable. (=1), 
-            Calculate precise stiffening factor more accurately using actual
-                nodal volumes. (=0),Calculate non-precise stiffening factor 
-                using average nodal volumes. (=None), Don't apply a stiffness 
-                correction factor.
-        :return: A tuple of the neighbour list and number of neighbours for 
-            each node.
+        :arg connectivity: The initial connectivity for the simulation. A tuple
+            of a neighbour list and the number of neighbours for each node. If
+            `None` the connectivity at the time of construction of the
+            :class:`Model` object will be used. Default `None`.
+        :type connectivity: tuple(:class:`numpy.ndarray`,
+            :class:`numpy.ndarray`)
+        :arg precise_stiffness_correction int: A switch variable. Set to 1:
+            Stiffness corrections are calculated more accurately using
+            actual nodal volumes. Set to 0: Stiffness corrections are calculate
+            using an average nodal volume. Set to None: All stiffness 
+            corrections are set to 1.0, i.e. no stiffness correction is
+            applied.
+        :arg write_path: The path where the vtk files should be written.
+        :type write_path: path-like or str
+
+        :return: An array of size (model.nnodes, model.max_neighbours) 
+            of the stiffness correction factor for each bond.
         :rtype: numpy.ndarray
         """
-        nlist, n_neigh = initial_connectivity
+        nlist, n_neigh = connectivity
         stiffness_corrections = np.ones((self.nnodes, self.max_neighbours))
         family_volumes = np.zeros(self.nnodes)
         for i in range(0, self.nnodes):
@@ -327,35 +343,37 @@ class ModelCLBen(Model):
         elif precise_stiffness_correction == None:
             pass
         else:
-            raise ValueError('precise_stiffness_correction', 
-                             'precise_stiffness_correction can \
+            raise ValueError('precise_stiffness_correction can \
                              only take values 0 or 1 or None')
         self.write_array(
             write_path/"stiffness_corrections", stiffness_corrections)
         return stiffness_corrections
 
-    def _set_plus_cs(self, bond_stiffness, critical_stretch, n_regimes):
+    def _set_plus_cs(self, bond_stiffness, critical_stretch, n_regimes,
+                     n_materials):
         """
+        Calculates the `+ c`s (c.f. `y = mx + c`) for the n-linear
+        damage-model, where n is n_regimes, e.g. linear, bi-linear, tri-linear,
+        etc. from the bond_stiffness and critical_stretch values provided.
 
-        Parameters
-        ----------
-        bond_stiffness : TYPE
-            DESCRIPTION.
-        critical_stretch : TYPE
-            DESCRIPTION.
-        n_regimes : TYPE
-            DESCRIPTION.
+        :arg array bond_stiffness: A list or array of bond stiffness values, 
+            each corresponding to a regime.
+        :arg array critical_stretch:
+        :arg n_regimes: The number of `regimes` in the damage model. e.g. 
+            linear has n_regimes = 1, bi-linear has n_regimes = 2, etc.
+        :arg n_materials: The number of materials in the model.
 
-        Returns
-        -------
-        None.
-
+        :return: An array of size (model.nnodes, model.max_neighbours) 
+            of the stiffness correction factor for each bond.
+        :rtype: numpy.ndarray
         """
+        #TODO: generalise for n-material types.
         # For initial elastic regime, the bond force density at 0 stretch is 0
         c0 = 0.0
         c_prev = c0
         plus_cs = [c0]
         if n_regimes != 1:
+            # infer the number of materials in the model from the array shape
             
             for i in range(n_regimes -1):
                 c_i = c_prev + bond_stiffness[i-1]*critical_stretch[i-1] -\
@@ -365,42 +383,52 @@ class ModelCLBen(Model):
         assert len(plus_cs) == n_regimes
         return plus_cs
         
-    def _increment_load(self, load_scale):
+    def _increment_load(self, build_load, step):
         """
-        
+        Increment and update the force boundary conditions
 
-        Parameters
-        ----------
-        load_scale : TYPE
-            DESCRIPTION.
+        :arg float build_load: The inverse of the number of steps required to
+            build up to full external force loading.
+        :arg int step: The current time-step of the simulation.
 
-        Returns
-        -------
-        None.
-
+        :returns: The force_load_scale between [0.0, 1.0], a scale applied to
+            the force boundary conditions.
+        :rtype: numpy.float64
         """
-        if self.num_force_bc_nodes != 0:
-            # update the host force load scale
-            self.force_load_scale_h = np.float64(load_scale)
+        # Increase load in linear increments
+        if not (build_load is None):
+            force_load_scale = np.float64(min(1.0, build_load * step))
+        else:
+            force_load_scale = np.float64(0.0)
+        return force_load_scale
+
     def _increment_displacement(self, coefficients, build_time, step, ease_off,
                                 displacement_rate, build_displacement ,
                                 final_displacement):
         """
-        Increments the displacement boundary condition values depending on the
-        time step, according to the function parameters, displacement_rate, 
-        build_displacement and final_displacement.
-        :arg np.ndarray coefficients: discription
-        :arg int? build_time:
-        :arg int step:
-        :arg bool ease_off:
-        :arg float displacement_rate:
-        :arg float build_displacement:
-        :arg float final_displacement:
+        Increment the displacement boundary condition values according to a
+            5th order polynomial/ linear displacement-time curve for which initial
+            acceleration is 0.
 
-        :return: displacement_load_scale
-        :rtype:
-        :return ease_off
-        :rtype:
+        :arg tuple coefficients: Tuple containing the 3 free coefficients
+            of the 5th order polynomial.
+        :arg int build_time: The number of time steps over which the
+            applied displacement-time curve is not linear.
+        :arg int step: The current time-step of the simulation.
+        :arg int ease_off: A boolean-like variable which is 0 if the
+            displacement-rate hasn't started decreasing yet. Equal to the step
+            at which the displacement rate starts decreasing once it does so.
+        :arg float displacement_rate: The displacement rate in [m] per step
+            during the linear phase of the displacement-time graph.
+        :arg float build_displacement: The displacement in [m] over which the
+            displacement-time graph is the smooth 5th order polynomial.
+        :arg float final_displacement: The final displacement in [m].
+
+        :returns: The displacement_load_scale between [0.0, 1.0], a scale
+            applied to the displacement boundary conditions.
+        :rtype: np.float64
+        :returns: ease_off
+        :rtype: int
         """
         if not ((displacement_rate is None) or (build_displacement is None)\
                 or (final_displacement is None)):
@@ -426,6 +454,7 @@ class ModelCLBen(Model):
                  write_path=None):
         """
         Simulate the peridynamics model.
+
         :arg int steps: The number of simulation steps to conduct.
         :arg boundary_function: A function to apply the boundary conditions for
             the simlation. It has the form
@@ -641,12 +670,10 @@ class ModelCLBen(Model):
                               -- PERIDYNAMICS SIMULATION STOPPING')
                         break
 
-            # Increase load in linear increments
-            if not (build_load is None):
-                load_scale = min(1.0, self.build_load * step)
-                if load_scale != 1.0:
-                    self._increment_load(load_scale)
-            # Increase dispalcement in 5th order polynomial increments
+            # Increase external forces in linear incremenets
+            if force_load_scale != 1.0:
+                force_load_scale = self._increment_load(build_load, step)
+            # Increase displacement in 5th order polynomial increments
             displacement_load_scale = self._increment_displacement(
                 coefficients, build_time, step, ease_off, displacement_rate, 
                 build_displacement, final_displacement)
@@ -760,6 +787,7 @@ class ModelCLBen(Model):
                 plus_cs, u, ud, damage, bc_types, bc_values, force_bc_types,
                 force_bc_values, tip_types, write_path)
 
+
 class ContextError(Exception):
     """No suitable context was found by :func:`get_context`."""
 
@@ -771,6 +799,20 @@ class ContextError(Exception):
         super().__init__(message)
 
 def _calc_midpoint_gradient(T, displacement_scale_rate):
+    """ 
+    Calculate the midpoint gradient and coefficients of a 5th order
+    polynomial displacement-time curve which is defined by acceleration being
+    0 at t=0 and t=T and a midpoint gradient.
+
+    :arg int T: The finish time-step of the displacement-time curve.
+    :arg float displacement_scale_rate: The midpoint gradient of the curve.
+
+    :returns: A tuple containing a float
+        the midpoint gradient of the displacement-time curve and a tuple
+        containing the 3 unconstrained coefficients of the 5th-order
+        polynomial.
+    :rtype: A tuple containing (:type float:, :type tuple:) 
+    """
     A = np.array([
         [(1*T**5)/1,(1*T**4)/1,(1*T**3)/1],
         [(20*T**3)/1,(12*T**2)/1,(6*T**1)/1],
@@ -794,10 +836,26 @@ def _calc_midpoint_gradient(T, displacement_scale_rate):
     coefficients = (a, b, c)
     return(midpoint_gradient, coefficients)
 
-def _calc_build_time(build_displacement, displacement_scale_rate, steps):
+def _calc_build_time(build_displacement, displacement_rate, steps):
+    """
+    An iterative procedure to calculate the number of steps over which the
+    displacement-time curve is a smooth 5th order polynomial.
+
+    :arg float build_displacement: The displacement in [m] over which the
+        displacement-time graph is the smooth 5th order polynomial.
+    :arg float displacement_rate: The displacement rate in [m] per step
+            during the linear phase of the displacement-time graph.
+    :arg int step: The current time-step of the simulation.
+
+    :returns: A tuple containing an int T the number of steps over which the
+        displacement-time curve is a smooth 5th order polynomial and a tuple
+        containing the 3 unconstrained coefficients of the 5th-order
+        polynomial.
+    :rtype: A tuple containing (:type int:, :type tuple:)
+    """
     T = 0
     midpoint_gradient = np.inf
-    while midpoint_gradient > displacement_scale_rate:
+    while midpoint_gradient > displacement_rate:
         try:
             midpoint_gradient, coefficients = _calc_midpoint_gradient(
                 T, build_displacement)
@@ -819,7 +877,6 @@ def _calc_load_displacement_rate(coefficients, final_displacement, build_time,
     a, b, c = coefficients
     if step < build_time/2:
         m = 5*a*step**4 + 4*b*step**3 + 3*c*step**2
-        #print('m = ', m)
         load_displacement_rate = m/displacement_scale_rate
     elif ease_off != 0:
         t = step - ease_off + build_time/2
@@ -840,28 +897,30 @@ def _calc_load_displacement_rate(coefficients, final_displacement, build_time,
             load_displacement_rate = 1.0
     return(load_displacement_rate, ease_off)
 
+#TODO: move to a utility package?
 def output_device_info(device_id):
-            sys.stdout.write("Device is ")
-            sys.stdout.write(device_id.name)
-            if device_id.type == cl.device_type.GPU:
-                sys.stdout.write("GPU from ")
-            elif device_id.type == cl.device_type.CPU:
-                sys.stdout.write("CPU from ")
-            else:
-                sys.stdout.write("non CPU of GPU processor from ")
-            sys.stdout.write(device_id.vendor)
-            sys.stdout.write(" with a max of ")
-            sys.stdout.write(str(device_id.max_compute_units))
-            sys.stdout.write(" compute units, \n")
-            sys.stdout.write("a max of ")
-            sys.stdout.write(str(device_id.max_work_group_size))
-            sys.stdout.write(" work-items per work-group, \n")
-            sys.stdout.write("a max work item dimensions of ")
-            sys.stdout.write(str(device_id.max_work_item_dimensions))
-            sys.stdout.write(", \na max work item sizes of ")
-            sys.stdout.write(str(device_id.max_work_item_sizes))
-            sys.stdout.write(",\nand device local memory size is ")
-            sys.stdout.write(str(device_id.local_mem_size))
-            sys.stdout.write(" bytes. \n")
-            sys.stdout.flush()
+    """ Output the device info of the device."""
+    sys.stdout.write("Device is ")
+    sys.stdout.write(device_id.name)
+    if device_id.type == cl.device_type.GPU:
+        sys.stdout.write("GPU from ")
+    elif device_id.type == cl.device_type.CPU:
+        sys.stdout.write("CPU from ")
+    else:
+        sys.stdout.write("non CPU of GPU processor from ")
+    sys.stdout.write(device_id.vendor)
+    sys.stdout.write(" with a max of ")
+    sys.stdout.write(str(device_id.max_compute_units))
+    sys.stdout.write(" compute units, \n")
+    sys.stdout.write("a max of ")
+    sys.stdout.write(str(device_id.max_work_group_size))
+    sys.stdout.write(" work-items per work-group, \n")
+    sys.stdout.write("a max work item dimensions of ")
+    sys.stdout.write(str(device_id.max_work_item_dimensions))
+    sys.stdout.write(", \na max work item sizes of ")
+    sys.stdout.write(str(device_id.max_work_item_sizes))
+    sys.stdout.write(",\nand device local memory size is ")
+    sys.stdout.write(str(device_id.local_mem_size))
+    sys.stdout.write(" bytes. \n")
+    sys.stdout.flush()
         

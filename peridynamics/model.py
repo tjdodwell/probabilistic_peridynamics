@@ -104,7 +104,7 @@ class Model(object):
     """
 
     def __init__(self, mesh_file, horizon, critical_stretch, bond_stiffness,
-                 transfinite = 0, volume_total=None,
+                 transfinite=0, volume_total=None,
                  connectivity=None, initial_crack=[], dimensions=2):
         """
         Construct a :class:`Model` object.
@@ -119,10 +119,10 @@ class Model(object):
         :arg float elastic_modulus: The appropriate elastic modulus of the
             material.
         :arg bool transfinite: Is the mesh a transfinite(=1) or a triangular/
-            tetra(=0). Default 0. Tranfinite mode approximates the volumes of 
-            the nodes as the average volume of nodes on a cuboidal tensor-grid 
+            tetra(=0). Default 0. Tranfinite mode approximates the volumes of
+            the nodes as the average volume of nodes on a cuboidal tensor-grid
             mesh.
-        :arg float volume_total: Total volume of the mesh. Must be provided if 
+        :arg float volume_total: Total volume of the mesh. Must be provided if
             transfinite mode (transfinite=1) is used.
         :arg initial_crack: The initial crack of the system. The argument may
             be a list of tuples where each tuple is a pair of integers
@@ -162,15 +162,16 @@ class Model(object):
                                  the number of critical stretches")
             else:
                 self.n_regimes = len(bond_stiffness)
-        
+
         self.critical_stretch = critical_stretch
-        self.bond_stiffness =  bond_stiffness
+        self.bond_stiffness = bond_stiffness
 
         if transfinite:
             if volume_total is None:
                 raise ValueError("If the mesh is regular cuboidal tensor grid\
                                  (transfinite), a total volume (key word arg\
                                 'volume_total') must be provided")
+
         # Calculate the volume for each node
         self.volume, self.sum_total_volume = self._volume(
             transfinite, volume_total)
@@ -186,7 +187,7 @@ class Model(object):
             # Maximum number of nodes that any one of the nodes is connected
             # to, must be a power of 2 (for OpenCL reduction)
             self.max_neighbours = np.intc(
-                        1<<(int(self.family.max()-1)).bit_length()
+                        1 << (int(self.family.max() - 1)).bit_length()
                     )
             nlist, n_neigh = create_neighbour_list_BB(
                 self.coords, horizon, self.max_neighbours
@@ -264,12 +265,12 @@ class Model(object):
     def _volume(self, transfinite, volume_total):
         """
         Calculate the value of each node.
-        
-        :arg float volume_total: User input for the total volume of the mesh, 
-            for checking the sum total of elemental volumes is equal to user 
+
+        :arg float volume_total: User input for the total volume of the mesh,
+            for checking the sum total of elemental volumes is equal to user
             input volume for simple prismatic problems. In the case where no
             expected total volume is provided, the check is not done.
-        :arg bool transfinite: Is the mesh a transfinite(=1) or a 
+        :arg bool transfinite: Is the mesh a transfinite(=1) or a
             triangular/tetra(=0).
 
         :returns: None
@@ -315,7 +316,7 @@ class Model(object):
             volume[nodes] += element_volume / element_nodes
 
         volume = volume.astype(np.float64)
-        
+
         return volume, sum_total_volume
 
     def _break_bonds(self, u, nlist, n_neigh):
