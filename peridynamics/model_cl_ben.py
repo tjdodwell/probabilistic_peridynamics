@@ -3,6 +3,7 @@ from .model import Model
 from .cl_ben import double_fp_support, get_context, kernel_source
 import numpy as np
 import pyopencl as cl
+from pyopencl import mem_flags as mf
 import pathlib
 from tqdm import trange
 import sys
@@ -173,8 +174,8 @@ class ModelCLBen(Model):
         queue = self.queue
 
         # Call kernel
-        self.damage_kernel(queue, (self.nnodes,), None, n_neigh_d, family_d,
-                           damage_d)
+        self.damage_new_kernel(queue, (self.nnodes,), None, n_neigh_d,
+                               family_d, damage_d)
         queue.finish()
 
     def _bond_force(
@@ -187,8 +188,8 @@ class ModelCLBen(Model):
         queue = self.queue
         # Call kernel
         self.bond_force_kernel(
-                queue, (self.nnodes * self.max_horizon_length,),
-                (self.max_horizon_length,), u_d, ud_d, r0_d, vols_d, nlist_d,
+                queue, (self.nnodes * self.max_neighbours,),
+                (self.max_neighbours,), u_d, ud_d, r0_d, vols_d, nlist_d,
                 n_neigh_d, stiffness_corrections_d, material_types_d,
                 regimes_d, bond_stiffness_d, critical_stretch_d, plus_cs_d,
                 force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
@@ -245,7 +246,9 @@ class ModelCLBen(Model):
 
     def _set_material_types(self, connectivity, bond_type, write_path):
         """
-        Build a (`nnodes`, `max_neighbours`) array of material types for each
+        Build material_types array.
+
+        Builds a (`nnodes`, `max_neighbours`) array of material types for each
         bond for each node.
 
         :arg connectivity: The initial connectivity for the simulation. A tuple
@@ -386,7 +389,7 @@ class ModelCLBen(Model):
         if n_regimes != 1:
             # infer the number of materials in the model from the array shape
             # TODO: generalise for n-material types.
-            for i in range(n_regimes -1):
+            for i in range(n_regimes - 1):
                 c_i = c_prev + bond_stiffness[i - 1] * critical_stretch[i - 1]\
                     - bond_stiffness[i] * critical_stretch[i - 1]
                 plus_cs.append[c_i]
@@ -563,11 +566,13 @@ class ModelCLBen(Model):
              critical_stretch, write_path)
 
         # Calculate no. of time steps that applied BCs are in the build phase
-        if ((displacement_rate is not None)
-                or (build_displacement is not None)
-                or (final_displacement is not None)):
+        if not ((displacement_rate is None)
+                or (build_displacement is None)
+                or (final_displacement is None)):
             build_time, coefficients = _calc_build_time(
                 build_displacement, displacement_rate, steps)
+        else:
+            build_time, coefficients = None, None
 
         # Local memory containers for Bond forces
         local_mem_x = cl.LocalMemory(
@@ -586,79 +591,80 @@ class ModelCLBen(Model):
 
         # Read only
         r0_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=np.ascontiguousarray(self.coords, dtype=np.float64))
         bc_types_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=bc_types)
         bc_values_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=bc_values)
         force_bc_types_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=force_bc_types)
         force_bc_values_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=force_bc_values)
         vols_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=self.volume)
         stiffness_corrections_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=np.ascontiguousarray(
                 self.stiffness_corrections, dtype=np.float64))
         material_types_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=np.ascontiguousarray(
                 self.material_types, dtype=np.float64))
         bond_stiffness_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=np.ascontiguousarray(
                 bond_stiffness, dtype=np.float64))
         critical_stretch_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=np.ascontiguousarray(critical_stretch, dtype=np.float64))
         plus_cs_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=np.ascontiguousarray(plus_cs, dtype=np.float64))
         family_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=self.family)
         # Read and write
         regimes_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=np.ascontiguousarray(regimes, dtype=np.float64))
         nlist_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=nlist)
         n_neigh_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR,
+            self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=n_neigh)
         u_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_WRITE, np.empty(
+            self.context, mf.READ_WRITE, np.empty(
                 (self.nnodes, self.degrees_freedom), dtype=np.float64).nbytes)
         ud_d = cl.Buffer(
-            self.context, cl.mem_flags.READ_WRITE, np.empty(
+            self.context, mf.READ_WRITE, np.empty(
                 (self.nnodes, self.degrees_freedom), dtype=np.float64).nbytes)
 
         # Write only
         damage_d = cl.Buffer(
-            self.context, cl.mem_flags.WRITE_ONLY, np.empty(
-                self.nnodes).astype(np.float64).nbytes)
+            self.context, mf.WRITE_ONLY, damage.nbytes)
         # Initialize kernel parameters
         # TODO: no sign of this in Jim's code, is it necessary?
-        self.bond_force_kernel.set_scalar_arg_dtypes(
-            [None, None, None, None, None,
-             None, None, None, None, None,
-             None, None, None, None, None,
-             None, None, None])
-        # Initialize kernel parameters
-        self.update_displacement_kernel.set_scalar_arg_dtypes(
-            [None, None, None, None, None])
-        self.damage_kernel.set_scalar_arg_dtypes(
-            [None, None, None, None])
-        self.damage_kernel.set_scalar_arg_dtypes(
-            [None, None, None])
+# =============================================================================
+#         self.bond_force_kernel.set_scalar_arg_dtypes(
+#             [None, None, None, None, None,
+#              None, None, None, None, None,
+#              None, None, None, None, None,
+#              None, None, None])
+#         # Initialize kernel parameters
+#         self.update_displacement_kernel.set_scalar_arg_dtypes(
+#             [None, None, None, None, None])
+#         self.damage_kernel.set_scalar_arg_dtypes(
+#             [None, None, None, None])
+#         self.damage_kernel.set_scalar_arg_dtypes(
+#             [None, None, None])
+# =============================================================================
 
         # Container for plotting data
         damage_sum_data = []
@@ -698,7 +704,7 @@ class ModelCLBen(Model):
                     tip_shear_force = 0
                     tmp = 0
                     for i in range(self.nnodes):
-                        if self.tip_types[i] == 1:
+                        if tip_types[i] == 1:
                             tmp += 1
                             tip_displacement += u[i][2]
                             tip_shear_force += ud[i][2]
@@ -723,7 +729,7 @@ class ModelCLBen(Model):
             if force_load_scale != 1.0:
                 force_load_scale = self._increment_load(build_load, step)
             # Increase displacement in 5th order polynomial increments
-            displacement_load_scale = self._increment_displacement(
+            displacement_load_scale, ease_off = self._increment_displacement(
                 coefficients, build_time, step, ease_off, displacement_rate,
                 build_displacement, final_displacement)
 
@@ -874,8 +880,9 @@ class ModelCLBen(Model):
             # Define tip #TODO: generalise to 3D
             tip = is_tip(self.horizon, self.coords[i][:])
             tip_types[i] = np.intc(tip)
-        force_bc_values = np.float64(
-            np.divide(force_bc_values, num_force_bc_nodes))
+        if num_force_bc_nodes != 0:
+            force_bc_values = np.float64(
+                np.divide(force_bc_values, num_force_bc_nodes))
         plus_cs = self._set_plus_cs(
             bond_stiffness, critical_stretch, self.n_regimes, self.n_materials)
 
@@ -903,7 +910,7 @@ class ContextError(Exception):
 
 
 def _calc_midpoint_gradient(T, displacement_scale_rate):
-    """ 
+    """
     Calculate the midpoint gradient and coefficients of a 5th order polynomial.
 
     Calculates the midpoint gradient and coefficients of a 5th order
@@ -979,9 +986,9 @@ def _calc_build_time(build_displacement, displacement_rate, steps):
     return(build_time, coefficients)
 
 
-def _calc_displacement_scale(coefficients, final_displacement, build_time,
-                                 displacement_rate, step,
-                                 build_displacement, ease_off):
+def _calc_displacement_scale(
+        coefficients, final_displacement, build_time, displacement_rate, step,
+        build_displacement, ease_off):
     """
     Calculate the displacement scale.
 
