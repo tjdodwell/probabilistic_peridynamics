@@ -31,11 +31,10 @@ __kernel void
 	bond_force(
     __global double const* u,
     __global double* ud,
+    __global double const* r0,
     __global double const* vols,
 	__global int* nlist,
-	__global double const* r0,
-	__global double const* stiffness_corrections,
-	__global double const* critical_stretches,
+    __global int* n_neigh,
     __global int const* fc_types,
     __global double const* fc_values,
     __local double* local_cache_x,
@@ -72,8 +71,8 @@ __kernel void
     // local_size is the max_neigh, usually 128 or 256 depending on the problem
     const int local_size = get_local_size(0);
 
-	if ((global_id < (PD_NODE_NO * local_size)) && (local_id >= 0) && (local_id < local_size))
-    {   // Find corresponding node id
+	if ((global_id < (PD_NODE_NO * local_size)) && (local_id >= 0) && (local_id < local_size)) {   
+        // Find corresponding node id
         const double temp = global_id / local_size;
         const int node_id_i = floor(temp);
 
@@ -98,7 +97,7 @@ __kernel void
         const double cy = xi_eta_y / y;
         const double cz = xi_eta_z / y;
 
-        const double _E = stiffness * stiffness_corrections[global_id];
+        const double _E = stiffness;
         const double _A = vols[node_id_j];
         const double _L = xi;
 
@@ -110,10 +109,11 @@ __kernel void
         local_cache_z[local_id] = _EAL * cz * y_xi;
 
         // Check for state of bonds here, and break it if necessary
-        const double s0 = critical_strain * critical_stretches[global_id];
+        const double s0 = critical_strain;
         const double s = (y - xi) / xi;
         if (s > s0) {
             nlist[global_id] = -1;  // Break the bond
+            n_neigh[node_id_i] -= 1;
         }
     }
     // bond is broken

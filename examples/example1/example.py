@@ -9,6 +9,7 @@ from peridynamics.model import initial_crack_helper
 from peridynamics.integrators import Euler
 from pstats import SortKey, Stats
 
+
 mesh_file = pathlib.Path(__file__).parent.absolute() / "test.vtk"
 
 
@@ -35,15 +36,17 @@ def is_crack(x, y):
     return output
 
 
-def is_tip(horizon, x):
+def is_tip(x):
     """Return if the particle coordinate is a `tip`."""
-    output = 0
-    if x[0] > 1.0 - 1. * horizon:
-        output = 1
-    return output
+    # Particle does not live on tip
+    tip = [2, 2, 2]
+    # Particle does live on tip
+    if x[0] > 1.0 - 0.1:
+        tip[0] = 1
+    return tip
 
 
-def is_boundary(horizon, x):
+def is_boundary(x):
     """
     Return if the particle coordinate is a displacement boundary.
 
@@ -53,17 +56,17 @@ def is_boundary(horizon, x):
     1 is displacement loaded IN +ve direction
     0 is clamped boundary
     """
-    # Does not live on a boundary
-    bnd = 2
-    # Does live on boundary
-    if x[0] < 1.5 * horizon:
-        bnd = -1
-    elif x[0] > 1.0 - 1.5 * horizon:
-        bnd = 1
+    # Particle does not live on a boundary
+    bnd = [2, 2, 2]
+    # Particle does live on boundary
+    if x[0] < 1.5 * 0.1:
+        bnd[0] = -1
+    elif x[0] > 1.0 - 1.5 * 0.1:
+        bnd[0] = 1
     return bnd
 
 
-def is_forces_boundary(horizon, x):
+def is_forces_boundary(x):
     """
     Return if the particle coordinate is a force boundary.
 
@@ -72,6 +75,7 @@ def is_forces_boundary(horizon, x):
     -1 is force loaded IN -ve direction
     1 is force loaded IN +ve direction
     """
+    # Particle does not live on forces boundary
     bnd = [2, 2, 2]
     return bnd
 
@@ -109,8 +113,8 @@ def main():
     if args.opencl:
         if args.ben:
             model = ModelCLBen(
-                mesh_file, horizon=0.1, critical_stretch=[0.005],
-                bond_stiffness=[18.00 * 0.05 / (np.pi * 0.1**4)],
+                mesh_file, horizon=0.1, critical_stretch=0.005,
+                bond_stiffness=18.00 * 0.05 / (np.pi * 0.1**4),
                 dimensions=2, density=2.0, initial_crack=is_crack, dt=1e-3)
         else:
             model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.005,
@@ -129,7 +133,7 @@ def main():
         u, damage, *_ = model.simulate(
             steps=1000, is_boundary=is_boundary,
             is_forces_boundary=is_forces_boundary, is_tip=is_tip,
-            displacement_rate=0.000005/2, write=50)
+            displacement_rate=0.000005/2, write=100)
     else:
 
         integrator = Euler(dt=1e-3)
@@ -138,7 +142,7 @@ def main():
             steps=1000,
             integrator=integrator,
             boundary_function=boundary_function,
-            write=50
+            write=100
             )
 
     if args.profile:

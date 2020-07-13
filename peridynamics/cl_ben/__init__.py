@@ -1,5 +1,5 @@
 """OpenCL peridynamics implementation."""
-from .utilities import double_fp_support, get_context, pad
+from .utilities import double_fp_support, get_context, pad, output_device_info
 import pathlib
 
 kernel_source_files = [
@@ -12,4 +12,4 @@ kernel_source = "".join(
     [open(source).read() for source in kernel_source_files]
     )
 
-__all__ = ["kernel_source", "double_fp_support", "get_context", "pad"]
+__all__ = ["kernel_source", "double_fp_support", "get_context", "pad", "output_device_info"]

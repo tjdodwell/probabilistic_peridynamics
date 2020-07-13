@@ -1,13 +1,13 @@
 """Peridynamics model using Ben's Optimised OpenCL kernels."""
 from .model import Model
-from .cl_ben import double_fp_support, get_context, kernel_source
+from .cl_ben import double_fp_support, get_context, kernel_source, \
+    output_device_info
 import numpy as np
 import pyopencl as cl
 from pyopencl import mem_flags as mf
 import pathlib
 from tqdm import trange
-import sys
-
+import warnings
 
 class ModelCLBen(Model):
     """
@@ -154,7 +154,8 @@ class ModelCLBen(Model):
             self.context, kernel_source).build([options_string])
         self.queue = cl.CommandQueue(self.context)
 
-        self.bond_force_kernel = self.program.bond_force_new
+        self.bond_force_new_kernel = self.program.bond_force_new
+        self.bond_force_kernel = self.program.bond_force
         self.update_displacement_kernel = self.program.update_displacement
         self.damage_kernel = self.program.damage
         self.damage_new_kernel = self.program.damage_new
@@ -180,6 +181,23 @@ class ModelCLBen(Model):
 
     def _bond_force(
             self, u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d,
+            force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
+            local_mem_z, force_load_scale, bond_stiffness,
+            critical_stretch):
+        """Calculate the force due to bonds acting on each node."""
+        queue = self.queue
+        # Call kernel
+        self.bond_force_kernel(
+                self.queue, (self.nnodes * self.max_neighbours,),
+                (self.max_neighbours,), u_d, ud_d, r0_d, vols_d, nlist_d,
+                n_neigh_d, force_bc_types_d, force_bc_values_d, local_mem_x,
+                local_mem_y, local_mem_z, np.float64(force_load_scale),
+                np.float64(bond_stiffness), np.float64(critical_stretch))
+        queue.finish()
+        return ud_d, nlist_d, n_neigh_d
+
+    def _bond_force_new(
+            self, u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d,
             stiffness_corrections_d, material_types_d, regimes_d,
             bond_stiffness_d, critical_stretch_d, plus_cs_d, force_bc_types_d,
             force_bc_values_d, local_mem_x, local_mem_y, local_mem_z,
@@ -187,7 +205,7 @@ class ModelCLBen(Model):
         """Calculate the force due to bonds acting on each node."""
         queue = self.queue
         # Call kernel
-        self.bond_force_kernel(
+        self.bond_force_new_kernel(
                 queue, (self.nnodes * self.max_neighbours,),
                 (self.max_neighbours,), u_d, ud_d, r0_d, vols_d, nlist_d,
                 n_neigh_d, stiffness_corrections_d, material_types_d,
@@ -270,7 +288,6 @@ class ModelCLBen(Model):
         nlist, n_neigh = connectivity
         material_types = np.zeros(
             (self.nnodes, self.max_neighbours), dtype=np.intc)
-        print(material_types.shape, nlist.shape, self.coords.shape)
         for i in range(self.nnodes):
             for neigh in range(n_neigh[i]):
                 j = nlist[i][neigh]
@@ -395,6 +412,7 @@ class ModelCLBen(Model):
                 plus_cs.append[c_i]
                 c_prev = c_i
         assert len(plus_cs) == n_regimes
+        plus_cs = np.array(plus_cs, dtype=np.float64)
         return plus_cs
 
     def _increment_load(self, build_load, step):
@@ -573,7 +591,6 @@ class ModelCLBen(Model):
                 build_displacement, displacement_rate, steps)
         else:
             build_time, coefficients = None, None
-
         # Local memory containers for Bond forces
         local_mem_x = cl.LocalMemory(
             np.dtype(np.float64).itemsize * self.max_neighbours)
@@ -592,7 +609,7 @@ class ModelCLBen(Model):
         # Read only
         r0_d = cl.Buffer(
             self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=np.ascontiguousarray(self.coords, dtype=np.float64))
+            hostbuf=self.coords)
         bc_types_d = cl.Buffer(
             self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=bc_types)
@@ -610,29 +627,26 @@ class ModelCLBen(Model):
             hostbuf=self.volume)
         stiffness_corrections_d = cl.Buffer(
             self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=np.ascontiguousarray(
-                self.stiffness_corrections, dtype=np.float64))
+            hostbuf=self.stiffness_corrections)
         material_types_d = cl.Buffer(
             self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=np.ascontiguousarray(
-                self.material_types, dtype=np.float64))
+            hostbuf=self.material_types)
         bond_stiffness_d = cl.Buffer(
             self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=np.ascontiguousarray(
-                bond_stiffness, dtype=np.float64))
+            hostbuf=bond_stiffness)
         critical_stretch_d = cl.Buffer(
             self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=np.ascontiguousarray(critical_stretch, dtype=np.float64))
+            hostbuf=critical_stretch)
         plus_cs_d = cl.Buffer(
             self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=np.ascontiguousarray(plus_cs, dtype=np.float64))
+            hostbuf=plus_cs)
         family_d = cl.Buffer(
             self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=self.family)
         # Read and write
         regimes_d = cl.Buffer(
             self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
-            hostbuf=np.ascontiguousarray(regimes, dtype=np.float64))
+            hostbuf=regimes)
         nlist_d = cl.Buffer(
             self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=nlist)
@@ -640,31 +654,13 @@ class ModelCLBen(Model):
             self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=n_neigh)
         u_d = cl.Buffer(
-            self.context, mf.READ_WRITE, np.empty(
-                (self.nnodes, self.degrees_freedom), dtype=np.float64).nbytes)
+            self.context, mf.READ_WRITE, u.nbytes)
         ud_d = cl.Buffer(
-            self.context, mf.READ_WRITE, np.empty(
-                (self.nnodes, self.degrees_freedom), dtype=np.float64).nbytes)
+            self.context, mf.READ_WRITE, ud.nbytes)
 
         # Write only
         damage_d = cl.Buffer(
             self.context, mf.WRITE_ONLY, damage.nbytes)
-        # Initialize kernel parameters
-        # TODO: no sign of this in Jim's code, is it necessary?
-# =============================================================================
-#         self.bond_force_kernel.set_scalar_arg_dtypes(
-#             [None, None, None, None, None,
-#              None, None, None, None, None,
-#              None, None, None, None, None,
-#              None, None, None])
-#         # Initialize kernel parameters
-#         self.update_displacement_kernel.set_scalar_arg_dtypes(
-#             [None, None, None, None, None])
-#         self.damage_kernel.set_scalar_arg_dtypes(
-#             [None, None, None, None])
-#         self.damage_kernel.set_scalar_arg_dtypes(
-#             [None, None, None])
-# =============================================================================
 
         # Container for plotting data
         damage_sum_data = []
@@ -677,17 +673,15 @@ class ModelCLBen(Model):
                            desc="Simulation Progress", unit="steps"):
 
             # Update displacements
-            u_d = self._update_displacement(
-                ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale)
+            self._update_displacement(ud_d, u_d, bc_types_d, bc_values_d,
+                                      displacement_load_scale)
 
             # Calculate the force due to bonds on each node,
             # and update connectivity
-            ud_d, nlist_d, n_neigh_d, regimes_d = self._bond_force(
-                u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d,
-                stiffness_corrections_d, material_types_d, regimes_d,
-                bond_stiffness_d, critical_stretch_d, plus_cs_d,
-                force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
-                local_mem_z, force_load_scale)
+            self._bond_force(u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d,
+                             force_bc_types_d, force_bc_values_d, local_mem_x,
+                             local_mem_y, local_mem_z, force_load_scale,
+                             bond_stiffness, critical_stretch)
 
             if write:
                 if step % write == 0:
@@ -704,10 +698,11 @@ class ModelCLBen(Model):
                     tip_shear_force = 0
                     tmp = 0
                     for i in range(self.nnodes):
-                        if tip_types[i] == 1:
-                            tmp += 1
-                            tip_displacement += u[i][2]
-                            tip_shear_force += ud[i][2]
+                        for j in range(self.degrees_freedom):
+                            if tip_types[i][j] == 1:
+                                tmp += 1
+                                tip_displacement += u[i][j]
+                                tip_shear_force += ud[i][j]
                     if tmp != 0:
                         tip_displacement /= tmp
                     else:
@@ -717,17 +712,18 @@ class ModelCLBen(Model):
                     tip_force_data.append(tip_shear_force)
                     damage_sum = np.sum(damage)
                     damage_sum_data.append(damage_sum)
-                    if damage_sum > 0.02*self.nnodes:
-                        print('Warning: over 2% of bonds have broken! \
-                              -- PERIDYNAMICS SIMULATION CONTINUING')
+                    if damage_sum > 0.05*self.nnodes:
+                        warnings.warn('Warning: over 5% of bonds have broken!\
+                                      peridynamics simulation continuing')
                     elif damage_sum > 0.7*self.nnodes:
-                        print('Warning: over 7% of bonds have broken! \
-                              -- PERIDYNAMICS SIMULATION STOPPING')
+                        warnings.warn('Warning: over 7% of bonds have broken!\
+                                      peridynamics simulation continuing')
                         break
 
             # Increase external forces in linear incremenets
             if force_load_scale != 1.0:
                 force_load_scale = self._increment_load(build_load, step)
+
             # Increase displacement in 5th order polynomial increments
             displacement_load_scale, ease_off = self._increment_displacement(
                 coefficients, build_time, step, ease_off, displacement_rate,
@@ -813,9 +809,9 @@ class ModelCLBen(Model):
         """
         # Create initial displacements is none is provided
         if u is None:
-            u = np.zeros((self.nnodes, 3))
+            u = np.empty((self.nnodes, 3), dtype=np.float64)
         if ud is None:
-            ud = np.zeros((self.nnodes, 3))
+            ud = np.empty((self.nnodes, 3), dtype=np.float64)
         damage = np.empty(self.nnodes).astype(np.float64)
         # Use the initial connectivity (when the Model was constructed) if none
         # is provided
@@ -840,12 +836,19 @@ class ModelCLBen(Model):
         else:
             raise TypeError("regimes must be a :class `numpy.ndarray`: or \
                             None")
-        # Write down the initial connectivity in a file
-        # Generate material types from connectivity and write to file
-        # Generate stiffness correction factors and write to file
+        # Use the initial bond_stiffness and critical_stretch
+        # (when the Model was constructed) if none is provided
+        if bond_stiffness is None:
+            bond_stiffness = np.float64(self.bond_stiffness)
+        elif type(bond_stiffness == (float or np.float64)):
+            bond_stiffness = np.float64(bond_stiffness)
+        if critical_stretch is None:
+            critical_stretch = np.float64(self.critical_stretch)
+        elif type(critical_stretch == (float or np.float64)):
+            critical_stretch = np.float64(critical_stretch)
 
-        # also define the 'tip' (for plotting displacements)
-        # Initiate boundary condition containers
+        # Initiate boundary condition containers and the 'tip' container (for
+        # plotting data such as displacement of specific nodes).
         bc_types = np.zeros(
             (self.nnodes, self.degrees_freedom), dtype=np.intc)
         bc_values = np.zeros(
@@ -854,32 +857,34 @@ class ModelCLBen(Model):
             (self.nnodes, self.degrees_freedom), dtype=np.intc)
         force_bc_values = np.zeros(
             (self.nnodes, self.degrees_freedom), dtype=np.float64)
-        tip_types = np.zeros(self.nnodes, dtype=np.intc)
+        tip_types = np.zeros(
+            (self.nnodes, self.degrees_freedom), dtype=np.intc)
 
         # Find the boundary nodes and apply the displacement values
         # Find the force boundary nodes and find amount of boundary nodes
-        # TODO: generalise displacement boundary to 3D
         num_force_bc_nodes = 0
         for i in range(self.nnodes):
             # Define boundary types and values
-            bnd = is_boundary(self.horizon, self.coords[i][:])
+            bnd = is_boundary(self.coords[i][:])
             # Define forces boundary types and values
-            forces_bnd = is_forces_boundary(self.horizon, self.coords[i][:])
+            forces_bnd = is_forces_boundary(self.coords[i][:])
+            # Define tip
+            tip = is_tip(self.coords[i][:])
             if -1 in forces_bnd:
                 num_force_bc_nodes += 1
             elif 1 in forces_bnd:
                 num_force_bc_nodes += 1
             for j in range(self.degrees_freedom):
                 forces_bnd_j = forces_bnd[j]
-                bc_types[i, j] = np.intc((bnd))
-                bc_values[i, j] = np.float64(bnd * displacement_rate)
+                bnd_j = bnd[j]
                 force_bc_types[i, j] = np.intc(forces_bnd_j)
+                bc_types[i, j] = np.intc((bnd_j))
+                tip_types[i, j] = np.intc(tip[j])
+                if bnd_j != 2:    
+                    bc_values[i, j] = np.float64(bnd_j * displacement_rate)
                 if forces_bnd_j != 2:
-                    force_bc_values[i, j] = forces_bnd_j * max_reaction / (
-                        self.volume[i])
-            # Define tip #TODO: generalise to 3D
-            tip = is_tip(self.horizon, self.coords[i][:])
-            tip_types[i] = np.intc(tip)
+                    force_bc_values[i, j] = np.float64(
+                        forces_bnd_j * max_reaction / self.volume[i])
         if num_force_bc_nodes != 0:
             force_bc_values = np.float64(
                 np.divide(force_bc_values, num_force_bc_nodes))
@@ -969,19 +974,19 @@ def _calc_build_time(build_displacement, displacement_rate, steps):
     build_time = 0
     midpoint_gradient = np.inf
     while midpoint_gradient > displacement_rate:
-        # Try to calculate gradient, if not, increase the build_time
+        # Try to calculate gradient
         try:
             midpoint_gradient, coefficients = _calc_midpoint_gradient(
                 build_time, build_displacement)
+        # No solution.. try increasing the build_time
         except Exception:
             pass
         build_time += 1
         if build_time > steps:
-            # TODO: suggest some valid values from the parameters given
             raise ValueError(
                 'Displacement build-up time was larger than total simulation \
-                time steps! \ntry decreasing build_displacement, or increase \
-                    max_displacement_rate. steps = {}'.format(steps))
+                time steps! \ntry decreasing build_displacement, or\
+                increasing max_displacement_rate. steps = {}'.format(steps))
             break
     return(build_time, coefficients)
 
@@ -1036,31 +1041,3 @@ def _calc_displacement_scale(
             ease_off = step
             displacement_scale = 1.0
     return(displacement_scale, ease_off)
-
-
-# TODO: move to a utility package?
-def output_device_info(device_id):
-    """Output the device info of the device."""
-    sys.stdout.write("Device is ")
-    sys.stdout.write(device_id.name)
-    if device_id.type == cl.device_type.GPU:
-        sys.stdout.write("GPU from ")
-    elif device_id.type == cl.device_type.CPU:
-        sys.stdout.write("CPU from ")
-    else:
-        sys.stdout.write("non CPU of GPU processor from ")
-    sys.stdout.write(device_id.vendor)
-    sys.stdout.write(" with a max of ")
-    sys.stdout.write(str(device_id.max_compute_units))
-    sys.stdout.write(" compute units, \n")
-    sys.stdout.write("a max of ")
-    sys.stdout.write(str(device_id.max_work_group_size))
-    sys.stdout.write(" work-items per work-group, \n")
-    sys.stdout.write("a max work item dimensions of ")
-    sys.stdout.write(str(device_id.max_work_item_dimensions))
-    sys.stdout.write(", \na max work item sizes of ")
-    sys.stdout.write(str(device_id.max_work_item_sizes))
-    sys.stdout.write(",\nand device local memory size is ")
-    sys.stdout.write(str(device_id.local_mem_size))
-    sys.stdout.write(" bytes. \n")
-    sys.stdout.flush()
