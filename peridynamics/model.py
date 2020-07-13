@@ -168,9 +168,15 @@ class Model(object):
                     print(np.shape(bond_stiffness))
                     self.n_regimes = np.shape(bond_stiffness)[1]
                     self.n_materials = np.shape(bond_stiffness)[0]
-
-        self.critical_stretch = critical_stretch
-        self.bond_stiffness = bond_stiffness
+            self.bond_stiffness = np.ascontiguousarray(
+                bond_stiffness, dtype=np.float64)
+            self.critical_stretch = np.ascontiguousarray(
+                critical_stretch, dtype=np.float64)
+        else:
+            self.n_regimes = 1
+            self.n_materials = 1
+            self.critical_stretch = np.float64(critical_stretch)
+            self.bond_stiffness = np.float64(bond_stiffness)
 
         if transfinite:
             if volume_total is None:
