@@ -133,7 +133,7 @@ def main():
         u, damage, *_ = model.simulate(
             steps=1000, is_boundary=is_boundary,
             is_forces_boundary=is_forces_boundary, is_tip=is_tip,
-            displacement_rate=0.000005/2, write=100)
+            displacement_rate=0.000005/2, write=10000)
     else:
 
         integrator = Euler(dt=1e-3)
@@ -142,7 +142,7 @@ def main():
             steps=1000,
             integrator=integrator,
             boundary_function=boundary_function,
-            write=100
+            write=10000
             )
 
     if args.profile:

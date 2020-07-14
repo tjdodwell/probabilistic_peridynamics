@@ -1,6 +1,6 @@
 """Peridynamics model."""
 from .integrators import Integrator
-from .neighbour_list import (family, create_neighbour_list_BB, break_bonds,
+from .neighbour_list import (set_family, create_neighbour_list, break_bonds,
                              create_crack)
 from .peridynamics import damage, bond_force
 from collections import namedtuple
@@ -8,6 +8,7 @@ import meshio
 import numpy as np
 import pathlib
 from tqdm import trange
+import h5py
 
 
 _MeshElements = namedtuple("MeshElements", ["connectivity", "boundary"])
@@ -104,8 +105,9 @@ class Model(object):
     """
 
     def __init__(self, mesh_file, horizon, critical_stretch, bond_stiffness,
-                 transfinite=0, volume_total=None,
-                 connectivity=None, initial_crack=[], dimensions=2):
+                 transfinite=0, volume_total=None, write_path=None,
+                 connectivity=None, family=None, volume=None, initial_crack=[],
+                 dimensions=2):
         """
         Construct a :class:`Model` object.
 
@@ -124,6 +126,9 @@ class Model(object):
             mesh.
         :arg float volume_total: Total volume of the mesh. Must be provided if
             transfinite mode (transfinite=1) is used.
+        :arg write_path: The path where the stiffness_corrections,
+            material_types and connectivity should be written.
+        :type write_path: path-like or str
         :arg initial_crack: The initial crack of the system. The argument may
             be a list of tuples where each tuple is a pair of integers
             representing nodes between which to create a crack. Alternatively,
@@ -142,6 +147,13 @@ class Model(object):
         :raises FamilyError: when a node has no neighbours (other nodes it
             interacts with) in the initial state.
         """
+        # If no write path was provided, assign it as None so that network
+        # files are not written, otherwise, ensure write_path is a Path object.
+        if write_path is None:
+            self.write_path =  write_path
+        else:
+            self.write_path = pathlib.Path(write_path)
+
         # Set model dimensionality
         self.dimensions = dimensions
 
@@ -158,19 +170,21 @@ class Model(object):
         self.horizon = horizon
         if type(bond_stiffness) is (list or np.ndarray):
             if np.shape(bond_stiffness) != np.shape(critical_stretch):
-                raise ValueError("number of bond stiffnesses must be equal to\
-                                 the number of critical stretches")
+                raise ValueError(
+                    "Shape of bond_stiffness array must be equal to the shape "
+                    "of critical_stretch. Shape of bond_stiffness was {}, and "
+                    "the shape of critical stretch was {}.".format(
+                    np.shape(bond_stiffness), np.shape(critical_stretch)))
             else:
                 if np.shape(bond_stiffness) == (1,):
                     self.n_regimes = 1
                     self.n_materials = 1
                 else:
-                    print(np.shape(bond_stiffness))
                     self.n_regimes = np.shape(bond_stiffness)[1]
                     self.n_materials = np.shape(bond_stiffness)[0]
-            self.bond_stiffness = np.ascontiguousarray(
+            self.bond_stiffness = np.array(
                 bond_stiffness, dtype=np.float64)
-            self.critical_stretch = np.ascontiguousarray(
+            self.critical_stretch = np.array(
                 critical_stretch, dtype=np.float64)
         else:
             self.n_regimes = 1
@@ -180,17 +194,43 @@ class Model(object):
 
         if transfinite:
             if volume_total is None:
-                raise ValueError("If the mesh is regular cuboidal tensor grid\
-                                 (transfinite), a total volume (key word arg\
-                                'volume_total') must be provided")
+                raise ValueError("If the mesh is regular cuboidal tensor grid"
+                                 "(transfinite), a total volume (key word arg"
+                                 "'volume_total') must be provided")
 
-        # Calculate the volume for each node
-        self.volume, self.sum_total_volume = self._volume(
-            transfinite, volume_total)
+        # Calculate the volume for each node, if None is provided
+        if volume is None:
+            # Calculate the volume for each node
+            self.volume, self.sum_total_volume = self._volume(
+                transfinite, volume_total)
+            if write_path is not None:
+                self._write_array(write_path, "volume", self.volume)
+        elif type(volume) == np.ndarray:
+            if len(volume) != self.nnodes:
+                raise ValueError("volume must be of size nnodes. nnodes was"
+                                 "{} and volume was size {}".format(
+                                 self.nnodes, len(volume)))
+            self.volume = volume
+        else:
+            raise TypeError("volume type must be numpy.ndarray, but was"
+                            "{}".format(type(volume)))
 
         # Calculate the family (number of bonds in the initial configuration)
-        # for each node
-        self.family = family(self.coords, horizon)
+        # for each node, if None is provided
+        if family is None:
+            # Calculate family
+            self.family = set_family(self.coords, horizon)
+            if write_path is not None:
+                self._write_array(write_path, "family", self.family)
+        elif type(family) == np.ndarray:
+            if len(family) != self.nnodes:
+                raise ValueError("family must be of size nnodes. nnodes was"
+                                 "{} and family was size {}".format(
+                                 self.nnodes, len(family)))
+            self.family = family
+        else:
+            raise TypeError("family type must be numpy.ndarray, but was"
+                            "{}".format(type(family)))
         if np.any(self.family == 0):
             raise FamilyError(self.family)
 
@@ -201,15 +241,31 @@ class Model(object):
             self.max_neighbours = np.intc(
                         1 << (int(self.family.max() - 1)).bit_length()
                     )
-            nlist, n_neigh = create_neighbour_list_BB(
+            nlist, n_neigh = create_neighbour_list(
                 self.coords, horizon, self.max_neighbours
                 )
+            if write_path is not None:
+                self._write_array(self.write_path, "nlist", nlist)
+                self._write_array(self.write_path, "n_neigh", n_neigh)
         elif type(connectivity) == tuple:
             if len(connectivity) != 2:
-                raise ValueError("connectivity must be of size 2")
+                raise ValueError("connectivity must be of size 2, but was"
+                                 "size {}".format(len(connectivity)))
             nlist, n_neigh = connectivity
+            self.max_neighbours = np.intc(
+                        np.shape(nlist)[1]
+                    )
+            test = self.max_neighbours - 1
+            if self.max_neighbours & test:
+                raise ValueError(
+                    "max_neighbours, which is equal to the"
+                    "size of axis 1 of nlist, should be a"
+                    "power of two, it's value was {}".format(
+                        self.max_neighbours))
+                    
         else:
-            raise TypeError("connectivity must be a tuple or None")
+            raise TypeError("connectivity must be a tuple or None but had"
+                            "type {}".format(type(connectivity)))
 
         # Initialise initial crack
         if initial_crack:
@@ -274,6 +330,23 @@ class Model(object):
             file_format=file_format
             )
 
+    def _write_array(self, write_path, dataset, array):
+        """
+        Write a :class numpy.ndarray: to a HDF5 file.
+
+        :arg write_path: The path to which the HDF5 file is written.
+        :type write_path: path-like or str
+        :arg dataset: The name of the dataset stored in the HDF5 file.
+        :type dataset: str
+        :array: The array to be written to file.
+        :type array: :class numpy.ndarray:
+
+        :return: None
+        :rtype: None type
+        """
+        with h5py.File(write_path, 'a') as hf:
+            hf.create_dataset(dataset,  data=array)
+  
     def _volume(self, transfinite, volume_total):
         """
         Calculate the value of each node.
@@ -497,10 +570,12 @@ class Model(object):
             nlist, n_neigh = self.initial_connectivity
         elif type(connectivity) == tuple:
             if len(connectivity) != 2:
-                raise ValueError("connectivity must be of size 2")
+                raise ValueError("connectivity must be of size 2, but was"
+                                 "size {}".format(len(connectivity)))
             nlist, n_neigh = connectivity
         else:
-            raise TypeError("connectivity must be a tuple or None")
+            raise TypeError("connectivity must be a tuple or None but had"
+                            "type {}".format(type(connectivity)))
 
         # Create dummy boundary conditions function is none is provided
         if boundary_function is None:

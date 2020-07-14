@@ -3,7 +3,7 @@ from libc.math cimport abs
 import numpy as np
 
 
-def family(double[:, :] r, double horizon):
+def set_family(double[:, :] r, double horizon):
     """
     Determine the number of nodes within the horizon distance of each node.
     This is the total number of bonded nodes.
@@ -39,8 +39,8 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
     :type r: :class:`numpy.ndarray`
     :arg float horizon: The horizon distance.
     :arg int size: The size of each row of the neighbour list. This is the
-        maximum number of neighbours and should be equal to the maximum of
-        of :func:`peridynamics.neighbour_list.family`.
+        smallest power of 2 which is larger than the maximum number of 
+        neighbours, :func:`peridynamics.neighbour_list.family`.
 
     :return: A tuple of the neighbour list and number of neighbours for each
         node.
@@ -48,10 +48,12 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
     """
     cdef int nnodes = r.shape[0]
 
-    result = np.zeros((nnodes, size), dtype=np.intc)
-    cdef int[:, :] result_view = result
+    nlist = -1*np.ones((nnodes, size), dtype=np.intc)
+    cdef int[:, :] nlist_view = nlist
     n_neigh = np.zeros(nnodes, dtype=np.intc)
     cdef int[:] n_neigh_view = n_neigh
+    material_type_list = -1*np.ones((nnodes, size), dtype=np.intc)
+    cdef int[:, :] material_type_list_view = material_type_list
 
     cdef int i, j
 
@@ -59,13 +61,13 @@ def create_neighbour_list(double[:, :] r, double horizon, int size):
         for j in range(i+1, nnodes):
             if ceuclid(r[i], r[j]) < horizon:
                 # Add j as a neighbour of i
-                result_view[i, n_neigh_view[i]] = j
+                nlist_view[i, n_neigh_view[i]] = j
                 n_neigh_view[i] = n_neigh_view[i] + 1
                 # Add i as a neighbour of j
-                result_view[j, n_neigh_view[j]] = i
+                nlist_view[j, n_neigh_view[j]] = i
                 n_neigh_view[j] = n_neigh_view[j] + 1
 
-    return result, n_neigh
+    return nlist, n_neigh
 
 
 def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
@@ -162,43 +164,3 @@ def create_crack(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):
                 nlist[j, neigh] = nlist[j, n_neigh[j]-1]
                 n_neigh[j] = n_neigh[j] - 1
                 break
-
-def create_neighbour_list_BB(double[:, :] r, double horizon, int size):
-    """
-    Build a neighbour list.
-
-    :arg r: The coordinates of all nodes.
-    :type r: :class:`numpy.ndarray`
-    :arg float horizon: The horizon distance.
-    :arg int size: The size of each row of the neighbour list. This is the
-        smallest power of 2 which is larger than the maximum number of 
-        neighbours, :func:`peridynamics.neighbour_list.family`.
-
-    :return: A tuple of the neighbour list and number of neighbours for each
-        node.
-    :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`)
-    """
-    cdef int nnodes = r.shape[0]
-
-    nlist = -1*np.ones((nnodes, size), dtype=np.intc)
-    cdef int[:, :] nlist_view = nlist
-    n_neigh = np.zeros(nnodes, dtype=np.intc)
-    cdef int[:] n_neigh_view = n_neigh
-    material_type_list = -1*np.ones((nnodes, size), dtype=np.intc)
-    cdef int[:, :] material_type_list_view = material_type_list
-
-    cdef int i, j
-
-    for i in range(nnodes-1):
-        for j in range(i+1, nnodes):
-            if ceuclid(r[i], r[j]) < horizon:
-                # Add j as a neighbour of i
-                nlist_view[i, n_neigh_view[i]] = j
-                n_neigh_view[i] = n_neigh_view[i] + 1
-                # Add i as a neighbour of j
-                nlist_view[j, n_neigh_view[j]] = i
-                n_neigh_view[j] = n_neigh_view[j] + 1
-    print(nlist)
-    print(n_neigh)
-    
-    return nlist, n_neigh

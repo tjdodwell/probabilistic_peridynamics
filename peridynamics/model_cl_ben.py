@@ -21,7 +21,7 @@ class ModelCLBen(Model):
 
     def __init__(self, *args, density=None, bond_type=None,
                  material_types=None, stiffness_corrections=None,
-                 precise_stiffness_correction=None, dt=None, write_path=None,
+                 precise_stiffness_correction=None, dt=None,
                  context=None, **kwargs):
         """
         Create a :class:`ModelCLBen` object.
@@ -56,29 +56,14 @@ class ModelCLBen(Model):
             correction factors calculated using mesh element volumes (default
             'precise', 1) or average nodal volume of a transfinite mesh (0). If
             `None`, then no stiffness correction factors are provided.
-        :arg float max_reaction: The maximum total load applied to the loaded
-            nodes.
-        :arg int build_load: The number of steps to apply the max reaction
-            force to the loaded nodes at a linear rate.
-        :arg int build_displacement: The number of steps to apply the build up
-            for the displacement.
-        :arg float max_displacement: The maximum displacement applied to the
-            loaded nodes.
-        :arg write_path: The path where the stiffness_corrections,
-            material_types and connectivity should be written.
-        :type write_path: path-like or str
+        :arg float dt: The length of time (in seconds [s]) of one time-step.
+
 
         :returns: A new :class:`Model` object.
         :rtype: Model
         """
         super().__init__(*args, **kwargs)
 
-        # If no write path was provided use the current directory, otherwise
-        # ensure write_path is a Path object.
-        if write_path is None:
-            write_path = pathlib.Path()
-        else:
-            write_path = pathlib.Path(write_path)
         self.degrees_freedom = 3
         self.precise_stiffness_correction = precise_stiffness_correction
         self.density = density
@@ -89,17 +74,20 @@ class ModelCLBen(Model):
             self.stiffness_corrections = \
                 self._set_stiffness_corrections(
                     self.horizon, self.initial_connectivity,
-                    precise_stiffness_correction, write_path)
+                    precise_stiffness_correction, self.write_path)
         elif type(stiffness_corrections) == np.ndarray:
             if np.shape(stiffness_corrections) != (
                     self.nnodes, self.max_neighbours):
-                raise ValueError("stiffness_corrections must be of \
-                                 shape (nnodes, max_neighbours)")
+                raise ValueError("stiffness_corrections must have \
+                                 shape (nnodes, max_neighbours) but shape \
+                                 was {}".format(
+                                     np.shape(stiffness_corrections)))
             else:
                 self.stiffness_corrections = stiffness_corrections
         else:
             raise TypeError(
-                "stiffness_corrections must be a numpy.ndarray or None")
+                "stiffness_corrections must be a numpy.ndarray or None, \
+                but had type {}".format(type(stiffness_corrections)))
 
         # Create dummy boundary conditions function is none is provided
         if bond_type is None:
@@ -109,16 +97,18 @@ class ModelCLBen(Model):
         if material_types is None:
             # Calculate material types and write to file
             self.material_types = self._set_material_types(
-                self.initial_connectivity, bond_type, write_path)
+                self.initial_connectivity, bond_type, self.write_path)
         elif type(material_types) == np.ndarray:
             if np.shape(material_types) != (self.nnodes, self.max_neighbours):
-                raise ValueError("material_types must be of shape\
-                                 (nnodes, max_neighbours)")
+                raise ValueError("material_types must have shape \
+                                 (nnodes, max_neighbours) but shape \
+                                 was {}".format(np.shape(material_types)))
             else:
                 self.material_types = material_types
         else:
-            raise TypeError("stiffness_corrections must be an \
-                            numpy.ndarray or None")
+            raise TypeError("material_types must be an \
+                            numpy.ndarray or None, but was type \
+                            {}".format(type(material_types)))
 
         # Get an OpenCL context if none was provided
         if context is None:
@@ -154,23 +144,12 @@ class ModelCLBen(Model):
             self.context, kernel_source).build([options_string])
         self.queue = cl.CommandQueue(self.context)
 
-        self.bond_force_new_kernel = self.program.bond_force_new
         self.bond_force_kernel = self.program.bond_force
         self.update_displacement_kernel = self.program.update_displacement
         self.damage_kernel = self.program.damage
-        self.damage_new_kernel = self.program.damage_new
 
-    def _damage(self, nlist_d, family_d, damage_d, local_mem):
-        """Calculate bond damage."""
-        queue = self.queue
 
-        # Call kernel
-        self.damage_kernel(
-            self.queue, (self.nnodes * self.max_horizon_length,),
-            (self.max_horizon_length,), nlist_d, family_d, damage_d, local_mem)
-        queue.finish()
-
-    def _damage_new(self, n_neigh_d, family_d, damage_d):
+    def _damage(self, n_neigh_d, family_d, damage_d):
         """Calculate bond damage."""
         queue = self.queue
 
@@ -196,25 +175,6 @@ class ModelCLBen(Model):
         queue.finish()
         return ud_d, nlist_d, n_neigh_d
 
-    def _bond_force_new(
-            self, u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d,
-            stiffness_corrections_d, material_types_d, regimes_d,
-            bond_stiffness_d, critical_stretch_d, plus_cs_d, force_bc_types_d,
-            force_bc_values_d, local_mem_x, local_mem_y, local_mem_z,
-            force_load_scale):
-        """Calculate the force due to bonds acting on each node."""
-        queue = self.queue
-        # Call kernel
-        self.bond_force_new_kernel(
-                queue, (self.nnodes * self.max_neighbours,),
-                (self.max_neighbours,), u_d, ud_d, r0_d, vols_d, nlist_d,
-                n_neigh_d, stiffness_corrections_d, material_types_d,
-                regimes_d, bond_stiffness_d, critical_stretch_d, plus_cs_d,
-                force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
-                local_mem_z, force_load_scale)
-        queue.finish()
-        return ud_d, nlist_d, n_neigh_d, regimes_d
-
     def _update_displacement(
             self, ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale):
         """Update displacements."""
@@ -225,42 +185,6 @@ class ModelCLBen(Model):
                 ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale)
         queue.finish()
         return u_d
-
-    def write_array(self, write_path, array):
-        """
-        Write a numpy array to a vtk file.
-
-        :arg write_path: The path where the vtk files should be
-            written.
-        :type write_path: path-like or str
-        :arg numpy.ndarray array: The array to be written.
-
-        :return: None
-        :rtype: NoneType
-        """
-        f = open(write_path, "w")
-        f.write("# vtk DataFile Version 2.0\n")
-        f.write("ASCII\n")
-        f.write("\n")
-        f.write("DATASET ARRAY\n")
-        if type(array[0][0]) is (np.float64 or float):
-            for i in range(0, np.shape(array)[0]):
-                tmp = array[i]
-                for j in range(0, len(tmp)):
-                    f.write("{:f} ".format(tmp[j]))
-                f.write("\n")
-            f.close()
-        elif type(array[0][0]) is (np.intc or int):
-            for i in range(0, np.shape(array)[0]):
-                tmp = array[i]
-                for j in range(0, len(tmp)):
-                    f.write("{:d} ".format(np.intc(tmp[j])))
-                f.write("\n")
-            f.close()
-        else:
-            raise ValueError(
-                'values type not recognised, could not write to file.\
-                Type must be float, numpy.float64, int or numpy.intc')
 
     def _set_material_types(self, connectivity, bond_type, write_path):
         """
@@ -294,7 +218,8 @@ class ModelCLBen(Model):
                 material_types[i][neigh] = bond_type(
                     self.coords[i, :], self.coords[j, :])
         material_types = material_types.astype(np.intc)
-        self.write_array(write_path/"material_types", material_types)
+        if write_path is not None:
+            self._write_array(write_path, "material_types", material_types)
         return material_types
 
     def _set_stiffness_corrections(
@@ -371,9 +296,13 @@ class ModelCLBen(Model):
             pass
         else:
             raise ValueError('precise_stiffness_correction can \
-                             only take values 0 or 1 or None')
-        self.write_array(
-            write_path/"stiffness_corrections", stiffness_corrections)
+                             only take values 0 or 1 or None. Its value was \
+                             {}'.format(precise_stiffness_correction))
+        if write_path is not None:
+            print(write_path)
+            self._write_array(
+                write_path,
+                "stiffness_corrections", stiffness_corrections)
         return stiffness_corrections
 
     def _set_plus_cs(self, bond_stiffness, critical_stretch, n_regimes,
@@ -625,28 +554,10 @@ class ModelCLBen(Model):
         vols_d = cl.Buffer(
             self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=self.volume)
-        stiffness_corrections_d = cl.Buffer(
-            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=self.stiffness_corrections)
-        material_types_d = cl.Buffer(
-            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=self.material_types)
-        bond_stiffness_d = cl.Buffer(
-            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=bond_stiffness)
-        critical_stretch_d = cl.Buffer(
-            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=critical_stretch)
-        plus_cs_d = cl.Buffer(
-            self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=plus_cs)
         family_d = cl.Buffer(
             self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=self.family)
         # Read and write
-        regimes_d = cl.Buffer(
-            self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
-            hostbuf=regimes)
         nlist_d = cl.Buffer(
             self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=nlist)
@@ -819,10 +730,12 @@ class ModelCLBen(Model):
             nlist, n_neigh = self.initial_connectivity
         elif type(connectivity) == tuple:
             if len(connectivity) != 2:
-                raise ValueError("connectivity must be of size 2")
+                raise ValueError("connectivity must be of size 2, but was\
+                                 size {}".format(len(connectivity)))
             nlist, n_neigh = connectivity
         else:
-            raise TypeError("connectivity must be a tuple or None")
+            raise TypeError("connectivity must be a tuple or None, but had \
+                            type {}".format(type(connectivity)))
         # Use the initial regimes of linear elastic (0 values) if none
         # is provided
         if regimes is None:
@@ -830,12 +743,13 @@ class ModelCLBen(Model):
                 (self.nnodes, self.max_neighbours), dtype=np.intc)
         elif type(regimes) == np.ndarray:
             if np.shape(regimes) != (self.nnodes, self.max_neighbours):
-                raise ValueError("regimes must be a :class `numpy.ndarray`: \
-                                 of shape (`nnodes`, `max_neighbours`)")
+                raise ValueError("regimes must have shape\
+                                 (nnodes, max_neighbours) but the shape was\
+                                {}".format(np.shape(regimes)))
             regimes = regimes.astype(np.intc)
         else:
-            raise TypeError("regimes must be a :class `numpy.ndarray`: or \
-                            None")
+            raise TypeError("regimes must be a numpy.ndarray or \
+                            None, but had type {}".format(type(regimes)))
         # Use the initial bond_stiffness and critical_stretch
         # (when the Model was constructed) if none is provided
         if bond_stiffness is None:
@@ -880,7 +794,7 @@ class ModelCLBen(Model):
                 force_bc_types[i, j] = np.intc(forces_bnd_j)
                 bc_types[i, j] = np.intc((bnd_j))
                 tip_types[i, j] = np.intc(tip[j])
-                if bnd_j != 2:    
+                if bnd_j != 2:
                     bc_values[i, j] = np.float64(bnd_j * displacement_rate)
                 if forces_bnd_j != 2:
                     force_bc_values[i, j] = np.float64(
