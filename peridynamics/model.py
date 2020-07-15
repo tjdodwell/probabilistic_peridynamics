@@ -141,7 +141,7 @@ class Model(object):
             :class:`Model` object will be used. Default `None`.
         :type connectivity: tuple(:class:`numpy.ndarray`,
             :class:`numpy.ndarray`)
-        :arg family: The family array. An array of the intial number of nodes 
+        :arg family: The family array. An array of the intial number of nodes
             within the horizon of each node. If `None` the family at the
             time of construction of the :class:`Model` object will be used.
             Default `None`.

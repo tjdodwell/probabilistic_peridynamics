@@ -135,7 +135,6 @@ def main():
             is_forces_boundary=is_forces_boundary, is_tip=is_tip,
             displacement_rate=0.000005/2, write=10000)
     else:
-
         integrator = Euler(dt=1e-3)
 
         u, damage, *_ = model.simulate(

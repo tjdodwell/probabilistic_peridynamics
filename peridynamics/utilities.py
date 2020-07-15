@@ -1,4 +1,4 @@
-"""Utilities that are unrelated to peridynamics."""
+"""Utilitie functions that are unrelated to peridynamics."""
 import h5py
 import numpy as np
 
@@ -22,7 +22,7 @@ def read_array(read_path, dataset):
     except IOError:
         print("The .h5 file at {} does not appear to exist, the {} array will"
               " be created and then written to file instead".format(
-              read_path, dataset))
+                  read_path, dataset))
         return None
 
 

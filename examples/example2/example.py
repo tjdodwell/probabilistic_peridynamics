@@ -135,8 +135,8 @@ def main():
 
     mesh_file = pathlib.Path(__file__).parent.absolute() / args.mesh_file_name
     write_path_solutions = pathlib.Path(__file__).parent.absolute() / "output/"
-    write_path_network = (pathlib.Path(__file__).parent.absolute() /
-                              str(mesh_files[args.mesh_file_name] + "/network.h5"))
+    write_path_network = (pathlib.Path(__file__).parent.absolute() / str(
+        mesh_files[args.mesh_file_name] + "/network.h5"))
     dx = dxs[args.mesh_file_name]
 
     # Constants
@@ -145,15 +145,12 @@ def main():
     poisson_ratio = 0.25
     strain_energy_release_rate = 100
     horizon = dx * np.pi
-    critical_stretch = np.double(np.power(
+    critical_stretch = np.power(
         np.divide(
             5 * strain_energy_release_rate, 6 * youngs_modulus * horizon),
-            (1. / 2)
-            ))
-    bulk_modulus = youngs_modulus/ (3 * (1 - 2 * poisson_ratio))
-    bond_stiffness = (
-        np.double((18.00 * bulk_modulus) /
-        (np.pi * np.power(horizon, 4))))
+            (1. / 2))
+    bulk_modulus = youngs_modulus / (3 * (1 - 2 * poisson_ratio))
+    bond_stiffness = (18.00 * bulk_modulus) / (np.pi * np.power(horizon, 4))
     dt = 2.5e-13
 
     # Try reading connectivity, material_types and stiffness_correction files
