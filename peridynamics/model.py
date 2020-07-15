@@ -116,19 +116,40 @@ class Model(object):
         :arg float horizon: The horizon radius. Nodes within `horizon` of
             another interact with that node and are said to be within its
             neighbourhood.
-        :arg float critical_stretch: The critical strain of the model. Bonds
-            which exceed this strain are permanently broken.
-        :arg float elastic_modulus: The appropriate elastic modulus of the
-            material.
-        :arg bool transfinite: Is the mesh a transfinite(=1) or a triangular/
-            tetra(=0). Default 0. Tranfinite mode approximates the volumes of
-            the nodes as the average volume of nodes on a cuboidal tensor-grid
-            mesh.
+        :arg critical_stretch: An (n_regimes, n_materials) array of critical
+            stretch values, each corresponding to a material and a regime,
+            or a float value of the critical stretch of the Peridynamic
+            bond-based prototype microelastic brittle (PMB) model.
+        :type critical_stretch: :class:`numpy.ndarray` or float
+        :arg bond_stiffness: An (n_regimes, n_materials) array of bond
+            stiffness values, each corresponding to a material and a regime,
+            or a float value of the bond stiffness the Peridynamic bond-based
+            prototype microelastic brittle (PMB) model.
+        :type bond_stiffness: :class:`numpy.ndarray` or float
+        :arg bool transfinite: Set to 1 for Cartesian cubic (tensor grid) mesh.
+            Set to 0 for a tetrahedral mesh (default). If set to 1, the
+            volumes of the nodes are approximated as the average volume of
+            nodes on a cuboidal tensor-grid mesh.
         :arg float volume_total: Total volume of the mesh. Must be provided if
             transfinite mode (transfinite=1) is used.
         :arg write_path: The path where the stiffness_corrections,
             material_types and connectivity should be written.
         :type write_path: path-like or str
+        :arg connectivity: The initial connectivity for the model. A tuple
+            of a neighbour list and the number of neighbours for each node. If
+            `None` the connectivity at the time of construction of the
+            :class:`Model` object will be used. Default `None`.
+        :type connectivity: tuple(:class:`numpy.ndarray`,
+            :class:`numpy.ndarray`)
+        :arg family: The family array. An array of the intial number of nodes 
+            within the horizon of each node. If `None` the family at the
+            time of construction of the :class:`Model` object will be used.
+            Default `None`.
+        :type family: :class:`numpy.ndarray`
+        :arg volume: Array of volumes for each node. If `None` the volume
+            at the time of construction of the :class:`Model` object will be
+            used. Default `None`.
+        :type volume: :class:`numpy.ndarray`
         :arg initial_crack: The initial crack of the system. The argument may
             be a list of tuples where each tuple is a pair of integers
             representing nodes between which to create a crack. Alternatively,
@@ -138,7 +159,6 @@ class Model(object):
         :type initial_crack: list(tuple(int, int)) or function
         :arg int dimensions: The dimensionality of the model. The
             default is 2.
-
         :returns: A new :class:`Model` object.
         :rtype: Model
 
@@ -150,7 +170,7 @@ class Model(object):
         # If no write path was provided, assign it as None so that network
         # files are not written, otherwise, ensure write_path is a Path object.
         if write_path is None:
-            self.write_path =  write_path
+            self.write_path = write_path
         else:
             self.write_path = pathlib.Path(write_path)
 
@@ -174,7 +194,7 @@ class Model(object):
                     "Shape of bond_stiffness array must be equal to the shape "
                     "of critical_stretch. Shape of bond_stiffness was {}, and "
                     "the shape of critical stretch was {}.".format(
-                    np.shape(bond_stiffness), np.shape(critical_stretch)))
+                        np.shape(bond_stiffness), np.shape(critical_stretch)))
             else:
                 if np.shape(bond_stiffness) == (1,):
                     self.n_regimes = 1
@@ -209,7 +229,7 @@ class Model(object):
             if len(volume) != self.nnodes:
                 raise ValueError("volume must be of size nnodes. nnodes was"
                                  "{} and volume was size {}".format(
-                                 self.nnodes, len(volume)))
+                                     self.nnodes, len(volume)))
             self.volume = volume
         else:
             raise TypeError("volume type must be numpy.ndarray, but was"
@@ -226,7 +246,7 @@ class Model(object):
             if len(family) != self.nnodes:
                 raise ValueError("family must be of size nnodes. nnodes was"
                                  "{} and family was size {}".format(
-                                 self.nnodes, len(family)))
+                                     self.nnodes, len(family)))
             self.family = family
         else:
             raise TypeError("family type must be numpy.ndarray, but was"
@@ -262,7 +282,6 @@ class Model(object):
                     "size of axis 1 of nlist, should be a"
                     "power of two, it's value was {}".format(
                         self.max_neighbours))
-                    
         else:
             raise TypeError("connectivity must be a tuple or None but had"
                             "type {}".format(type(connectivity)))
@@ -332,34 +351,38 @@ class Model(object):
 
     def _write_array(self, write_path, dataset, array):
         """
-        Write a :class numpy.ndarray: to a HDF5 file.
+        Write a :class: numpy.ndarray to a HDF5 file.
 
         :arg write_path: The path to which the HDF5 file is written.
         :type write_path: path-like or str
         :arg dataset: The name of the dataset stored in the HDF5 file.
         :type dataset: str
         :array: The array to be written to file.
-        :type array: :class numpy.ndarray:
+        :type array: :class: numpy.ndarray
 
         :return: None
         :rtype: None type
         """
         with h5py.File(write_path, 'a') as hf:
             hf.create_dataset(dataset,  data=array)
-  
+
     def _volume(self, transfinite, volume_total):
         """
         Calculate the value of each node.
 
+        :arg bool transfinite: Set to 1 for Cartesian cubic (tensor grid) mesh.
+            Set to 0 for a tetrahedral mesh (default). If set to 1, the
+            volumes of the nodes are approximated as the average volume of
+            nodes on a cuboidal tensor-grid mesh.
         :arg float volume_total: User input for the total volume of the mesh,
             for checking the sum total of elemental volumes is equal to user
             input volume for simple prismatic problems. In the case where no
             expected total volume is provided, the check is not done.
-        :arg bool transfinite: Is the mesh a transfinite(=1) or a
-            triangular/tetra(=0).
 
-        :returns: None
-        :rtype: NoneType
+        :returns: Tuple containing an array of volumes for each node and the
+            sum total of all the nodal volumes, which is equal to the total
+            mesh volume.
+        :rtype: tuple(:class:`numpy.ndarray`, float)
         """
         volume = np.zeros(self.nnodes)
         dimensions = self.dimensions
@@ -402,7 +425,7 @@ class Model(object):
 
         volume = volume.astype(np.float64)
 
-        return volume, sum_total_volume
+        return (volume, sum_total_volume)
 
     def _break_bonds(self, u, nlist, n_neigh):
         """

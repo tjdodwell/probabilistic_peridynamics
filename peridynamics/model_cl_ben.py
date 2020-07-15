@@ -10,6 +10,7 @@ import pathlib
 from tqdm import trange
 import warnings
 
+
 class ModelCLBen(Model):
     """
     A peridynamics model using Ben's optimised OpenCL code.
@@ -28,20 +29,8 @@ class ModelCLBen(Model):
         Create a :class:`ModelCLBen` object.
 
         :arg float density: Density of the bulk material in kg/m^3.
-        :arg bond_stiffness: An (n_regimes, n_materials) array of bond
-            stiffness values, each corresponding to a material and a regime.
-        :type bond_stiffness: list or :class `numpy.ndarray`:
-        :arg critical_stretch: An (n_regimes, n_materials) array of critical
-            stretch values, each corresponding to a material and a regime.
-        :type critical_stretch: list or :class `numpy.ndarray`:
         :arg method bond_type: A method which outputs the material type,
             an integer value, of the bond.
-        :arg connectivity: The initial connectivity for the model. A tuple
-            of a neighbour list and the number of neighbours for each node. If
-            `None` the connectivity at the time of construction of the
-            :class:`Model` object will be used. Default `None`.
-        :type connectivity: tuple(:class:`numpy.ndarray`,
-            :class:`numpy.ndarray`)
         :arg material_types: The bond material_types for the model.
             If `None` the material_types at the time of construction of the
             :class:`Model` object will be used. Default `None`.
@@ -50,13 +39,13 @@ class ModelCLBen(Model):
             the model. If `None` the stiffness_corrections at the time
             of construction of the :class:`Model` object will be used. Default
             `None`.
-        :type stiffness_corrections:
-        :arg bool transfinite: Cartesian cubic (tensor grid) mesh (1) or
-            tetra-hedral grid (default, 0).
-        :arg bool precise_stiffness_correction: Boolean for stiffness
-            correction factors calculated using mesh element volumes (default
-            'precise', 1) or average nodal volume of a transfinite mesh (0). If
-            `None`, then no stiffness correction factors are provided.
+        :type stiffness_corrections: :class:`numpy.ndarray`
+        :arg int precise_stiffness_correction: A switch variable. Set to 1:
+            Stiffness corrections are calculated more accurately using
+            actual nodal volumes. Set to 0: Stiffness corrections are calculate
+            using an average nodal volume. Set to None: All stiffness
+            corrections are set to 1.0, i.e. no stiffness correction is
+            applied.
         :arg float dt: The length of time (in seconds [s]) of one time-step.
 
 
@@ -149,7 +138,6 @@ class ModelCLBen(Model):
         self.update_displacement_kernel = self.program.update_displacement
         self.damage_kernel = self.program.damage
 
-
     def _damage(self, n_neigh_d, family_d, damage_d):
         """Calculate bond damage."""
         queue = self.queue
@@ -241,7 +229,7 @@ class ModelCLBen(Model):
             :class:`Model` object will be used. Default `None`.
         :type connectivity: tuple(:class:`numpy.ndarray`,
             :class:`numpy.ndarray`)
-        :arg precise_stiffness_correction int: A switch variable. Set to 1:
+        :arg int precise_stiffness_correction: A switch variable. Set to 1:
             Stiffness corrections are calculated more accurately using
             actual nodal volumes. Set to 0: Stiffness corrections are calculate
             using an average nodal volume. Set to None: All stiffness
@@ -317,10 +305,10 @@ class ModelCLBen(Model):
 
         :arg bond_stiffness: An (n_regimes, n_materials) array of bond
             stiffness values, each corresponding to a material and a regime.
-        :type bond_stiffness: list or :class `numpy.ndarray`:
+        :type bond_stiffness: list or :class:`numpy.ndarray`
         :arg critical_stretch: An (n_regimes, n_materials) array of critical
             stretch values, each corresponding to a material and a regime.
-        :type critical_stretch: list or :class `numpy.ndarray`:
+        :type critical_stretch: list or :class:`numpy.ndarray`
         :arg int n_regimes: The number of `regimes` in the damage model. e.g.
             linear has n_regimes = 1, bi-linear has n_regimes = 2, etc.
         :arg n_materials: The number of materials in the model.
@@ -701,10 +689,10 @@ class ModelCLBen(Model):
             :class:`numpy.ndarray`)
         :arg bond_stiffness: An (n_regimes, n_materials) array of bond
             stiffness values, each corresponding to a material and a regime.
-        :type bond_stiffness: list or :class `numpy.ndarray`:
+        :type bond_stiffness: list or :class: `numpy.ndarray`
         :arg critical_stretch: An (n_regimes, n_materials) array of critical
             stretch values, each corresponding to a material and a regime.
-        :type critical_stretch: list or :class `numpy.ndarray`:
+        :type critical_stretch: list or :class: `numpy.ndarray`
         :arg write_path: The path where the periodic mesh files should be
             written.
         :type write_path: path-like or str

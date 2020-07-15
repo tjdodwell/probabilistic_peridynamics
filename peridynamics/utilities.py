@@ -7,12 +7,12 @@ def read_array(read_path, dataset):
     """
     Read a :class numpy.ndarray: from a HDF5 file.
 
-    :arg write_path: The path to which the HDF5 file is written.
-    :type write_path: path-like or str
+    :arg read_path: The path to which the HDF5 file is written.
+    :type read_path: path-like or str
     :arg dataset: The name of the dataset stored in the HDF5 file.
     :type dataset: str
 
-    :return: array
+    :return: An array which was stored on disk.
     :rtype: :class numpy.ndarray:
     """
     try:
@@ -20,12 +20,12 @@ def read_array(read_path, dataset):
             array = hf[dataset][:]
         return array
     except IOError:
-        
         print("The .h5 file at {} does not appear to exist, the {} array will"
               " be created and then written to file instead".format(
               read_path, dataset))
         return None
-    
+
+
 def _calc_midpoint_gradient(T, displacement_scale_rate):
     """
     Calculate the midpoint gradient and coefficients of a 5th order polynomial.
