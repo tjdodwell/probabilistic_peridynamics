@@ -16,8 +16,8 @@ import pytest
 def basic_models_2d(data_path, request):
     """Create a basic 2D model object."""
     mesh_file = data_path / "example_mesh.vtk"
-    model = request.param(mesh_file, horizon=0.1, critical_strain=0.05,
-                          elastic_modulus=0.05)
+    model = request.param(mesh_file, horizon=0.1, critical_stretch=0.05,
+                          bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
     return model
 
 
@@ -25,8 +25,8 @@ def basic_models_2d(data_path, request):
 def basic_model_2d(data_path):
     """Create a basic 2D model object."""
     mesh_file = data_path / "example_mesh.vtk"
-    model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
-                  elastic_modulus=0.05)
+    model = Model(mesh_file, horizon=0.1, critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
     return model
 
 
@@ -37,8 +37,9 @@ def basic_model_2d(data_path):
 def basic_models_3d(data_path, request):
     """Create a basic 3D model object."""
     mesh_file = data_path / "example_mesh_3d.vtk"
-    model = request.param(mesh_file, horizon=0.1, critical_strain=0.05,
-                          elastic_modulus=0.05, dimensions=3)
+    model = request.param(mesh_file, horizon=0.1, critical_stretch=0.05,
+                          bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                          dimensions=3)
     return model
 
 
@@ -46,8 +47,9 @@ def basic_models_3d(data_path, request):
 def basic_model_3d(data_path):
     """Create a basic 3D model object."""
     mesh_file = data_path / "example_mesh_3d.vtk"
-    model = Model(mesh_file, horizon=0.1, critical_strain=0.05,
-                  elastic_modulus=0.05, dimensions=3)
+    model = Model(mesh_file, horizon=0.1, critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                  dimensions=3)
     return model
 
 
@@ -72,8 +74,9 @@ class TestDimension:
     def test_dimensionality_error(self, dimensions):
         """Test invalid dimension arguments."""
         with pytest.raises(DimensionalityError) as exception:
-            Model("abc.msh", horizon=0.1, critical_strain=0.05,
-                  elastic_modulus=0.05, dimensions=dimensions)
+            Model("abc.msh", horizon=0.1, critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                  dimensions=dimensions)
             assert str(dimensions) in exception.value
 
 
@@ -255,16 +258,17 @@ def test_family_error(data_path):
     """Test raising of exception when a node has no neighbours."""
     with pytest.raises(FamilyError):
         mesh_file = data_path / "example_mesh_3d.vtk"
-        Model(mesh_file, horizon=0.0001, critical_strain=0.05,
-              elastic_modulus=0.05, dimensions=3)
+        Model(mesh_file, horizon=0.0001, critical_stretch=0.05,
+              bond_stiffness=18.0 * 0.05 / (np.pi * 0.0001**4),
+              dimensions=3)
 
 
 @pytest.fixture(scope="module")
 def model_force_test(data_path):
     """Create a minimal model designed for testings force calculation."""
     mesh_file = data_path/"force_test.vtk"
-    model = Model(mesh_file, horizon=1.01, critical_strain=0.05,
-                  elastic_modulus=0.05)
+    model = Model(mesh_file, horizon=1.01, critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 1.01**4))
     return model
 
 

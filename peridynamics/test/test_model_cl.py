@@ -12,8 +12,8 @@ import pytest
 def basic_model_2d(data_path):
     """Create a basic 2D model object."""
     mesh_file = data_path / "example_mesh.vtk"
-    model = ModelCL(mesh_file, horizon=0.1, critical_strain=0.05,
-                    elastic_modulus=0.05)
+    model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
+                    bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
     return model
 
 
@@ -21,8 +21,9 @@ def basic_model_2d(data_path):
 def basic_model_3d(data_path):
     """Create a basic 3D model object."""
     mesh_file = data_path / "example_mesh_3d.vtk"
-    model = ModelCL(mesh_file, horizon=0.1, critical_strain=0.05,
-                    elastic_modulus=0.05, dimensions=3)
+    model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
+                    bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                    dimensions=3)
     return model
 
 
@@ -38,8 +39,8 @@ def test_no_context(data_path, monkeypatch):
 
     mesh_file = data_path / "example_mesh.vtk"
     with pytest.raises(ContextError) as exception:
-        ModelCL(mesh_file, horizon=0.1, critical_strain=0.05,
-                elastic_modulus=0.05)
+        ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
+                bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
 
         assert "No suitable context was found." in exception.value
 
@@ -49,8 +50,9 @@ def test_custom_context(data_path):
     """Test constructing a ModelCL object using the context argument."""
     mesh_file = data_path / "example_mesh_3d.vtk"
     context = get_context()
-    model = ModelCL(mesh_file, horizon=0.1, critical_strain=0.05,
-                    elastic_modulus=0.05, dimensions=3, context=context)
+    model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
+                    bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                    dimensions=3, context=context)
 
     assert model.context is context
 
@@ -59,8 +61,9 @@ def test_invalid_custom_context(data_path):
     """Test constructing a ModelCL object using the context argument."""
     mesh_file = data_path / "example_mesh_3d.vtk"
     with pytest.raises(TypeError) as exception:
-        ModelCL(mesh_file, horizon=0.1, critical_strain=0.05,
-                elastic_modulus=0.05, dimensions=3, context=5)
+        ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
+                bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                dimensions=3, context=5)
 
         assert "context must be a pyopencl Context object" in exception.value
 

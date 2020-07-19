@@ -65,8 +65,8 @@ def _calc_midpoint_gradient(T, displacement_scale_rate):
 
 
 def calc_displacement_scale(
-        coefficients, final_displacement, build_time, displacement_rate, step,
-        build_displacement, ease_off):
+        coefficients, max_displacement, build_time, max_displacement_rate,
+        step, build_displacement, ease_off):
     """
     Calculate the displacement scale.
 
@@ -76,11 +76,12 @@ def calc_displacement_scale(
 
     :arg tuple coefficients: Tuple containing the 3 free coefficients
         of the 5th order polynomial.
-    :arg float final_displacement: The final applied displacement in [m].
+    :arg float max_displacement: The final applied displacement in [m].
     :arg int build_time: The number of time steps over which the
         applied displacement-time curve is not linear.
-    :arg float displacement_rate: The displacement rate in [m] per step
-        during the linear phase of the displacement-time graph.
+    :arg float max_displacement_rate: The maximum displacement rate 
+        in [m] per step, which is the displacement rate during the linear phase
+        of the displacement-time graph.
     :arg int step: The current time-step of the simulation.
     :arg float build_displacement: The displacement in [m] over which the
         displacement-time graph is the smooth 5th order polynomial.
@@ -88,35 +89,35 @@ def calc_displacement_scale(
         displacement-rate hasn't started decreasing yet. Equal to the step
         at which the displacement rate starts decreasing once it does so.
 
-    :returns: The displacement_scale between [0.0, 1.0], a scale
-        applied to the displacement boundary conditions.
+    :returns: The displacement_bc_rate between [0.0, max_displacement_rate],
+        a scale applied to the displacement boundary conditions.
     :rtype: np.float64
     """
     a, b, c = coefficients
     if step < build_time / 2:
         m = 5 * a * step**4 + 4 * b * step**3 + 3 * c * step**2
-        displacement_scale = m / displacement_rate
+        displacement_bc_rate = m
     elif ease_off != 0:
         t = step - ease_off + build_time / 2
         if t > build_time:
-            displacement_scale = 0.0
+            displacement_bc_rate = 0.0
         else:
             m = 5 * a * t**4 + 4 * b * t**3 + 3 * c * t**2
-            displacement_scale = m / displacement_rate
+            displacement_bc_rate = m
     else:  # linear increments
         # calculate displacement
         linear_time = step - build_time/2
-        linear_displacement = linear_time * displacement_rate
+        linear_displacement = linear_time * max_displacement_rate
         displacement = linear_displacement + build_displacement/2
-        if displacement + build_displacement / 2 < final_displacement:
-            displacement_scale = 1.0
+        if displacement + build_displacement / 2 < max_displacement:
+            displacement_bc_rate = 1.0 * max_displacement_rate
         else:
             ease_off = step
-            displacement_scale = 1.0
-    return(displacement_scale, ease_off)
+            displacement_bc_rate = 1.0 * max_displacement_rate
+    return(displacement_bc_rate, ease_off)
 
 
-def calc_build_time(build_displacement, displacement_rate, steps):
+def calc_build_time(build_displacement, max_displacement_rate, steps):
     """
     Calculate the the number of steps for the 5th order polynomial.
 
@@ -125,7 +126,7 @@ def calc_build_time(build_displacement, displacement_rate, steps):
 
     :arg float build_displacement: The displacement in [m] over which the
         displacement-time graph is the smooth 5th order polynomial.
-    :arg float displacement_rate: The displacement rate in [m] per step
+    :arg float max_displacement_rate: The displacement rate in [m] per step
             during the linear phase of the displacement-time graph.
     :arg int step: The current time-step of the simulation.
 
@@ -137,7 +138,7 @@ def calc_build_time(build_displacement, displacement_rate, steps):
     """
     build_time = 0
     midpoint_gradient = np.inf
-    while midpoint_gradient > displacement_rate:
+    while midpoint_gradient > max_displacement_rate:
         # Try to calculate gradient
         try:
             midpoint_gradient, coefficients = _calc_midpoint_gradient(

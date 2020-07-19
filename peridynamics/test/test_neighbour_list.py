@@ -1,6 +1,6 @@
 """Tests for the neighbour list module."""
 from peridynamics.neighbour_list import (
-    family, create_neighbour_list, break_bonds, create_crack
+    set_family, create_neighbour_list, break_bonds, create_crack
     )
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -11,7 +11,7 @@ def test_family():
     r = np.random.random((100, 3))
     horizon = 0.2
 
-    family_actual = family(r, horizon)
+    family_actual = set_family(r, horizon)
     family_expected = np.sum(cdist(r, r) < horizon, axis=0) - 1
 
     assert np.all(family_actual == family_expected)

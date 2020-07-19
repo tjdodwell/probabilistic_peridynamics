@@ -1,6 +1,7 @@
 """Utilities for using the OpenCL kernels."""
 import numpy as np
 import pyopencl as cl
+import sys
 
 
 DOUBLE_FP_SUPPORT = (
@@ -67,3 +68,30 @@ def pad(array, group_size, axis=0):
         return np.concatenate(
             (array, np.zeros(padding_shape, dtype=array.dtype)), axis=axis
             )
+
+
+def output_device_info(device_id):
+    """Output the device info of the device."""
+    sys.stdout.write("Device is ")
+    sys.stdout.write(device_id.name)
+    if device_id.type == cl.device_type.GPU:
+        sys.stdout.write("GPU from ")
+    elif device_id.type == cl.device_type.CPU:
+        sys.stdout.write("CPU from ")
+    else:
+        sys.stdout.write("non CPU of GPU processor from ")
+    sys.stdout.write(device_id.vendor)
+    sys.stdout.write(" with a max of ")
+    sys.stdout.write(str(device_id.max_compute_units))
+    sys.stdout.write(" compute units, \n")
+    sys.stdout.write("a max of ")
+    sys.stdout.write(str(device_id.max_work_group_size))
+    sys.stdout.write(" work-items per work-group, \n")
+    sys.stdout.write("a max work item dimensions of ")
+    sys.stdout.write(str(device_id.max_work_item_dimensions))
+    sys.stdout.write(", \na max work item sizes of ")
+    sys.stdout.write(str(device_id.max_work_item_sizes))
+    sys.stdout.write(",\nand device local memory size is ")
+    sys.stdout.write(str(device_id.local_mem_size))
+    sys.stdout.write(" bytes. \n")
+    sys.stdout.flush()

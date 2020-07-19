@@ -4,9 +4,9 @@ import cProfile
 from io import StringIO
 import numpy as np
 import pathlib
-from peridynamics import Model, ModelCL, ModelCLBen
+from peridynamics import Model
 from peridynamics.model import initial_crack_helper
-from peridynamics.integrators import Euler
+from peridynamics.integrators import Euler, EulerOpenCL
 from peridynamics.utilities import read_array as read_network
 from pstats import SortKey, Stats
 import shutil
@@ -106,31 +106,13 @@ def is_forces_boundary(x):
     return bnd
 
 
-def boundary_function(model, u, step):
-    """
-    Apply a load to the system.
-
-    Particles on the right hand boundary are pulled downwards with increasing
-    timestep.
-    """
-    load_rate = 5e-9
-
-    u[model.lhs, 1:3] = 0.
-
-    deflection = step * load_rate
-    u[model.rhs, 2] = -1. * deflection
-
-    return u
-
-
 def main():
     """Conduct a peridynamics simulation."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "mesh_file_name", help="run example on a given mesh file name")
-    parser.add_argument('--profile', action='store_const', const=True)
     parser.add_argument('--opencl', action='store_const', const=True)
-    parser.add_argument('--ben', action='store_const', const=True)
+    parser.add_argument('--profile', action='store_const', const=True)
     args = parser.parse_args()
 
     mesh_file = pathlib.Path(__file__).parent.absolute() / args.mesh_file_name
@@ -170,53 +152,33 @@ def main():
     if args.profile:
         profile = cProfile.Profile()
         profile.enable()
-
+    
     if args.opencl:
-        if args.ben:
-            model = ModelCLBen(
-                mesh_file, horizon=horizon, critical_stretch=critical_stretch,
-                bond_stiffness=bond_stiffness,
-                dimensions=3, density=density, dt=dt,
-                write_path=write_path_network, family=family, volume=volume,
-                connectivity=connectivity, material_types=material_types,
-                stiffness_corrections=stiffness_corrections)
-        else:
-            model = ModelCL(mesh_file, horizon=horizon,
-                            critical_stretch=critical_stretch,
-                            bond_stiffness=bond_stiffness,
-                            dimensions=3, family=family, volume=volume,
-                            connectivity=connectivity)
+        integrator = EulerOpenCL(dt=dt, density=density, damping=1.0)
     else:
-        model = Model(mesh_file, horizon=horizon,
-                      critical_stretch=critical_stretch,
-                      bond_stiffness=bond_stiffness,
-                      dimensions=3, family=family, volume=volume,
-                      connectivity=connectivity)
+        integrator = Euler(dt=dt, density=density, damping=1.0)
 
-    # Set left-hand side and right-hand side of boundary
-    model.lhs = np.nonzero(model.coords[:, 0] < 0.01)
-    model.rhs = np.nonzero(model.coords[:, 0] > 1.65 - 0.01)
+    model = Model(
+        mesh_file, integrator=integrator, horizon=horizon, critical_stretch=critical_stretch,
+        bond_stiffness=bond_stiffness,
+        dimensions=3, write_path=write_path_network, family=family,
+        volume=volume,
+        connectivity=connectivity, material_types=material_types,
+        stiffness_corrections=stiffness_corrections,
+        is_boundary=is_boundary, is_forces_boundary=is_forces_boundary,
+        is_tip=is_tip)
 
     # Delete output directory
     shutil.rmtree(write_path_solutions, ignore_errors=False)
     os.mkdir(write_path_solutions)
-    if (args.opencl and args.ben):
-        u, damage, *_ = model.simulate(
-            steps=1000, is_boundary=is_boundary,
-            is_forces_boundary=is_forces_boundary, is_tip=is_tip,
-            displacement_rate=5e-9, write=10000,
-            write_path=write_path_solutions)
-    else:
 
-        integrator = Euler(dt=dt)
-
-        u, damage, *_ = model.simulate(
-            steps=1000,
-            integrator=integrator,
-            boundary_function=boundary_function,
-            write=10000,
-            write_path=write_path_solutions
-            )
+    u, damage, *_ = model.simulate(
+        steps=1000,
+        integrator=integrator,
+        max_displacement_rate=5e-9,
+        write=10000,
+        write_path=write_path_solutions
+        )
 
     if args.profile:
         profile.disable()

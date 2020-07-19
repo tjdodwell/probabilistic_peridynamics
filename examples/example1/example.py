@@ -4,9 +4,9 @@ import cProfile
 from io import StringIO
 import numpy as np
 import pathlib
-from peridynamics import Model, ModelCL, ModelCLBen
+from peridynamics import Model
 from peridynamics.model import initial_crack_helper
-from peridynamics.integrators import Euler
+from peridynamics.integrators import EulerOpenCL, Euler
 from pstats import SortKey, Stats
 
 
@@ -80,69 +80,32 @@ def is_forces_boundary(x):
     return bnd
 
 
-def boundary_function(model, u, step):
-    """
-    Apply a load to the system.
-
-    Particles on each of the sides of the system are pulled apart with
-    increasing time step.
-    """
-    load_rate = 0.000005
-
-    u[model.lhs, 1:3] = 0.
-    u[model.rhs, 1:3] = 0.
-
-    extension = 0.5 * step * load_rate
-    u[model.lhs, 0] = -extension
-    u[model.rhs, 0] = extension
-
-    return u
-
-
 def main():
     """Conduct a peridynamics simulation."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--profile', action='store_const', const=True)
     parser.add_argument('--opencl', action='store_const', const=True)
-    parser.add_argument('--ben', action='store_const', const=True)
     args = parser.parse_args()
     if args.profile:
         profile = cProfile.Profile()
         profile.enable()
 
     if args.opencl:
-        if args.ben:
-            model = ModelCLBen(
-                mesh_file, horizon=0.1, critical_stretch=0.005,
-                bond_stiffness=18.00 * 0.05 / (np.pi * 0.1**4),
-                dimensions=2, density=2.0, initial_crack=is_crack, dt=1e-3)
-        else:
-            model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.005,
-                            bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
-                            initial_crack=is_crack)
+        integrator = EulerOpenCL(dt=1e-3, density=1.0, damping=1.0)
     else:
-        model = Model(mesh_file, horizon=0.1, critical_stretch=0.005,
-                      bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
-                      initial_crack=is_crack)
+        integrator = Euler(dt=1e-3, density=1.0, damping=1.0)
 
-    # Set left-hand side and right-hand side of boundary
-    model.lhs = np.nonzero(model.coords[:, 0] < 1.5*model.horizon)
-    model.rhs = np.nonzero(model.coords[:, 0] > 1.0 - 1.5*model.horizon)
+    model = Model(
+        mesh_file, integrator=integrator, horizon=0.1, critical_stretch=0.005,
+        bond_stiffness=18.00 * 0.05 / (np.pi * 0.1**4),
+        is_boundary=is_boundary, is_forces_boundary=is_forces_boundary,
+        is_tip=is_tip, dimensions=2, initial_crack=is_crack)
 
-    if (args.opencl and args.ben):
-        u, damage, *_ = model.simulate(
-            steps=1000, is_boundary=is_boundary,
-            is_forces_boundary=is_forces_boundary, is_tip=is_tip,
-            displacement_rate=0.000005/2, write=10000)
-    else:
-        integrator = Euler(dt=1e-3)
 
-        u, damage, *_ = model.simulate(
-            steps=1000,
-            integrator=integrator,
-            boundary_function=boundary_function,
-            write=10000
-            )
+    u, damage, *_ = model.simulate(
+        steps=1000,
+        integrator=integrator,
+        max_displacement_rate=0.000005/2, write=100)
 
     if args.profile:
         profile.disable()

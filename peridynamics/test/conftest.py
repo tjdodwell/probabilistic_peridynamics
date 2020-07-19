@@ -51,8 +51,9 @@ def simple_model(data_path, request):
         return output
 
     # Create model
-    model = request.param(mesh_file, horizon=0.1, critical_strain=0.005,
-                          elastic_modulus=0.05, initial_crack=is_crack)
+    model = request.param(mesh_file, horizon=0.1, critical_stretch=0.005,
+                          bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                          initial_crack=is_crack)
 
     # Set left-hand side and right-hand side of boundary
     model.lhs = np.nonzero(model.coords[:, 0] < 1.5*model.horizon)
