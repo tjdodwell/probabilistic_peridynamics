@@ -80,7 +80,7 @@ def calc_displacement_scale(
     :arg float max_displacement: The final applied displacement in [m].
     :arg int build_time: The number of time steps over which the
         applied displacement-time curve is not linear.
-    :arg float max_displacement_rate: The maximum displacement rate 
+    :arg float max_displacement_rate: The maximum displacement rate
         in [m] per step, which is the displacement rate during the linear phase
         of the displacement-time graph.
     :arg int step: The current time-step of the simulation.

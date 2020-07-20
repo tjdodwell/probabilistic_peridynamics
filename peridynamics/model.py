@@ -16,6 +16,7 @@ _mesh_elements_2d = _MeshElements(connectivity="triangle",
 _mesh_elements_3d = _MeshElements(connectivity="tetra",
                                   boundary="triangle")
 
+
 class Model(object):
     """
     A peridynamics model.
@@ -23,7 +24,7 @@ class Model(object):
     This class allows users to define a composite, non-linear peridynamics
     system from parameters and a set of initial conditions
     (coordinates, connectivity and optionally material_types and
-     stiffness_corrections). For this an 
+     stiffness_corrections). For this an
     :class:`peridynamics.integrators.Integrator` is required, and optionally
     functions implementing the boundarys.
 
@@ -32,13 +33,13 @@ class Model(object):
         >>>
         >>> def is_displacement_boundary(x):
         >>>     # Particle does not live on a boundary
-        >>>     bnd = [2, 2, 2]
+        >>>     bnd = [None, None, None]
         >>>     # Particle does live on a boundary
         >>>     if x[0] < 1.5 * 0.1:
-        >>>         # Displacements BCs are applied in -ve direction
+        >>>         # Displacements BCs are applied in negative x direction
         >>>         bnd[0] = -1
         >>>     elif x[0] > 1.0 - 1.5 * 0.1:
-        >>>         # Displacement BCs are applied in +ve direction
+        >>>         # Displacement BCs are applied in positive x direction
         >>>         bnd[0] = 1
         >>>     return bnd
         >>>
@@ -104,7 +105,7 @@ class Model(object):
         >>>     write=100)
     """
 
-    def __init__(self, mesh_file, integrator, horizon, critical_stretch, 
+    def __init__(self, mesh_file, integrator, horizon, critical_stretch,
                  bond_stiffness, transfinite=0, volume_total=None,
                  write_path=None, connectivity=None, family=None, volume=None,
                  initial_crack=[], dimensions=2, bond_type=None,
@@ -116,7 +117,7 @@ class Model(object):
 
         :arg str mesh_file: Path of the mesh file defining the systems nodes
             and connectivity.
-        :arg  integrator: The integrator to use, see 
+        :arg  integrator: The integrator to use, see
             :mod:`peridynamics.integrators` for options.
         :type integrator: :class:`peridynamics.integrators.Integrator`
         :arg float horizon: The horizon radius. Nodes within `horizon` of
@@ -421,7 +422,7 @@ class Model(object):
         (self.bc_types,
          self.bc_values,
          self.force_bc_types,
-         self.force_bc_values, 
+         self.force_bc_values,
          self.tip_types) = self._set_boundary_conditions(
             is_displacement_boundary, is_forces_boundary, is_tip)
 
@@ -536,12 +537,12 @@ class Model(object):
             elif dimensions == 3:
                 # element is a tetrahedron
                 element_nodes = 4
-    
+
             for nodes in self.mesh_connectivity:
                 # Calculate volume/area or element
                 if dimensions == 2:
                     a, b, c = self.coords[nodes]
-    
+
                     # Area of a trianble
                     i = b - a
                     j = c - a
@@ -549,14 +550,14 @@ class Model(object):
                     sum_total_volume += element_volume
                 elif dimensions == 3:
                     a, b, c, d = self.coords[nodes]
-    
+
                     # Volume of a tetrahedron
                     i = a - d
                     j = b - d
                     k = c - d
                     element_volume = abs(np.dot(i, np.cross(j, k))) / 6
                     sum_total_volume += element_volume
-    
+
                 # Add fraction element volume to all nodes belonging to that
                 # element
                 volume[nodes] += element_volume / element_nodes
@@ -725,8 +726,8 @@ class Model(object):
         """
         Increment and update the force boundary conditions.
 
-        :arg float build_load_steps: The inverse of the number of steps required to
-            build up to full external force loading.
+        :arg float build_load_steps: The inverse of the number of steps
+            required to build up to full external force loading.
         :arg int step: The current time-step of the simulation.
 
         :returns: The force_bc_magnitude between [0.0, 1.0], a scale applied to
@@ -778,7 +779,8 @@ class Model(object):
                 max_displacement_rate, step, build_displacement, ease_off)
             if displacement_bc_magnitude != 0.0:
                 # update the host force load scale
-                displacement_bc_magnitude = np.float64(displacement_bc_magnitude)
+                displacement_bc_magnitude = np.float64(
+                    displacement_bc_magnitude)
         # No user specified build up parameters case
         elif not (max_displacement_rate is None):
             # update the host force load scale
@@ -824,7 +826,7 @@ class Model(object):
 
         :returns: A tuple of the displacement and foce boundary condition types
             and values, and the tip types.
-        :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`, 
+        :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
                       :class:`numpy.ndarray`, :class:`numpy.ndarray`)
         """
         bc_types = np.zeros(
@@ -865,9 +867,9 @@ class Model(object):
             force_bc_values = np.float64(
                 np.divide(force_bc_values, num_force_bc_nodes))
 
-        return (bc_types, bc_values, force_bc_types, force_bc_values, 
+        return (bc_types, bc_values, force_bc_types, force_bc_values,
                 tip_types)
-        
+
     def simulate(self, steps, u=None, ud=None, connectivity=None,
                  regimes=None, critical_stretch=None, bond_stiffness=None,
                  max_displacement_rate=None, build_displacement=None,
@@ -911,8 +913,8 @@ class Model(object):
         :arg float build_displacement: The displacement in [m] over which the
             displacement-time graph is the smooth 5th order polynomial.
         :arg float max_displacement: The final applied displacement in [m].
-        :arg float build_load_steps: The inverse of the number of steps required to
-            build up to full external force loading.
+        :arg float build_load_steps: The inverse of the number of steps
+            required to build up to full external force loading.
         :arg float max_load: The maximum total load applied to the loaded
             nodes.
         :arg int first_step: The starting step number. This is useful when
@@ -1136,10 +1138,11 @@ class Model(object):
         ease_off = 0
 
         # Initialise the OpenCL buffers
-        self.integrator.set_buffers(nlist, n_neigh, bond_stiffness,
-            critical_stretch, plus_cs, u, ud, damage, regimes)
+        self.integrator.set_buffers(
+            nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs, u, ud,
+            damage, regimes)
 
-        return (damage, u, ud, nlist, n_neigh, force_bc_magnitude, 
+        return (damage, u, ud, nlist, n_neigh, force_bc_magnitude,
                 displacement_bc_magnitude, build_time, coefficients,
                 damage_sum_data, tip_displacement_data, tip_force_data,
                 ease_off, write_path)

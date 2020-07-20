@@ -74,8 +74,8 @@ def is_displacement_boundary(x):
 
     Function which marks displacement boundary constrained particles
     None is no boundary condition
-    -1 is displacement loaded IN -ve direction
-    1 is displacement loaded IN +ve direction
+    -1 is displacement loaded in negative direction
+    1 is displacement loaded in positive direction
     0 is clamped boundary
     """
     # Particle does not live on a boundary
@@ -96,8 +96,8 @@ def is_forces_boundary(x):
 
     Marks types of body force on the particles
     None is no boundary condition
-    -1 is force loaded IN -ve direction
-    1 is force loaded IN +ve direction
+    -1 is force loaded in negative direction
+    1 is force loaded in positive direction
     """
     # Particle does not live on forces boundary
     bnd = [None, None, None]
@@ -127,8 +127,8 @@ def main():
     horizon = dx * np.pi
     critical_stretch = np.power(
         np.divide(
-            5 * strain_energy_release_rate, 6 * youngs_modulus * horizon),
-            (1. / 2))
+            5 * strain_energy_release_rate, 6 * youngs_modulus * horizon), (
+                1. / 2))
     bulk_modulus = youngs_modulus / (3 * (1 - 2 * poisson_ratio))
     bond_stiffness = (18.00 * bulk_modulus) / (np.pi * np.power(horizon, 4))
     dt = 2.5e-13
@@ -150,7 +150,7 @@ def main():
     if args.profile:
         profile = cProfile.Profile()
         profile.enable()
-    
+
     if args.opencl:
         integrator = EulerOpenCL(dt=dt, density=density, damping=1.0)
     else:
