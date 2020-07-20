@@ -20,8 +20,9 @@ def read_array(read_path, dataset):
             array = hf[dataset][:]
         return array
     except IOError:
-        print("The .h5 file at {} does not appear to exist, the {} array will"
-              " be created and then written to file instead".format(
+        print("The .h5 file at {} does not appear to exist, yet. Please set a "
+              "write_path key word argument in `Model` and the {} array will "
+              "be created and then written to that file path.".format(
                   read_path, dataset))
         return None
 

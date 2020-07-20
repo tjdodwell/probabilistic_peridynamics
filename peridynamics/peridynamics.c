@@ -3014,7 +3014,7 @@ __pyx_v_strain = __pyx_f_12peridynamics_7spatial_cstrain2(__pyx_v_l, __pyx_t_18,
  * 
  *         # Scale force by node volume and apply boundary conditions
  *         for dim in range(3):             # <<<<<<<<<<<<<<
- *             if(force_bc_types[i, dim] == 2):
+ *             if(force_bc_types[i, dim] == 0):
  *                 force_view[i, dim] = force_view[i, dim] * volume[i]
  */
     for (__pyx_t_11 = 0; __pyx_t_11 < 3; __pyx_t_11+=1) {
@@ -3023,7 +3023,7 @@ __pyx_v_strain = __pyx_f_12peridynamics_7spatial_cstrain2(__pyx_v_l, __pyx_t_18,
       /* "peridynamics/peridynamics.pyx":92
  *         # Scale force by node volume and apply boundary conditions
  *         for dim in range(3):
- *             if(force_bc_types[i, dim] == 2):             # <<<<<<<<<<<<<<
+ *             if(force_bc_types[i, dim] == 0):             # <<<<<<<<<<<<<<
  *                 force_view[i, dim] = force_view[i, dim] * volume[i]
  *             else:
  */
@@ -3042,12 +3042,12 @@ __pyx_v_strain = __pyx_f_12peridynamics_7spatial_cstrain2(__pyx_v_l, __pyx_t_18,
         __Pyx_RaiseBufferIndexError(__pyx_t_12);
         __PYX_ERR(0, 92, __pyx_L1_error)
       }
-      __pyx_t_16 = (((*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_force_bc_types.data + __pyx_t_21 * __pyx_v_force_bc_types.strides[0]) ) + __pyx_t_20 * __pyx_v_force_bc_types.strides[1]) ))) == 2) != 0);
+      __pyx_t_16 = (((*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_force_bc_types.data + __pyx_t_21 * __pyx_v_force_bc_types.strides[0]) ) + __pyx_t_20 * __pyx_v_force_bc_types.strides[1]) ))) == 0) != 0);
       if (__pyx_t_16) {
 
         /* "peridynamics/peridynamics.pyx":93
  *         for dim in range(3):
- *             if(force_bc_types[i, dim] == 2):
+ *             if(force_bc_types[i, dim] == 0):
  *                 force_view[i, dim] = force_view[i, dim] * volume[i]             # <<<<<<<<<<<<<<
  *             else:
  *                 force_view[i, dim] = force_view[i, dim] * volume[i] + (
@@ -3097,7 +3097,7 @@ __pyx_v_strain = __pyx_f_12peridynamics_7spatial_cstrain2(__pyx_v_l, __pyx_t_18,
         /* "peridynamics/peridynamics.pyx":92
  *         # Scale force by node volume and apply boundary conditions
  *         for dim in range(3):
- *             if(force_bc_types[i, dim] == 2):             # <<<<<<<<<<<<<<
+ *             if(force_bc_types[i, dim] == 0):             # <<<<<<<<<<<<<<
  *                 force_view[i, dim] = force_view[i, dim] * volume[i]
  *             else:
  */
@@ -4018,7 +4018,7 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
  *     cdef int nnodes = u.shape[0]
  *     for i in range(nnodes):             # <<<<<<<<<<<<<<
  *             for dim in range(3):
- *                 if(bc_types[i, dim] == 2):
+ *                 if(bc_types[i, dim] == 0):
  */
   __pyx_t_1 = __pyx_v_nnodes;
   __pyx_t_2 = __pyx_t_1;
@@ -4029,7 +4029,7 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
  *     cdef int nnodes = u.shape[0]
  *     for i in range(nnodes):
  *             for dim in range(3):             # <<<<<<<<<<<<<<
- *                 if(bc_types[i, dim] == 2):
+ *                 if(bc_types[i, dim] == 0):
  *                     u[i, dim] = u[i, dim] + dt * force[i, dim]
  */
     for (__pyx_t_4 = 0; __pyx_t_4 < 3; __pyx_t_4+=1) {
@@ -4038,7 +4038,7 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
       /* "peridynamics/peridynamics.pyx":182
  *     for i in range(nnodes):
  *             for dim in range(3):
- *                 if(bc_types[i, dim] == 2):             # <<<<<<<<<<<<<<
+ *                 if(bc_types[i, dim] == 0):             # <<<<<<<<<<<<<<
  *                     u[i, dim] = u[i, dim] + dt * force[i, dim]
  *                 else:
  */
@@ -4057,12 +4057,12 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
         __Pyx_RaiseBufferIndexError(__pyx_t_7);
         __PYX_ERR(0, 182, __pyx_L1_error)
       }
-      __pyx_t_8 = (((*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_bc_types.data + __pyx_t_5 * __pyx_v_bc_types.strides[0]) ) + __pyx_t_6 * __pyx_v_bc_types.strides[1]) ))) == 2) != 0);
+      __pyx_t_8 = (((*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_bc_types.data + __pyx_t_5 * __pyx_v_bc_types.strides[0]) ) + __pyx_t_6 * __pyx_v_bc_types.strides[1]) ))) == 0) != 0);
       if (__pyx_t_8) {
 
         /* "peridynamics/peridynamics.pyx":183
  *             for dim in range(3):
- *                 if(bc_types[i, dim] == 2):
+ *                 if(bc_types[i, dim] == 0):
  *                     u[i, dim] = u[i, dim] + dt * force[i, dim]             # <<<<<<<<<<<<<<
  *                 else:
  *                     u[i, dim] = u[i, dim] + bc_scale * bc_values[i, dim]
@@ -4117,7 +4117,7 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
         /* "peridynamics/peridynamics.pyx":182
  *     for i in range(nnodes):
  *             for dim in range(3):
- *                 if(bc_types[i, dim] == 2):             # <<<<<<<<<<<<<<
+ *                 if(bc_types[i, dim] == 0):             # <<<<<<<<<<<<<<
  *                     u[i, dim] = u[i, dim] + dt * force[i, dim]
  *                 else:
  */

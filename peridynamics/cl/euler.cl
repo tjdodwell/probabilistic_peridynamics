@@ -17,13 +17,13 @@ __kernel void
      * ud - An (n,3) array of the velocities of each node.
      * u - An (n,3) array of the current displacements of each node.
      * BC_types - An (n,3) array of the boundary condition types...
-     * a value of 2 denotes an unconstrained node.
+     * a value of 0 denotes an unconstrained node.
      * bc_values - An (n,3) array of the boundary condition values applied to the nodes.
      * bc_scale - The scalar value applied to the displacement BCs. */
 	const int i = get_global_id(0);
 
 	if (i < dof_nnodes)	{
-		u[i] = (bc_types[i] == 2 ? (u[i] + dt * ud[i]) : (u[i] + bc_scale * bc_values[i]));
+		u[i] = (bc_types[i] == 0 ? (u[i] + dt * ud[i]) : (u[i] + bc_scale * bc_values[i]));
 	}
 }
 
@@ -56,7 +56,7 @@ __kernel void
      *     stiffness_corrections - An (n * max_neigh) array of bond stiffness correction factors.
      *     critical_stretches - An (n * max_neigh) array of bond critical strains.
      * fc_types - An (n,3) array of force boundary condition types...
-     *     a value of 2 denotes a particle that is not externally loaded.
+     *     a value of 0 denotes a particle that is not externally loaded.
      * fc_values - An (n,3) array of the force boundary condition values applied to particles.
      * local_cache_x - local (local_size) array to store the x components of the bond forces.
      * local_cache_y - local (local_size) array to store the y components of the bond forces.
@@ -136,9 +136,9 @@ __kernel void
         // node_no == node_id_i
         int node_no = global_id/local_size;
         // Update accelerations in each direction
-        ud[dof * node_no + 0] = (fc_types[dof * node_no + 0] == 2 ? local_cache_x[0] : (local_cache_x[0] + fc_scale * fc_values[dof * node_no + 0]));
-        ud[dof * node_no + 1] = (fc_types[dof * node_no + 1] == 2 ? local_cache_y[0] : (local_cache_y[0] + fc_scale * fc_values[dof * node_no + 1]));
-        ud[dof * node_no + 2] = (fc_types[dof * node_no + 2] == 2 ? local_cache_z[0] : (local_cache_z[0] + fc_scale * fc_values[dof * node_no + 2]));
+        ud[dof * node_no + 0] = (fc_types[dof * node_no + 0] == 0 ? local_cache_x[0] : (local_cache_x[0] + fc_scale * fc_values[dof * node_no + 0]));
+        ud[dof * node_no + 1] = (fc_types[dof * node_no + 1] == 0 ? local_cache_y[0] : (local_cache_y[0] + fc_scale * fc_values[dof * node_no + 1]));
+        ud[dof * node_no + 2] = (fc_types[dof * node_no + 2] == 0 ? local_cache_z[0] : (local_cache_z[0] + fc_scale * fc_values[dof * node_no + 2]));
     }
   }
 }

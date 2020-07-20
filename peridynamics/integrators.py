@@ -28,7 +28,7 @@ class Integrator(ABC):
         self.damping = damping
         self.density = density
 
-    def build_program(
+    def build(
             self, nnodes, degrees_freedom, max_neighbours, nregimes, coords,
             volume, family, bc_types, bc_values, force_bc_types,
             force_bc_values, context):
@@ -114,18 +114,18 @@ class Integrator(ABC):
             self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=force_bc_values)
 
-        self.build_specific_program()
+        self._build_special()
 
-    def initialise_buffers(
+    def set_buffers(
             self, nlist, n_neigh, bond_stiffness,
-            critical_stretch, plus_cs, u, ud, damage):
+            critical_stretch, plus_cs, u, ud, damage, regimes):
         """
         Initialise the OpenCL buffers that are dependent on simulation
         parameters.
-
         """
         self.bond_stiffness = bond_stiffness
         self.critical_stretch = critical_stretch
+        self.regimes = regimes
 
         # Build OpenCL data structures that are dependent on
         # :class: Model.simulation parameters
@@ -146,7 +146,7 @@ class Integrator(ABC):
         self.damage_d = cl.Buffer(
             self.context, mf.WRITE_ONLY, damage.nbytes)
         
-        self.initialise_specific_buffers()
+        self._set_special_buffers()
 
     @abstractmethod
     def __call__(self):
@@ -157,19 +157,19 @@ class Integrator(ABC):
         """
 
     @abstractmethod
-    def initialise_specific_buffers(self):
+    def _set_special_buffers(self):
         """
-        Initialise buffers specific to the chosen integrator.
+        Set buffers that are special to the chosen integrator.
 
-        This method should be implemennted in every concrete integrator.
+        This method should be implemented in every concrete integrator.
         """
 
     @abstractmethod
-    def build_specific_program(self):
+    def _build_special(self):
         """
-        Initialise buffers specific to the chosen integrator.
+        Build OpenCL kernels special to the chosen integrator.
 
-        This method should be implemennted in every concrete integrator.
+        This method should be implemented in every concrete integrator.
         """
 
     def _damage(self, n_neigh_d, family_d, damage_d):
@@ -193,6 +193,7 @@ class Integrator(ABC):
         cl.enqueue_copy(queue, nlist, self.nlist_d)
         cl.enqueue_copy(queue, n_neigh, self.n_neigh_d)
         return (damage, u, ud, nlist, n_neigh)
+
 
 class Euler(Integrator):
     r"""
@@ -220,16 +221,6 @@ class Euler(Integrator):
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """
         Conduct one iteration of the integrator.
-
-        :arg u: A (`nnodes`, 3) array containing the displacements of all
-            nodes.
-        :type u: :class:`numpy.ndarray`
-        :arg f: A (`nnodes`, 3) array containing the components of the force
-            acting on each node.
-        :type f: :class:`numpy.ndarray`
-
-        :returns: The new displacements after integration.
-        :rtype: :class:`numpy.ndarray`
         """
         # Calculate the force due to bonds on each node
         self.ud = self._bond_force(force_bc_scale)
@@ -240,9 +231,14 @@ class Euler(Integrator):
         # Update neighbour list
         self._break_bonds()
 
-    def initialise_buffers(self, nlist, n_neigh, bond_stiffness,
-            critical_stretch, plus_cs, u, ud, damage):
+    def set_buffers(self, nlist, n_neigh, bond_stiffness,
+            critical_stretch, plus_cs, u, ud, damage, regimes):
+        """
+        Initiate arrays that are dependent on simulation parameters.
 
+        Since :class:`Euler` uses cython in place of OpenCL, there are no
+        buffers to be set, just :class:`numpy.ndarray` arrays.
+        """
         self.nlist = nlist
         self.n_neigh = n_neigh
         self.bond_stiffness = bond_stiffness
@@ -250,11 +246,17 @@ class Euler(Integrator):
         self.u = u
         self.ud = ud
 
-    def build_program(
+    def build(
             self, nnodes, degrees_freedom, max_neighbours, nregimes, coords,
             volume, family, bc_types, bc_values, force_bc_types,
             force_bc_values, context):
+        """
+        Set integrator arrays which are independent of
+        :class:`Model`.simulation parameters.
 
+        Since :class:`Euler` uses cython in place of OpenCL, there are no
+        programs to be built.
+        """
         self.nnodes = nnodes
         self.coords = coords
         self.family = family
@@ -264,16 +266,14 @@ class Euler(Integrator):
         self.force_bc_types = force_bc_types
         self.force_bc_values = force_bc_values
 
-    def initialise_specific_buffers(self):
+    def _set_special_buffers(self):
         """
-        Initialise buffers and programs that are specific to the integrator.
+        Set buffers programs that are special to the Euler integrator.
         """
 
-    def build_specific_program(self):
+    def _build_special(self):
         """
-        Initialise buffers specific to the chosen integrator.
-
-        This method should be implemennted in every concrete integrator.
+        Build programs that are special to the Euler integrator.
         """
 
     def _update_displacement(self, ud, displacement_bc_scale):
@@ -309,6 +309,7 @@ class Euler(Integrator):
         damage = self._damage()
         return damage, self.u, self.ud, self.nlist, self.n_neigh
 
+
 class EulerOpenCL(Integrator):
     r"""
     Euler integrator for OpenCL.
@@ -328,9 +329,6 @@ class EulerOpenCL(Integrator):
         """
         Create an :class:`Euler` integrator object.
 
-        :arg float dt: The integration time step.
-        :arg float damping: The damping factor. The default is 1.0
-
         :returns: A :class:`Euler` object
         """
         super().__init__(*args, **kwargs)
@@ -338,9 +336,6 @@ class EulerOpenCL(Integrator):
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """
         Conduct one iteration of the integrator.
-
-        :returns: None
-        :rtype: NoneType
         """
         self._update_displacement(
             self.ud_d, self.u_d, self.bc_types_d, self.bc_values_d, 
@@ -351,9 +346,9 @@ class EulerOpenCL(Integrator):
             self.local_mem_x, self.local_mem_y, self.local_mem_z,
             force_bc_scale, self.bond_stiffness, self.critical_stretch)
 
-    def build_specific_program(self):
+    def _build_special(self):
         """
-        Initialise buffers and programs that are specific to the integrator.
+        Build OpenCL kernels special to the Euler integrator.
         """
         kernel_source = open(
             pathlib.Path(__file__).parent.absolute() / \
@@ -373,9 +368,9 @@ class EulerOpenCL(Integrator):
         self.update_displacement_kernel = self.euler.update_displacement
         self.bond_force_kernel = self.euler.bond_force
 
-    def initialise_specific_buffers(self):
+    def _set_special_buffers(self):
         """
-        Initialise buffers and programs that are specific to the integrator.
+        Set buffers special to the Euler integrator.
         """
 
     def _update_displacement(

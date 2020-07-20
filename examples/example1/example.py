@@ -39,14 +39,14 @@ def is_crack(x, y):
 def is_tip(x):
     """Return if the particle coordinate is a `tip`."""
     # Particle does not live on tip
-    tip = [2, 2, 2]
+    tip = [None, None, None]
     # Particle does live on tip
     if x[0] > 1.0 - 0.1:
         tip[0] = 1
     return tip
 
 
-def is_boundary(x):
+def is_displacement_boundary(x):
     """
     Return if the particle coordinate is a displacement boundary.
 
@@ -57,7 +57,7 @@ def is_boundary(x):
     0 is clamped boundary
     """
     # Particle does not live on a boundary
-    bnd = [2, 2, 2]
+    bnd = [None, None, None]
     # Particle does live on boundary
     if x[0] < 1.5 * 0.1:
         bnd[0] = -1
@@ -71,12 +71,12 @@ def is_forces_boundary(x):
     Return if the particle coordinate is a force boundary.
 
     Marks types of body force on the particles
-    2 is no boundary condition (the number here is an arbitrary choice)
+    None is no boundary condition (the number here is an arbitrary choice)
     -1 is force loaded IN -ve direction
     1 is force loaded IN +ve direction
     """
     # Particle does not live on forces boundary
-    bnd = [2, 2, 2]
+    bnd = [None, None, None]
     return bnd
 
 
@@ -98,13 +98,12 @@ def main():
     model = Model(
         mesh_file, integrator=integrator, horizon=0.1, critical_stretch=0.005,
         bond_stiffness=18.00 * 0.05 / (np.pi * 0.1**4),
-        is_boundary=is_boundary, is_forces_boundary=is_forces_boundary,
+        is_displacement_boundary=is_displacement_boundary,
+        is_forces_boundary=is_forces_boundary,
         is_tip=is_tip, dimensions=2, initial_crack=is_crack)
-
 
     u, damage, *_ = model.simulate(
         steps=1000,
-        integrator=integrator,
         max_displacement_rate=0.000005/2, write=100)
 
     if args.profile:

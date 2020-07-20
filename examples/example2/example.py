@@ -7,10 +7,8 @@ import pathlib
 from peridynamics import Model
 from peridynamics.model import initial_crack_helper
 from peridynamics.integrators import Euler, EulerOpenCL
-from peridynamics.utilities import read_array as read_network
+from peridynamics.utilities import read_array as read_model
 from pstats import SortKey, Stats
-import shutil
-import os
 
 mesh_files = {
     '1650beam792t.msh': '1650beam792t',
@@ -63,25 +61,25 @@ def is_crack(x, y):
 def is_tip(x):
     """Return if the particle coordinate is a `tip`."""
     # Particle does not live on tip
-    tip = [2, 2, 2]
+    tip = [None, None, None]
     # Particle does live on tip
     if x[0] > 1.65 - 0.01:
         tip[0] = 1
     return tip
 
 
-def is_boundary(x):
+def is_displacement_boundary(x):
     """
     Return if the particle coordinate is a displacement boundary.
 
     Function which marks displacement boundary constrained particles
-    2 is no boundary condition (the number here is an arbitrary choice)
+    None is no boundary condition
     -1 is displacement loaded IN -ve direction
     1 is displacement loaded IN +ve direction
     0 is clamped boundary
     """
     # Particle does not live on a boundary
-    bnd = [2, 2, 2]
+    bnd = [None, None, None]
     # Particle does live on a boundary
     if x[0] < 0.01:
         bnd[0] = 0
@@ -97,12 +95,12 @@ def is_forces_boundary(x):
     Return if the particle coordinate is a force boundary.
 
     Marks types of body force on the particles
-    2 is no boundary condition (the number here is an arbitrary choice)
+    None is no boundary condition
     -1 is force loaded IN -ve direction
     1 is force loaded IN +ve direction
     """
     # Particle does not live on forces boundary
-    bnd = [2, 2, 2]
+    bnd = [None, None, None]
     return bnd
 
 
@@ -116,9 +114,9 @@ def main():
     args = parser.parse_args()
 
     mesh_file = pathlib.Path(__file__).parent.absolute() / args.mesh_file_name
-    write_path_solutions = pathlib.Path(__file__).parent.absolute() / "output/"
-    write_path_network = (pathlib.Path(__file__).parent.absolute() / str(
-        mesh_files[args.mesh_file_name] + "/network.h5"))
+    write_path_solutions = pathlib.Path(__file__).parent.absolute()
+    write_path_model = (pathlib.Path(__file__).parent.absolute() / str(
+        mesh_files[args.mesh_file_name] + "_model.h5"))
     dx = dxs[args.mesh_file_name]
 
     # Constants
@@ -136,13 +134,13 @@ def main():
     dt = 2.5e-13
 
     # Try reading connectivity, material_types and stiffness_correction files
-    volume = read_network(write_path_network, "volume")
-    family = read_network(write_path_network, "family")
-    nlist = read_network(write_path_network, "nlist")
-    material_types = read_network(write_path_network, "material_types")
-    n_neigh = read_network(write_path_network, "n_neigh")
-    stiffness_corrections = read_network(
-      write_path_network, "stiffness_corrections")
+    volume = read_model(write_path_model, "volume")
+    family = read_model(write_path_model, "family")
+    nlist = read_model(write_path_model, "nlist")
+    material_types = read_model(write_path_model, "material_types")
+    n_neigh = read_model(write_path_model, "n_neigh")
+    stiffness_corrections = read_model(
+      write_path_model, "stiffness_corrections")
 
     if ((nlist is not None) and (n_neigh is not None)):
         connectivity = (nlist, n_neigh)
@@ -159,24 +157,20 @@ def main():
         integrator = Euler(dt=dt, density=density, damping=1.0)
 
     model = Model(
-        mesh_file, integrator=integrator, horizon=horizon, critical_stretch=critical_stretch,
-        bond_stiffness=bond_stiffness,
-        dimensions=3, write_path=write_path_network, family=family,
-        volume=volume,
-        connectivity=connectivity, material_types=material_types,
+        mesh_file, integrator=integrator, horizon=horizon,
+        critical_stretch=critical_stretch, bond_stiffness=bond_stiffness,
+        dimensions=3, family=family,
+        volume=volume, connectivity=connectivity,
+        material_types=material_types,
         stiffness_corrections=stiffness_corrections,
-        is_boundary=is_boundary, is_forces_boundary=is_forces_boundary,
+        is_displacement_boundary=is_displacement_boundary,
+        is_forces_boundary=is_forces_boundary,
         is_tip=is_tip)
 
-    # Delete output directory
-    shutil.rmtree(write_path_solutions, ignore_errors=False)
-    os.mkdir(write_path_solutions)
-
     u, damage, *_ = model.simulate(
-        steps=1000,
-        integrator=integrator,
-        max_displacement_rate=5e-9,
-        write=10000,
+        steps=10000,
+        max_displacement_rate=5e-8,
+        write=1000,
         write_path=write_path_solutions
         )
 

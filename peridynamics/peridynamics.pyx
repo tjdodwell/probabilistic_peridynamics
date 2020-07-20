@@ -89,7 +89,7 @@ def bond_force(double[:, :] r, double[:, :] r0, int[:, :] nlist,
 
         # Scale force by node volume and apply boundary conditions
         for dim in range(3):
-            if(force_bc_types[i, dim] == 2):
+            if(force_bc_types[i, dim] == 0):
                 force_view[i, dim] = force_view[i, dim] * volume[i]
             else:
                 force_view[i, dim] = force_view[i, dim] * volume[i] + (
@@ -179,7 +179,7 @@ def update_displacement(double[:, :] u, double[:, :] bc_values,
     cdef int nnodes = u.shape[0]
     for i in range(nnodes):
             for dim in range(3):
-                if(bc_types[i, dim] == 2):
+                if(bc_types[i, dim] == 0):
                     u[i, dim] = u[i, dim] + dt * force[i, dim]
                 else:
                     u[i, dim] = u[i, dim] + bc_scale * bc_values[i, dim]
