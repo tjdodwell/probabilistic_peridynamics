@@ -1854,15 +1854,16 @@ static const char __pyx_k_material_type_list[] = "material_type_list";
 static const char __pyx_k_strided_and_direct[] = "<strided and direct>";
 static const char __pyx_k_strided_and_indirect[] = "<strided and indirect>";
 static const char __pyx_k_contiguous_and_direct[] = "<contiguous and direct>";
-static const char __pyx_k_create_neighbour_list[] = "create_neighbour_list";
 static const char __pyx_k_MemoryView_of_r_object[] = "<MemoryView of %r object>";
 static const char __pyx_k_MemoryView_of_r_at_0x_x[] = "<MemoryView of %r at 0x%x>";
 static const char __pyx_k_contiguous_and_indirect[] = "<contiguous and indirect>";
 static const char __pyx_k_material_type_list_view[] = "material_type_list_view";
 static const char __pyx_k_Cannot_index_with_type_s[] = "Cannot index with type '%s'";
+static const char __pyx_k_create_neighbour_list_cl[] = "create_neighbour_list_cl";
 static const char __pyx_k_Invalid_shape_in_axis_d_d[] = "Invalid shape in axis %d: %d.";
 static const char __pyx_k_itemsize_0_for_cython_array[] = "itemsize <= 0 for cython.array";
 static const char __pyx_k_peridynamics_neighbour_list[] = "peridynamics.neighbour_list";
+static const char __pyx_k_create_neighbour_list_cython[] = "create_neighbour_list_cython";
 static const char __pyx_k_unable_to_allocate_array_data[] = "unable to allocate array data.";
 static const char __pyx_k_strided_and_direct_or_indirect[] = "<strided and direct or indirect>";
 static const char __pyx_k_peridynamics_neighbour_list_pyx[] = "peridynamics\\neighbour_list.pyx";
@@ -1876,7 +1877,6 @@ static const char __pyx_k_Indirect_dimensions_not_supporte[] = "Indirect dimensi
 static const char __pyx_k_Invalid_mode_expected_c_or_fortr[] = "Invalid mode, expected 'c' or 'fortran', got %s";
 static const char __pyx_k_Out_of_bounds_on_buffer_access_a[] = "Out of bounds on buffer access (axis %d)";
 static const char __pyx_k_Unable_to_convert_item_to_object[] = "Unable to convert item to object";
-static const char __pyx_k_create_neighbour_list_superceded[] = "create_neighbour_list_superceded";
 static const char __pyx_k_got_differing_extents_in_dimensi[] = "got differing extents in dimension %d (got %d and %d)";
 static const char __pyx_k_no_default___reduce___due_to_non[] = "no default __reduce__ due to non-trivial __cinit__";
 static const char __pyx_k_unable_to_allocate_shape_and_str[] = "unable to allocate shape and strides.";
@@ -1913,8 +1913,8 @@ static PyObject *__pyx_kp_s_contiguous_and_direct;
 static PyObject *__pyx_kp_s_contiguous_and_indirect;
 static PyObject *__pyx_n_s_crack;
 static PyObject *__pyx_n_s_create_crack;
-static PyObject *__pyx_n_s_create_neighbour_list;
-static PyObject *__pyx_n_s_create_neighbour_list_superceded;
+static PyObject *__pyx_n_s_create_neighbour_list_cl;
+static PyObject *__pyx_n_s_create_neighbour_list_cython;
 static PyObject *__pyx_n_s_dict;
 static PyObject *__pyx_n_s_dtype;
 static PyObject *__pyx_n_s_dtype_is_object;
@@ -1996,8 +1996,8 @@ static PyObject *__pyx_n_s_unpack;
 static PyObject *__pyx_n_s_update;
 static PyObject *__pyx_n_s_zeros;
 static PyObject *__pyx_pf_12peridynamics_14neighbour_list_set_family(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_r, double __pyx_v_horizon); /* proto */
-static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list_superceded(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_r, double __pyx_v_horizon, int __pyx_v_size); /* proto */
-static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_r, double __pyx_v_horizon, int __pyx_v_size); /* proto */
+static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list_cython(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_r, double __pyx_v_horizon, int __pyx_v_size); /* proto */
+static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list_cl(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_r, double __pyx_v_horizon, int __pyx_v_size); /* proto */
 static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_crack, __Pyx_memviewslice __pyx_v_nlist, __Pyx_memviewslice __pyx_v_n_neigh); /* proto */
 static int __pyx_array___pyx_pf_15View_dot_MemoryView_5array___cinit__(struct __pyx_array_obj *__pyx_v_self, PyObject *__pyx_v_shape, Py_ssize_t __pyx_v_itemsize, PyObject *__pyx_v_format, PyObject *__pyx_v_mode, int __pyx_v_allocate_buffer); /* proto */
 static int __pyx_array___pyx_pf_15View_dot_MemoryView_5array_2__getbuffer__(struct __pyx_array_obj *__pyx_v_self, Py_buffer *__pyx_v_info, int __pyx_v_flags); /* proto */
@@ -2442,16 +2442,16 @@ __pyx_t_15 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_13, __pyx_t_14) <
 /* "peridynamics/neighbour_list.pyx":34
  * 
  * 
- * def create_neighbour_list_superceded(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
+ * def create_neighbour_list_cython(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
  *     """
- *     Build a neighbour list.
+ *     Build a neighbour list for the cython implementation.
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_12peridynamics_14neighbour_list_3create_neighbour_list_superceded(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static char __pyx_doc_12peridynamics_14neighbour_list_2create_neighbour_list_superceded[] = "\n    Build a neighbour list.\n    :arg r: The coordinates of all nodes.\n    :type r: :class:`numpy.ndarray`\n    :arg float horizon: The horizon distance.\n    :arg int size: The size of each row of the neighbour list. This is the\n        maximum number of neighbours and should be equal to the maximum of\n        of :func:`peridynamics.neighbour_list.family`.\n    :return: A tuple of the neighbour list and number of neighbours for each\n        node.\n    :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`)\n    ";
-static PyMethodDef __pyx_mdef_12peridynamics_14neighbour_list_3create_neighbour_list_superceded = {"create_neighbour_list_superceded", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_12peridynamics_14neighbour_list_3create_neighbour_list_superceded, METH_VARARGS|METH_KEYWORDS, __pyx_doc_12peridynamics_14neighbour_list_2create_neighbour_list_superceded};
-static PyObject *__pyx_pw_12peridynamics_14neighbour_list_3create_neighbour_list_superceded(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_12peridynamics_14neighbour_list_3create_neighbour_list_cython(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static char __pyx_doc_12peridynamics_14neighbour_list_2create_neighbour_list_cython[] = "\n    Build a neighbour list for the cython implementation.\n\n    :arg r: The coordinates of all nodes.\n    :type r: :class:`numpy.ndarray`\n    :arg float horizon: The horizon distance.\n    :arg int size: The size of each row of the neighbour list. This is the\n        maximum number of neighbours and should be equal to the maximum of\n        of :func:`peridynamics.neighbour_list.family`.\n    :return: A tuple of the neighbour list and number of neighbours for each\n        node.\n    :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`)\n    ";
+static PyMethodDef __pyx_mdef_12peridynamics_14neighbour_list_3create_neighbour_list_cython = {"create_neighbour_list_cython", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_12peridynamics_14neighbour_list_3create_neighbour_list_cython, METH_VARARGS|METH_KEYWORDS, __pyx_doc_12peridynamics_14neighbour_list_2create_neighbour_list_cython};
+static PyObject *__pyx_pw_12peridynamics_14neighbour_list_3create_neighbour_list_cython(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   __Pyx_memviewslice __pyx_v_r = { 0, 0, { 0 }, { 0 }, { 0 } };
   double __pyx_v_horizon;
   int __pyx_v_size;
@@ -2460,7 +2460,7 @@ static PyObject *__pyx_pw_12peridynamics_14neighbour_list_3create_neighbour_list
   int __pyx_clineno = 0;
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
-  __Pyx_RefNannySetupContext("create_neighbour_list_superceded (wrapper)", 0);
+  __Pyx_RefNannySetupContext("create_neighbour_list_cython (wrapper)", 0);
   {
     static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_r,&__pyx_n_s_horizon,&__pyx_n_s_size,0};
     PyObject* values[3] = {0,0,0};
@@ -2486,17 +2486,17 @@ static PyObject *__pyx_pw_12peridynamics_14neighbour_list_3create_neighbour_list
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_horizon)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("create_neighbour_list_superceded", 1, 3, 3, 1); __PYX_ERR(0, 34, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("create_neighbour_list_cython", 1, 3, 3, 1); __PYX_ERR(0, 34, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_size)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("create_neighbour_list_superceded", 1, 3, 3, 2); __PYX_ERR(0, 34, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("create_neighbour_list_cython", 1, 3, 3, 2); __PYX_ERR(0, 34, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "create_neighbour_list_superceded") < 0)) __PYX_ERR(0, 34, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "create_neighbour_list_cython") < 0)) __PYX_ERR(0, 34, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
       goto __pyx_L5_argtuple_error;
@@ -2511,20 +2511,20 @@ static PyObject *__pyx_pw_12peridynamics_14neighbour_list_3create_neighbour_list
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("create_neighbour_list_superceded", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 34, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("create_neighbour_list_cython", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 34, __pyx_L3_error)
   __pyx_L3_error:;
-  __Pyx_AddTraceback("peridynamics.neighbour_list.create_neighbour_list_superceded", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("peridynamics.neighbour_list.create_neighbour_list_cython", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list_superceded(__pyx_self, __pyx_v_r, __pyx_v_horizon, __pyx_v_size);
+  __pyx_r = __pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list_cython(__pyx_self, __pyx_v_r, __pyx_v_horizon, __pyx_v_size);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list_superceded(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_r, double __pyx_v_horizon, int __pyx_v_size) {
+static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list_cython(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_r, double __pyx_v_horizon, int __pyx_v_size) {
   int __pyx_v_nnodes;
   PyObject *__pyx_v_result = NULL;
   __Pyx_memviewslice __pyx_v_result_view = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -2561,9 +2561,9 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_RefNannySetupContext("create_neighbour_list_superceded", 0);
+  __Pyx_RefNannySetupContext("create_neighbour_list_cython", 0);
 
-  /* "peridynamics/neighbour_list.pyx":47
+  /* "peridynamics/neighbour_list.pyx":48
  *     :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`)
  *     """
  *     cdef int nnodes = r.shape[0]             # <<<<<<<<<<<<<<
@@ -2572,23 +2572,23 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list
  */
   __pyx_v_nnodes = (__pyx_v_r.shape[0]);
 
-  /* "peridynamics/neighbour_list.pyx":49
+  /* "peridynamics/neighbour_list.pyx":50
  *     cdef int nnodes = r.shape[0]
  * 
  *     result = np.zeros((nnodes, size), dtype=np.intc)             # <<<<<<<<<<<<<<
  *     cdef int[:, :] result_view = result
  *     n_neigh = np.zeros(nnodes, dtype=np.intc)
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 49, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 50, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_zeros); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 49, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_zeros); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 50, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_nnodes); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 49, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_nnodes); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 50, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_size); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 49, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_size); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 50, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_4 = PyTuple_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 49, __pyx_L1_error)
+  __pyx_t_4 = PyTuple_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 50, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_GIVEREF(__pyx_t_1);
   PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_1);
@@ -2596,21 +2596,21 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list
   PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_t_3);
   __pyx_t_1 = 0;
   __pyx_t_3 = 0;
-  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 49, __pyx_L1_error)
+  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 50, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_GIVEREF(__pyx_t_4);
   PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_4);
   __pyx_t_4 = 0;
-  __pyx_t_4 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 49, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 50, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 49, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 50, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_intc); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 49, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_intc); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 50, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  if (PyDict_SetItem(__pyx_t_4, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 49, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_4, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 50, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_3, __pyx_t_4); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 49, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_3, __pyx_t_4); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 50, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
@@ -2618,47 +2618,47 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list
   __pyx_v_result = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "peridynamics/neighbour_list.pyx":50
+  /* "peridynamics/neighbour_list.pyx":51
  * 
  *     result = np.zeros((nnodes, size), dtype=np.intc)
  *     cdef int[:, :] result_view = result             # <<<<<<<<<<<<<<
  *     n_neigh = np.zeros(nnodes, dtype=np.intc)
  *     cdef int[:] n_neigh_view = n_neigh
  */
-  __pyx_t_6 = __Pyx_PyObject_to_MemoryviewSlice_dsds_int(__pyx_v_result, PyBUF_WRITABLE); if (unlikely(!__pyx_t_6.memview)) __PYX_ERR(0, 50, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_to_MemoryviewSlice_dsds_int(__pyx_v_result, PyBUF_WRITABLE); if (unlikely(!__pyx_t_6.memview)) __PYX_ERR(0, 51, __pyx_L1_error)
   __pyx_v_result_view = __pyx_t_6;
   __pyx_t_6.memview = NULL;
   __pyx_t_6.data = NULL;
 
-  /* "peridynamics/neighbour_list.pyx":51
+  /* "peridynamics/neighbour_list.pyx":52
  *     result = np.zeros((nnodes, size), dtype=np.intc)
  *     cdef int[:, :] result_view = result
  *     n_neigh = np.zeros(nnodes, dtype=np.intc)             # <<<<<<<<<<<<<<
  *     cdef int[:] n_neigh_view = n_neigh
  * 
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 51, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 52, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_zeros); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 51, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_zeros); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 52, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_nnodes); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 51, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_nnodes); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 52, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 51, __pyx_L1_error)
+  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 52, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_GIVEREF(__pyx_t_5);
   PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_5);
   __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 51, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 52, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 51, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 52, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_intc); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 51, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_intc); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 52, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (PyDict_SetItem(__pyx_t_5, __pyx_n_s_dtype, __pyx_t_1) < 0) __PYX_ERR(0, 51, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_5, __pyx_n_s_dtype, __pyx_t_1) < 0) __PYX_ERR(0, 52, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_3, __pyx_t_5); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 51, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_3, __pyx_t_5); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 52, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
@@ -2666,19 +2666,19 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list
   __pyx_v_n_neigh = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "peridynamics/neighbour_list.pyx":52
+  /* "peridynamics/neighbour_list.pyx":53
  *     cdef int[:, :] result_view = result
  *     n_neigh = np.zeros(nnodes, dtype=np.intc)
  *     cdef int[:] n_neigh_view = n_neigh             # <<<<<<<<<<<<<<
  * 
  *     cdef int i, j
  */
-  __pyx_t_7 = __Pyx_PyObject_to_MemoryviewSlice_ds_int(__pyx_v_n_neigh, PyBUF_WRITABLE); if (unlikely(!__pyx_t_7.memview)) __PYX_ERR(0, 52, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_to_MemoryviewSlice_ds_int(__pyx_v_n_neigh, PyBUF_WRITABLE); if (unlikely(!__pyx_t_7.memview)) __PYX_ERR(0, 53, __pyx_L1_error)
   __pyx_v_n_neigh_view = __pyx_t_7;
   __pyx_t_7.memview = NULL;
   __pyx_t_7.data = NULL;
 
-  /* "peridynamics/neighbour_list.pyx":56
+  /* "peridynamics/neighbour_list.pyx":57
  *     cdef int i, j
  * 
  *     for i in range(nnodes-1):             # <<<<<<<<<<<<<<
@@ -2690,7 +2690,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list
   for (__pyx_t_10 = 0; __pyx_t_10 < __pyx_t_9; __pyx_t_10+=1) {
     __pyx_v_i = __pyx_t_10;
 
-    /* "peridynamics/neighbour_list.pyx":57
+    /* "peridynamics/neighbour_list.pyx":58
  * 
  *     for i in range(nnodes-1):
  *         for j in range(i+1, nnodes):             # <<<<<<<<<<<<<<
@@ -2702,7 +2702,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list
     for (__pyx_t_13 = (__pyx_v_i + 1); __pyx_t_13 < __pyx_t_12; __pyx_t_13+=1) {
       __pyx_v_j = __pyx_t_13;
 
-      /* "peridynamics/neighbour_list.pyx":58
+      /* "peridynamics/neighbour_list.pyx":59
  *     for i in range(nnodes-1):
  *         for j in range(i+1, nnodes):
  *             if ceuclid(r[i], r[j]) < horizon:             # <<<<<<<<<<<<<<
@@ -2721,7 +2721,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list
         if (unlikely(!__Pyx_is_valid_index(__pyx_tmp_idx, __pyx_tmp_shape))) {
             PyErr_SetString(PyExc_IndexError,
                             "Index out of bounds (axis 0)");
-            __PYX_ERR(0, 58, __pyx_L1_error)
+            __PYX_ERR(0, 59, __pyx_L1_error)
         }
         __pyx_t_14.data += __pyx_tmp_idx * __pyx_tmp_stride;
 }
@@ -2742,7 +2742,7 @@ __pyx_t_15.data = __pyx_v_r.data;
         if (unlikely(!__Pyx_is_valid_index(__pyx_tmp_idx, __pyx_tmp_shape))) {
             PyErr_SetString(PyExc_IndexError,
                             "Index out of bounds (axis 0)");
-            __PYX_ERR(0, 58, __pyx_L1_error)
+            __PYX_ERR(0, 59, __pyx_L1_error)
         }
         __pyx_t_15.data += __pyx_tmp_idx * __pyx_tmp_stride;
 }
@@ -2760,7 +2760,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
       __pyx_t_15.data = NULL;
       if (__pyx_t_16) {
 
-        /* "peridynamics/neighbour_list.pyx":60
+        /* "peridynamics/neighbour_list.pyx":61
  *             if ceuclid(r[i], r[j]) < horizon:
  *                 # Add j as a neighbour of i
  *                 result_view[i, n_neigh_view[i]] = j             # <<<<<<<<<<<<<<
@@ -2775,7 +2775,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_17 >= __pyx_v_n_neigh_view.shape[0])) __pyx_t_18 = 0;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 60, __pyx_L1_error)
+          __PYX_ERR(0, 61, __pyx_L1_error)
         }
         __pyx_t_19 = __pyx_v_i;
         __pyx_t_20 = (*((int *) ( /* dim=0 */ (__pyx_v_n_neigh_view.data + __pyx_t_17 * __pyx_v_n_neigh_view.strides[0]) )));
@@ -2790,11 +2790,11 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_20 >= __pyx_v_result_view.shape[1])) __pyx_t_18 = 1;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 60, __pyx_L1_error)
+          __PYX_ERR(0, 61, __pyx_L1_error)
         }
         *((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_result_view.data + __pyx_t_19 * __pyx_v_result_view.strides[0]) ) + __pyx_t_20 * __pyx_v_result_view.strides[1]) )) = __pyx_v_j;
 
-        /* "peridynamics/neighbour_list.pyx":61
+        /* "peridynamics/neighbour_list.pyx":62
  *                 # Add j as a neighbour of i
  *                 result_view[i, n_neigh_view[i]] = j
  *                 n_neigh_view[i] = n_neigh_view[i] + 1             # <<<<<<<<<<<<<<
@@ -2809,7 +2809,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_17 >= __pyx_v_n_neigh_view.shape[0])) __pyx_t_18 = 0;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 61, __pyx_L1_error)
+          __PYX_ERR(0, 62, __pyx_L1_error)
         }
         __pyx_t_21 = __pyx_v_i;
         __pyx_t_18 = -1;
@@ -2819,11 +2819,11 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_21 >= __pyx_v_n_neigh_view.shape[0])) __pyx_t_18 = 0;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 61, __pyx_L1_error)
+          __PYX_ERR(0, 62, __pyx_L1_error)
         }
         *((int *) ( /* dim=0 */ (__pyx_v_n_neigh_view.data + __pyx_t_21 * __pyx_v_n_neigh_view.strides[0]) )) = ((*((int *) ( /* dim=0 */ (__pyx_v_n_neigh_view.data + __pyx_t_17 * __pyx_v_n_neigh_view.strides[0]) ))) + 1);
 
-        /* "peridynamics/neighbour_list.pyx":63
+        /* "peridynamics/neighbour_list.pyx":64
  *                 n_neigh_view[i] = n_neigh_view[i] + 1
  *                 # Add i as a neighbour of j
  *                 result_view[j, n_neigh_view[j]] = i             # <<<<<<<<<<<<<<
@@ -2838,7 +2838,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_17 >= __pyx_v_n_neigh_view.shape[0])) __pyx_t_18 = 0;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 63, __pyx_L1_error)
+          __PYX_ERR(0, 64, __pyx_L1_error)
         }
         __pyx_t_22 = __pyx_v_j;
         __pyx_t_23 = (*((int *) ( /* dim=0 */ (__pyx_v_n_neigh_view.data + __pyx_t_17 * __pyx_v_n_neigh_view.strides[0]) )));
@@ -2853,11 +2853,11 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_23 >= __pyx_v_result_view.shape[1])) __pyx_t_18 = 1;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 63, __pyx_L1_error)
+          __PYX_ERR(0, 64, __pyx_L1_error)
         }
         *((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_result_view.data + __pyx_t_22 * __pyx_v_result_view.strides[0]) ) + __pyx_t_23 * __pyx_v_result_view.strides[1]) )) = __pyx_v_i;
 
-        /* "peridynamics/neighbour_list.pyx":64
+        /* "peridynamics/neighbour_list.pyx":65
  *                 # Add i as a neighbour of j
  *                 result_view[j, n_neigh_view[j]] = i
  *                 n_neigh_view[j] = n_neigh_view[j] + 1             # <<<<<<<<<<<<<<
@@ -2872,7 +2872,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_17 >= __pyx_v_n_neigh_view.shape[0])) __pyx_t_18 = 0;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 64, __pyx_L1_error)
+          __PYX_ERR(0, 65, __pyx_L1_error)
         }
         __pyx_t_24 = __pyx_v_j;
         __pyx_t_18 = -1;
@@ -2882,11 +2882,11 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_24 >= __pyx_v_n_neigh_view.shape[0])) __pyx_t_18 = 0;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 64, __pyx_L1_error)
+          __PYX_ERR(0, 65, __pyx_L1_error)
         }
         *((int *) ( /* dim=0 */ (__pyx_v_n_neigh_view.data + __pyx_t_24 * __pyx_v_n_neigh_view.strides[0]) )) = ((*((int *) ( /* dim=0 */ (__pyx_v_n_neigh_view.data + __pyx_t_17 * __pyx_v_n_neigh_view.strides[0]) ))) + 1);
 
-        /* "peridynamics/neighbour_list.pyx":58
+        /* "peridynamics/neighbour_list.pyx":59
  *     for i in range(nnodes-1):
  *         for j in range(i+1, nnodes):
  *             if ceuclid(r[i], r[j]) < horizon:             # <<<<<<<<<<<<<<
@@ -2897,7 +2897,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
     }
   }
 
-  /* "peridynamics/neighbour_list.pyx":66
+  /* "peridynamics/neighbour_list.pyx":67
  *                 n_neigh_view[j] = n_neigh_view[j] + 1
  * 
  *     return result, n_neigh             # <<<<<<<<<<<<<<
@@ -2905,7 +2905,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
  * 
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = PyTuple_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 66, __pyx_L1_error)
+  __pyx_t_1 = PyTuple_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 67, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_INCREF(__pyx_v_result);
   __Pyx_GIVEREF(__pyx_v_result);
@@ -2920,9 +2920,9 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
   /* "peridynamics/neighbour_list.pyx":34
  * 
  * 
- * def create_neighbour_list_superceded(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
+ * def create_neighbour_list_cython(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
  *     """
- *     Build a neighbour list.
+ *     Build a neighbour list for the cython implementation.
  */
 
   /* function exit code */
@@ -2936,7 +2936,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
   __PYX_XDEC_MEMVIEW(&__pyx_t_7, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_t_14, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_t_15, 1);
-  __Pyx_AddTraceback("peridynamics.neighbour_list.create_neighbour_list_superceded", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("peridynamics.neighbour_list.create_neighbour_list_cython", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_result);
@@ -2949,19 +2949,19 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
   return __pyx_r;
 }
 
-/* "peridynamics/neighbour_list.pyx":69
+/* "peridynamics/neighbour_list.pyx":70
  * 
  * 
- * def create_neighbour_list(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
+ * def create_neighbour_list_cl(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
  *     """
- *     Build a neighbour list.
+ *     Build a neighbour list for the OpenCl implementation
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_12peridynamics_14neighbour_list_5create_neighbour_list(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static char __pyx_doc_12peridynamics_14neighbour_list_4create_neighbour_list[] = "\n    Build a neighbour list.\n\n    :arg r: The coordinates of all nodes.\n    :type r: :class:`numpy.ndarray`\n    :arg float horizon: The horizon distance.\n    :arg int size: The size of each row of the neighbour list. This is the\n        smallest power of 2 which is larger than the maximum number of \n        neighbours, :func:`peridynamics.neighbour_list.family`.\n\n    :return: A tuple of the neighbour list and number of neighbours for each\n        node.\n    :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`)\n    ";
-static PyMethodDef __pyx_mdef_12peridynamics_14neighbour_list_5create_neighbour_list = {"create_neighbour_list", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_12peridynamics_14neighbour_list_5create_neighbour_list, METH_VARARGS|METH_KEYWORDS, __pyx_doc_12peridynamics_14neighbour_list_4create_neighbour_list};
-static PyObject *__pyx_pw_12peridynamics_14neighbour_list_5create_neighbour_list(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_12peridynamics_14neighbour_list_5create_neighbour_list_cl(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static char __pyx_doc_12peridynamics_14neighbour_list_4create_neighbour_list_cl[] = "\n    Build a neighbour list for the OpenCl implementation\n\n    :arg r: The coordinates of all nodes.\n    :type r: :class:`numpy.ndarray`\n    :arg float horizon: The horizon distance.\n    :arg int size: The size of each row of the neighbour list. This is the\n        smallest power of 2 which is larger than the maximum number of \n        neighbours, :func:`peridynamics.neighbour_list.family`.\n\n    :return: A tuple of the neighbour list and number of neighbours for each\n        node.\n    :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`)\n    ";
+static PyMethodDef __pyx_mdef_12peridynamics_14neighbour_list_5create_neighbour_list_cl = {"create_neighbour_list_cl", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_12peridynamics_14neighbour_list_5create_neighbour_list_cl, METH_VARARGS|METH_KEYWORDS, __pyx_doc_12peridynamics_14neighbour_list_4create_neighbour_list_cl};
+static PyObject *__pyx_pw_12peridynamics_14neighbour_list_5create_neighbour_list_cl(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   __Pyx_memviewslice __pyx_v_r = { 0, 0, { 0 }, { 0 }, { 0 } };
   double __pyx_v_horizon;
   int __pyx_v_size;
@@ -2970,7 +2970,7 @@ static PyObject *__pyx_pw_12peridynamics_14neighbour_list_5create_neighbour_list
   int __pyx_clineno = 0;
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
-  __Pyx_RefNannySetupContext("create_neighbour_list (wrapper)", 0);
+  __Pyx_RefNannySetupContext("create_neighbour_list_cl (wrapper)", 0);
   {
     static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_r,&__pyx_n_s_horizon,&__pyx_n_s_size,0};
     PyObject* values[3] = {0,0,0};
@@ -2996,17 +2996,17 @@ static PyObject *__pyx_pw_12peridynamics_14neighbour_list_5create_neighbour_list
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_horizon)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("create_neighbour_list", 1, 3, 3, 1); __PYX_ERR(0, 69, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("create_neighbour_list_cl", 1, 3, 3, 1); __PYX_ERR(0, 70, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_size)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("create_neighbour_list", 1, 3, 3, 2); __PYX_ERR(0, 69, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("create_neighbour_list_cl", 1, 3, 3, 2); __PYX_ERR(0, 70, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "create_neighbour_list") < 0)) __PYX_ERR(0, 69, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "create_neighbour_list_cl") < 0)) __PYX_ERR(0, 70, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
       goto __pyx_L5_argtuple_error;
@@ -3015,26 +3015,26 @@ static PyObject *__pyx_pw_12peridynamics_14neighbour_list_5create_neighbour_list
       values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
       values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
     }
-    __pyx_v_r = __Pyx_PyObject_to_MemoryviewSlice_dsds_double(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_r.memview)) __PYX_ERR(0, 69, __pyx_L3_error)
-    __pyx_v_horizon = __pyx_PyFloat_AsDouble(values[1]); if (unlikely((__pyx_v_horizon == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 69, __pyx_L3_error)
-    __pyx_v_size = __Pyx_PyInt_As_int(values[2]); if (unlikely((__pyx_v_size == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 69, __pyx_L3_error)
+    __pyx_v_r = __Pyx_PyObject_to_MemoryviewSlice_dsds_double(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_r.memview)) __PYX_ERR(0, 70, __pyx_L3_error)
+    __pyx_v_horizon = __pyx_PyFloat_AsDouble(values[1]); if (unlikely((__pyx_v_horizon == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 70, __pyx_L3_error)
+    __pyx_v_size = __Pyx_PyInt_As_int(values[2]); if (unlikely((__pyx_v_size == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 70, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("create_neighbour_list", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 69, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("create_neighbour_list_cl", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 70, __pyx_L3_error)
   __pyx_L3_error:;
-  __Pyx_AddTraceback("peridynamics.neighbour_list.create_neighbour_list", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("peridynamics.neighbour_list.create_neighbour_list_cl", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list(__pyx_self, __pyx_v_r, __pyx_v_horizon, __pyx_v_size);
+  __pyx_r = __pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list_cl(__pyx_self, __pyx_v_r, __pyx_v_horizon, __pyx_v_size);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_r, double __pyx_v_horizon, int __pyx_v_size) {
+static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list_cl(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_r, double __pyx_v_horizon, int __pyx_v_size) {
   int __pyx_v_nnodes;
   PyObject *__pyx_v_nlist = NULL;
   __Pyx_memviewslice __pyx_v_nlist_view = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -3073,9 +3073,9 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_RefNannySetupContext("create_neighbour_list", 0);
+  __Pyx_RefNannySetupContext("create_neighbour_list_cl", 0);
 
-  /* "peridynamics/neighbour_list.pyx":84
+  /* "peridynamics/neighbour_list.pyx":85
  *     :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`)
  *     """
  *     cdef int nnodes = r.shape[0]             # <<<<<<<<<<<<<<
@@ -3084,23 +3084,23 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list
  */
   __pyx_v_nnodes = (__pyx_v_r.shape[0]);
 
-  /* "peridynamics/neighbour_list.pyx":86
+  /* "peridynamics/neighbour_list.pyx":87
  *     cdef int nnodes = r.shape[0]
  * 
  *     nlist = -1*np.ones((nnodes, size), dtype=np.intc)             # <<<<<<<<<<<<<<
  *     cdef int[:, :] nlist_view = nlist
  *     n_neigh = np.zeros(nnodes, dtype=np.intc)
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 86, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_ones); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 86, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_ones); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_nnodes); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 86, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_nnodes); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_size); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 86, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_size); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_4 = PyTuple_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 86, __pyx_L1_error)
+  __pyx_t_4 = PyTuple_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_GIVEREF(__pyx_t_1);
   PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_1);
@@ -3108,72 +3108,72 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list
   PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_t_3);
   __pyx_t_1 = 0;
   __pyx_t_3 = 0;
-  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 86, __pyx_L1_error)
+  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_GIVEREF(__pyx_t_4);
   PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_4);
   __pyx_t_4 = 0;
-  __pyx_t_4 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 86, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 86, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_intc); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 86, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_intc); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  if (PyDict_SetItem(__pyx_t_4, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 86, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_4, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_3, __pyx_t_4); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 86, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_3, __pyx_t_4); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __pyx_t_4 = PyNumber_Multiply(__pyx_int_neg_1, __pyx_t_5); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 86, __pyx_L1_error)
+  __pyx_t_4 = PyNumber_Multiply(__pyx_int_neg_1, __pyx_t_5); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 87, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
   __pyx_v_nlist = __pyx_t_4;
   __pyx_t_4 = 0;
 
-  /* "peridynamics/neighbour_list.pyx":87
+  /* "peridynamics/neighbour_list.pyx":88
  * 
  *     nlist = -1*np.ones((nnodes, size), dtype=np.intc)
  *     cdef int[:, :] nlist_view = nlist             # <<<<<<<<<<<<<<
  *     n_neigh = np.zeros(nnodes, dtype=np.intc)
  *     cdef int[:] n_neigh_view = n_neigh
  */
-  __pyx_t_6 = __Pyx_PyObject_to_MemoryviewSlice_dsds_int(__pyx_v_nlist, PyBUF_WRITABLE); if (unlikely(!__pyx_t_6.memview)) __PYX_ERR(0, 87, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_to_MemoryviewSlice_dsds_int(__pyx_v_nlist, PyBUF_WRITABLE); if (unlikely(!__pyx_t_6.memview)) __PYX_ERR(0, 88, __pyx_L1_error)
   __pyx_v_nlist_view = __pyx_t_6;
   __pyx_t_6.memview = NULL;
   __pyx_t_6.data = NULL;
 
-  /* "peridynamics/neighbour_list.pyx":88
+  /* "peridynamics/neighbour_list.pyx":89
  *     nlist = -1*np.ones((nnodes, size), dtype=np.intc)
  *     cdef int[:, :] nlist_view = nlist
  *     n_neigh = np.zeros(nnodes, dtype=np.intc)             # <<<<<<<<<<<<<<
  *     cdef int[:] n_neigh_view = n_neigh
  *     material_type_list = -1*np.ones((nnodes, size), dtype=np.intc)
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 88, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 89, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_zeros); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 88, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_zeros); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 89, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __pyx_t_4 = __Pyx_PyInt_From_int(__pyx_v_nnodes); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 88, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyInt_From_int(__pyx_v_nnodes); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 89, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 88, __pyx_L1_error)
+  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 89, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_GIVEREF(__pyx_t_4);
   PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_4);
   __pyx_t_4 = 0;
-  __pyx_t_4 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 88, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 89, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 88, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 89, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_intc); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 88, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_intc); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 89, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (PyDict_SetItem(__pyx_t_4, __pyx_n_s_dtype, __pyx_t_1) < 0) __PYX_ERR(0, 88, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_4, __pyx_n_s_dtype, __pyx_t_1) < 0) __PYX_ERR(0, 89, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_5, __pyx_t_3, __pyx_t_4); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 88, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_t_5, __pyx_t_3, __pyx_t_4); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 89, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
@@ -3181,35 +3181,35 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list
   __pyx_v_n_neigh = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "peridynamics/neighbour_list.pyx":89
+  /* "peridynamics/neighbour_list.pyx":90
  *     cdef int[:, :] nlist_view = nlist
  *     n_neigh = np.zeros(nnodes, dtype=np.intc)
  *     cdef int[:] n_neigh_view = n_neigh             # <<<<<<<<<<<<<<
  *     material_type_list = -1*np.ones((nnodes, size), dtype=np.intc)
  *     cdef int[:, :] material_type_list_view = material_type_list
  */
-  __pyx_t_7 = __Pyx_PyObject_to_MemoryviewSlice_ds_int(__pyx_v_n_neigh, PyBUF_WRITABLE); if (unlikely(!__pyx_t_7.memview)) __PYX_ERR(0, 89, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_to_MemoryviewSlice_ds_int(__pyx_v_n_neigh, PyBUF_WRITABLE); if (unlikely(!__pyx_t_7.memview)) __PYX_ERR(0, 90, __pyx_L1_error)
   __pyx_v_n_neigh_view = __pyx_t_7;
   __pyx_t_7.memview = NULL;
   __pyx_t_7.data = NULL;
 
-  /* "peridynamics/neighbour_list.pyx":90
+  /* "peridynamics/neighbour_list.pyx":91
  *     n_neigh = np.zeros(nnodes, dtype=np.intc)
  *     cdef int[:] n_neigh_view = n_neigh
  *     material_type_list = -1*np.ones((nnodes, size), dtype=np.intc)             # <<<<<<<<<<<<<<
  *     cdef int[:, :] material_type_list_view = material_type_list
  * 
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 90, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 91, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_ones); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 90, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_ones); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 91, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_nnodes); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 90, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_nnodes); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 91, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_size); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 90, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_size); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 91, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 90, __pyx_L1_error)
+  __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 91, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_GIVEREF(__pyx_t_1);
   PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_t_1);
@@ -3217,44 +3217,44 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list
   PyTuple_SET_ITEM(__pyx_t_5, 1, __pyx_t_3);
   __pyx_t_1 = 0;
   __pyx_t_3 = 0;
-  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 90, __pyx_L1_error)
+  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 91, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_GIVEREF(__pyx_t_5);
   PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_5);
   __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 90, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 91, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 90, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 91, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_intc); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 90, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_intc); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 91, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  if (PyDict_SetItem(__pyx_t_5, __pyx_n_s_dtype, __pyx_t_2) < 0) __PYX_ERR(0, 90, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_5, __pyx_n_s_dtype, __pyx_t_2) < 0) __PYX_ERR(0, 91, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_3, __pyx_t_5); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 90, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_3, __pyx_t_5); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 91, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_5 = PyNumber_Multiply(__pyx_int_neg_1, __pyx_t_2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 90, __pyx_L1_error)
+  __pyx_t_5 = PyNumber_Multiply(__pyx_int_neg_1, __pyx_t_2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 91, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_v_material_type_list = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "peridynamics/neighbour_list.pyx":91
+  /* "peridynamics/neighbour_list.pyx":92
  *     cdef int[:] n_neigh_view = n_neigh
  *     material_type_list = -1*np.ones((nnodes, size), dtype=np.intc)
  *     cdef int[:, :] material_type_list_view = material_type_list             # <<<<<<<<<<<<<<
  * 
  *     cdef int i, j
  */
-  __pyx_t_6 = __Pyx_PyObject_to_MemoryviewSlice_dsds_int(__pyx_v_material_type_list, PyBUF_WRITABLE); if (unlikely(!__pyx_t_6.memview)) __PYX_ERR(0, 91, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_to_MemoryviewSlice_dsds_int(__pyx_v_material_type_list, PyBUF_WRITABLE); if (unlikely(!__pyx_t_6.memview)) __PYX_ERR(0, 92, __pyx_L1_error)
   __pyx_v_material_type_list_view = __pyx_t_6;
   __pyx_t_6.memview = NULL;
   __pyx_t_6.data = NULL;
 
-  /* "peridynamics/neighbour_list.pyx":95
+  /* "peridynamics/neighbour_list.pyx":96
  *     cdef int i, j
  * 
  *     for i in range(nnodes-1):             # <<<<<<<<<<<<<<
@@ -3266,7 +3266,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list
   for (__pyx_t_10 = 0; __pyx_t_10 < __pyx_t_9; __pyx_t_10+=1) {
     __pyx_v_i = __pyx_t_10;
 
-    /* "peridynamics/neighbour_list.pyx":96
+    /* "peridynamics/neighbour_list.pyx":97
  * 
  *     for i in range(nnodes-1):
  *         for j in range(i+1, nnodes):             # <<<<<<<<<<<<<<
@@ -3278,7 +3278,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list
     for (__pyx_t_13 = (__pyx_v_i + 1); __pyx_t_13 < __pyx_t_12; __pyx_t_13+=1) {
       __pyx_v_j = __pyx_t_13;
 
-      /* "peridynamics/neighbour_list.pyx":97
+      /* "peridynamics/neighbour_list.pyx":98
  *     for i in range(nnodes-1):
  *         for j in range(i+1, nnodes):
  *             if ceuclid(r[i], r[j]) < horizon:             # <<<<<<<<<<<<<<
@@ -3297,7 +3297,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list
         if (unlikely(!__Pyx_is_valid_index(__pyx_tmp_idx, __pyx_tmp_shape))) {
             PyErr_SetString(PyExc_IndexError,
                             "Index out of bounds (axis 0)");
-            __PYX_ERR(0, 97, __pyx_L1_error)
+            __PYX_ERR(0, 98, __pyx_L1_error)
         }
         __pyx_t_14.data += __pyx_tmp_idx * __pyx_tmp_stride;
 }
@@ -3318,7 +3318,7 @@ __pyx_t_15.data = __pyx_v_r.data;
         if (unlikely(!__Pyx_is_valid_index(__pyx_tmp_idx, __pyx_tmp_shape))) {
             PyErr_SetString(PyExc_IndexError,
                             "Index out of bounds (axis 0)");
-            __PYX_ERR(0, 97, __pyx_L1_error)
+            __PYX_ERR(0, 98, __pyx_L1_error)
         }
         __pyx_t_15.data += __pyx_tmp_idx * __pyx_tmp_stride;
 }
@@ -3336,7 +3336,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
       __pyx_t_15.data = NULL;
       if (__pyx_t_16) {
 
-        /* "peridynamics/neighbour_list.pyx":99
+        /* "peridynamics/neighbour_list.pyx":100
  *             if ceuclid(r[i], r[j]) < horizon:
  *                 # Add j as a neighbour of i
  *                 nlist_view[i, n_neigh_view[i]] = j             # <<<<<<<<<<<<<<
@@ -3351,7 +3351,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_17 >= __pyx_v_n_neigh_view.shape[0])) __pyx_t_18 = 0;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 99, __pyx_L1_error)
+          __PYX_ERR(0, 100, __pyx_L1_error)
         }
         __pyx_t_19 = __pyx_v_i;
         __pyx_t_20 = (*((int *) ( /* dim=0 */ (__pyx_v_n_neigh_view.data + __pyx_t_17 * __pyx_v_n_neigh_view.strides[0]) )));
@@ -3366,11 +3366,11 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_20 >= __pyx_v_nlist_view.shape[1])) __pyx_t_18 = 1;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 99, __pyx_L1_error)
+          __PYX_ERR(0, 100, __pyx_L1_error)
         }
         *((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nlist_view.data + __pyx_t_19 * __pyx_v_nlist_view.strides[0]) ) + __pyx_t_20 * __pyx_v_nlist_view.strides[1]) )) = __pyx_v_j;
 
-        /* "peridynamics/neighbour_list.pyx":100
+        /* "peridynamics/neighbour_list.pyx":101
  *                 # Add j as a neighbour of i
  *                 nlist_view[i, n_neigh_view[i]] = j
  *                 n_neigh_view[i] = n_neigh_view[i] + 1             # <<<<<<<<<<<<<<
@@ -3385,7 +3385,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_17 >= __pyx_v_n_neigh_view.shape[0])) __pyx_t_18 = 0;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 100, __pyx_L1_error)
+          __PYX_ERR(0, 101, __pyx_L1_error)
         }
         __pyx_t_21 = __pyx_v_i;
         __pyx_t_18 = -1;
@@ -3395,11 +3395,11 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_21 >= __pyx_v_n_neigh_view.shape[0])) __pyx_t_18 = 0;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 100, __pyx_L1_error)
+          __PYX_ERR(0, 101, __pyx_L1_error)
         }
         *((int *) ( /* dim=0 */ (__pyx_v_n_neigh_view.data + __pyx_t_21 * __pyx_v_n_neigh_view.strides[0]) )) = ((*((int *) ( /* dim=0 */ (__pyx_v_n_neigh_view.data + __pyx_t_17 * __pyx_v_n_neigh_view.strides[0]) ))) + 1);
 
-        /* "peridynamics/neighbour_list.pyx":102
+        /* "peridynamics/neighbour_list.pyx":103
  *                 n_neigh_view[i] = n_neigh_view[i] + 1
  *                 # Add i as a neighbour of j
  *                 nlist_view[j, n_neigh_view[j]] = i             # <<<<<<<<<<<<<<
@@ -3414,7 +3414,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_17 >= __pyx_v_n_neigh_view.shape[0])) __pyx_t_18 = 0;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 102, __pyx_L1_error)
+          __PYX_ERR(0, 103, __pyx_L1_error)
         }
         __pyx_t_22 = __pyx_v_j;
         __pyx_t_23 = (*((int *) ( /* dim=0 */ (__pyx_v_n_neigh_view.data + __pyx_t_17 * __pyx_v_n_neigh_view.strides[0]) )));
@@ -3429,11 +3429,11 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_23 >= __pyx_v_nlist_view.shape[1])) __pyx_t_18 = 1;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 102, __pyx_L1_error)
+          __PYX_ERR(0, 103, __pyx_L1_error)
         }
         *((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nlist_view.data + __pyx_t_22 * __pyx_v_nlist_view.strides[0]) ) + __pyx_t_23 * __pyx_v_nlist_view.strides[1]) )) = __pyx_v_i;
 
-        /* "peridynamics/neighbour_list.pyx":103
+        /* "peridynamics/neighbour_list.pyx":104
  *                 # Add i as a neighbour of j
  *                 nlist_view[j, n_neigh_view[j]] = i
  *                 n_neigh_view[j] = n_neigh_view[j] + 1             # <<<<<<<<<<<<<<
@@ -3448,7 +3448,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_17 >= __pyx_v_n_neigh_view.shape[0])) __pyx_t_18 = 0;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 103, __pyx_L1_error)
+          __PYX_ERR(0, 104, __pyx_L1_error)
         }
         __pyx_t_24 = __pyx_v_j;
         __pyx_t_18 = -1;
@@ -3458,11 +3458,11 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
         } else if (unlikely(__pyx_t_24 >= __pyx_v_n_neigh_view.shape[0])) __pyx_t_18 = 0;
         if (unlikely(__pyx_t_18 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_18);
-          __PYX_ERR(0, 103, __pyx_L1_error)
+          __PYX_ERR(0, 104, __pyx_L1_error)
         }
         *((int *) ( /* dim=0 */ (__pyx_v_n_neigh_view.data + __pyx_t_24 * __pyx_v_n_neigh_view.strides[0]) )) = ((*((int *) ( /* dim=0 */ (__pyx_v_n_neigh_view.data + __pyx_t_17 * __pyx_v_n_neigh_view.strides[0]) ))) + 1);
 
-        /* "peridynamics/neighbour_list.pyx":97
+        /* "peridynamics/neighbour_list.pyx":98
  *     for i in range(nnodes-1):
  *         for j in range(i+1, nnodes):
  *             if ceuclid(r[i], r[j]) < horizon:             # <<<<<<<<<<<<<<
@@ -3473,7 +3473,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
     }
   }
 
-  /* "peridynamics/neighbour_list.pyx":105
+  /* "peridynamics/neighbour_list.pyx":106
  *                 n_neigh_view[j] = n_neigh_view[j] + 1
  * 
  *     return nlist, n_neigh             # <<<<<<<<<<<<<<
@@ -3481,7 +3481,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
  * 
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 105, __pyx_L1_error)
+  __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 106, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_INCREF(__pyx_v_nlist);
   __Pyx_GIVEREF(__pyx_v_nlist);
@@ -3493,12 +3493,12 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
   __pyx_t_5 = 0;
   goto __pyx_L0;
 
-  /* "peridynamics/neighbour_list.pyx":69
+  /* "peridynamics/neighbour_list.pyx":70
  * 
  * 
- * def create_neighbour_list(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
+ * def create_neighbour_list_cl(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
  *     """
- *     Build a neighbour list.
+ *     Build a neighbour list for the OpenCl implementation
  */
 
   /* function exit code */
@@ -3512,7 +3512,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
   __PYX_XDEC_MEMVIEW(&__pyx_t_7, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_t_14, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_t_15, 1);
-  __Pyx_AddTraceback("peridynamics.neighbour_list.create_neighbour_list", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("peridynamics.neighbour_list.create_neighbour_list_cl", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_nlist);
@@ -3527,7 +3527,7 @@ __pyx_t_16 = ((__pyx_f_12peridynamics_7spatial_ceuclid(__pyx_t_14, __pyx_t_15) <
   return __pyx_r;
 }
 
-/* "peridynamics/neighbour_list.pyx":108
+/* "peridynamics/neighbour_list.pyx":109
  * 
  * 
  * def create_crack(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):             # <<<<<<<<<<<<<<
@@ -3574,17 +3574,17 @@ static PyObject *__pyx_pw_12peridynamics_14neighbour_list_7create_crack(PyObject
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_nlist)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("create_crack", 1, 3, 3, 1); __PYX_ERR(0, 108, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("create_crack", 1, 3, 3, 1); __PYX_ERR(0, 109, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_n_neigh)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("create_crack", 1, 3, 3, 2); __PYX_ERR(0, 108, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("create_crack", 1, 3, 3, 2); __PYX_ERR(0, 109, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "create_crack") < 0)) __PYX_ERR(0, 108, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "create_crack") < 0)) __PYX_ERR(0, 109, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
       goto __pyx_L5_argtuple_error;
@@ -3593,13 +3593,13 @@ static PyObject *__pyx_pw_12peridynamics_14neighbour_list_7create_crack(PyObject
       values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
       values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
     }
-    __pyx_v_crack = __Pyx_PyObject_to_MemoryviewSlice_dsds_int(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_crack.memview)) __PYX_ERR(0, 108, __pyx_L3_error)
-    __pyx_v_nlist = __Pyx_PyObject_to_MemoryviewSlice_dsds_int(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_nlist.memview)) __PYX_ERR(0, 108, __pyx_L3_error)
-    __pyx_v_n_neigh = __Pyx_PyObject_to_MemoryviewSlice_ds_int(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_n_neigh.memview)) __PYX_ERR(0, 108, __pyx_L3_error)
+    __pyx_v_crack = __Pyx_PyObject_to_MemoryviewSlice_dsds_int(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_crack.memview)) __PYX_ERR(0, 109, __pyx_L3_error)
+    __pyx_v_nlist = __Pyx_PyObject_to_MemoryviewSlice_dsds_int(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_nlist.memview)) __PYX_ERR(0, 109, __pyx_L3_error)
+    __pyx_v_n_neigh = __Pyx_PyObject_to_MemoryviewSlice_ds_int(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_n_neigh.memview)) __PYX_ERR(0, 109, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("create_crack", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 108, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("create_crack", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 109, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("peridynamics.neighbour_list.create_crack", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -3641,7 +3641,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("create_crack", 0);
 
-  /* "peridynamics/neighbour_list.pyx":120
+  /* "peridynamics/neighbour_list.pyx":121
  *     :type n_neigh: :class:`numpy.ndarray`
  *     """
  *     cdef int n = crack.shape[0]             # <<<<<<<<<<<<<<
@@ -3650,7 +3650,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
  */
   __pyx_v_n = (__pyx_v_crack.shape[0]);
 
-  /* "peridynamics/neighbour_list.pyx":124
+  /* "peridynamics/neighbour_list.pyx":125
  *     cdef int icrack, i, j, neigh
  * 
  *     for icrack in range(n):             # <<<<<<<<<<<<<<
@@ -3662,7 +3662,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_icrack = __pyx_t_3;
 
-    /* "peridynamics/neighbour_list.pyx":125
+    /* "peridynamics/neighbour_list.pyx":126
  * 
  *     for icrack in range(n):
  *         i = crack[icrack][0]             # <<<<<<<<<<<<<<
@@ -3682,11 +3682,11 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
     } else if (unlikely(__pyx_t_5 >= __pyx_v_crack.shape[1])) __pyx_t_6 = 1;
     if (unlikely(__pyx_t_6 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_6);
-      __PYX_ERR(0, 125, __pyx_L1_error)
+      __PYX_ERR(0, 126, __pyx_L1_error)
     }
     __pyx_v_i = (*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_crack.data + __pyx_t_4 * __pyx_v_crack.strides[0]) ) + __pyx_t_5 * __pyx_v_crack.strides[1]) )));
 
-    /* "peridynamics/neighbour_list.pyx":126
+    /* "peridynamics/neighbour_list.pyx":127
  *     for icrack in range(n):
  *         i = crack[icrack][0]
  *         j = crack[icrack][1]             # <<<<<<<<<<<<<<
@@ -3706,11 +3706,11 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
     } else if (unlikely(__pyx_t_4 >= __pyx_v_crack.shape[1])) __pyx_t_6 = 1;
     if (unlikely(__pyx_t_6 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_6);
-      __PYX_ERR(0, 126, __pyx_L1_error)
+      __PYX_ERR(0, 127, __pyx_L1_error)
     }
     __pyx_v_j = (*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_crack.data + __pyx_t_5 * __pyx_v_crack.strides[0]) ) + __pyx_t_4 * __pyx_v_crack.strides[1]) )));
 
-    /* "peridynamics/neighbour_list.pyx":129
+    /* "peridynamics/neighbour_list.pyx":130
  * 
  *         # Iterate through i's neighbour list until j is found
  *         for neigh in range(n_neigh[i]):             # <<<<<<<<<<<<<<
@@ -3725,14 +3725,14 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
     } else if (unlikely(__pyx_t_4 >= __pyx_v_n_neigh.shape[0])) __pyx_t_6 = 0;
     if (unlikely(__pyx_t_6 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_6);
-      __PYX_ERR(0, 129, __pyx_L1_error)
+      __PYX_ERR(0, 130, __pyx_L1_error)
     }
     __pyx_t_6 = (*((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_4 * __pyx_v_n_neigh.strides[0]) )));
     __pyx_t_7 = __pyx_t_6;
     for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
       __pyx_v_neigh = __pyx_t_8;
 
-      /* "peridynamics/neighbour_list.pyx":130
+      /* "peridynamics/neighbour_list.pyx":131
  *         # Iterate through i's neighbour list until j is found
  *         for neigh in range(n_neigh[i]):
  *             if nlist[i][neigh] == j:             # <<<<<<<<<<<<<<
@@ -3752,12 +3752,12 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
       } else if (unlikely(__pyx_t_5 >= __pyx_v_nlist.shape[1])) __pyx_t_9 = 1;
       if (unlikely(__pyx_t_9 != -1)) {
         __Pyx_RaiseBufferIndexError(__pyx_t_9);
-        __PYX_ERR(0, 130, __pyx_L1_error)
+        __PYX_ERR(0, 131, __pyx_L1_error)
       }
       __pyx_t_10 = (((*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nlist.data + __pyx_t_4 * __pyx_v_nlist.strides[0]) ) + __pyx_t_5 * __pyx_v_nlist.strides[1]) ))) == __pyx_v_j) != 0);
       if (__pyx_t_10) {
 
-        /* "peridynamics/neighbour_list.pyx":133
+        /* "peridynamics/neighbour_list.pyx":134
  *                 # Remove this neighbour by replacing it with the last neighbour
  *                 # on the list, then reducing the number of neighbours by 1
  *                 nlist[i, neigh] = nlist[i, n_neigh[i]-1]             # <<<<<<<<<<<<<<
@@ -3772,7 +3772,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
         } else if (unlikely(__pyx_t_5 >= __pyx_v_n_neigh.shape[0])) __pyx_t_9 = 0;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 133, __pyx_L1_error)
+          __PYX_ERR(0, 134, __pyx_L1_error)
         }
         __pyx_t_4 = __pyx_v_i;
         __pyx_t_11 = ((*((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_5 * __pyx_v_n_neigh.strides[0]) ))) - 1);
@@ -3787,7 +3787,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
         } else if (unlikely(__pyx_t_11 >= __pyx_v_nlist.shape[1])) __pyx_t_9 = 1;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 133, __pyx_L1_error)
+          __PYX_ERR(0, 134, __pyx_L1_error)
         }
         __pyx_t_12 = __pyx_v_i;
         __pyx_t_13 = __pyx_v_neigh;
@@ -3802,11 +3802,11 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
         } else if (unlikely(__pyx_t_13 >= __pyx_v_nlist.shape[1])) __pyx_t_9 = 1;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 133, __pyx_L1_error)
+          __PYX_ERR(0, 134, __pyx_L1_error)
         }
         *((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nlist.data + __pyx_t_12 * __pyx_v_nlist.strides[0]) ) + __pyx_t_13 * __pyx_v_nlist.strides[1]) )) = (*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nlist.data + __pyx_t_4 * __pyx_v_nlist.strides[0]) ) + __pyx_t_11 * __pyx_v_nlist.strides[1]) )));
 
-        /* "peridynamics/neighbour_list.pyx":134
+        /* "peridynamics/neighbour_list.pyx":135
  *                 # on the list, then reducing the number of neighbours by 1
  *                 nlist[i, neigh] = nlist[i, n_neigh[i]-1]
  *                 n_neigh[i] = n_neigh[i] - 1             # <<<<<<<<<<<<<<
@@ -3821,7 +3821,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
         } else if (unlikely(__pyx_t_5 >= __pyx_v_n_neigh.shape[0])) __pyx_t_9 = 0;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 134, __pyx_L1_error)
+          __PYX_ERR(0, 135, __pyx_L1_error)
         }
         __pyx_t_11 = __pyx_v_i;
         __pyx_t_9 = -1;
@@ -3831,11 +3831,11 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
         } else if (unlikely(__pyx_t_11 >= __pyx_v_n_neigh.shape[0])) __pyx_t_9 = 0;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 134, __pyx_L1_error)
+          __PYX_ERR(0, 135, __pyx_L1_error)
         }
         *((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_11 * __pyx_v_n_neigh.strides[0]) )) = ((*((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_5 * __pyx_v_n_neigh.strides[0]) ))) - 1);
 
-        /* "peridynamics/neighbour_list.pyx":135
+        /* "peridynamics/neighbour_list.pyx":136
  *                 nlist[i, neigh] = nlist[i, n_neigh[i]-1]
  *                 n_neigh[i] = n_neigh[i] - 1
  *                 break             # <<<<<<<<<<<<<<
@@ -3844,7 +3844,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
  */
         goto __pyx_L6_break;
 
-        /* "peridynamics/neighbour_list.pyx":130
+        /* "peridynamics/neighbour_list.pyx":131
  *         # Iterate through i's neighbour list until j is found
  *         for neigh in range(n_neigh[i]):
  *             if nlist[i][neigh] == j:             # <<<<<<<<<<<<<<
@@ -3855,7 +3855,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
     }
     __pyx_L6_break:;
 
-    /* "peridynamics/neighbour_list.pyx":138
+    /* "peridynamics/neighbour_list.pyx":139
  * 
  *         # Iterate through j's neighbour list until i is found
  *         for neigh in range(n_neigh[j]):             # <<<<<<<<<<<<<<
@@ -3870,14 +3870,14 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
     } else if (unlikely(__pyx_t_5 >= __pyx_v_n_neigh.shape[0])) __pyx_t_6 = 0;
     if (unlikely(__pyx_t_6 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_6);
-      __PYX_ERR(0, 138, __pyx_L1_error)
+      __PYX_ERR(0, 139, __pyx_L1_error)
     }
     __pyx_t_6 = (*((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_5 * __pyx_v_n_neigh.strides[0]) )));
     __pyx_t_7 = __pyx_t_6;
     for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
       __pyx_v_neigh = __pyx_t_8;
 
-      /* "peridynamics/neighbour_list.pyx":139
+      /* "peridynamics/neighbour_list.pyx":140
  *         # Iterate through j's neighbour list until i is found
  *         for neigh in range(n_neigh[j]):
  *             if nlist[j][neigh] == i:             # <<<<<<<<<<<<<<
@@ -3897,12 +3897,12 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
       } else if (unlikely(__pyx_t_4 >= __pyx_v_nlist.shape[1])) __pyx_t_9 = 1;
       if (unlikely(__pyx_t_9 != -1)) {
         __Pyx_RaiseBufferIndexError(__pyx_t_9);
-        __PYX_ERR(0, 139, __pyx_L1_error)
+        __PYX_ERR(0, 140, __pyx_L1_error)
       }
       __pyx_t_10 = (((*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nlist.data + __pyx_t_5 * __pyx_v_nlist.strides[0]) ) + __pyx_t_4 * __pyx_v_nlist.strides[1]) ))) == __pyx_v_i) != 0);
       if (__pyx_t_10) {
 
-        /* "peridynamics/neighbour_list.pyx":142
+        /* "peridynamics/neighbour_list.pyx":143
  *                 # Remove this neighbour by replacing it with the last neighbour
  *                 # on the list, then reducing the number of neighbours by 1
  *                 nlist[j, neigh] = nlist[j, n_neigh[j]-1]             # <<<<<<<<<<<<<<
@@ -3917,7 +3917,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
         } else if (unlikely(__pyx_t_4 >= __pyx_v_n_neigh.shape[0])) __pyx_t_9 = 0;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 142, __pyx_L1_error)
+          __PYX_ERR(0, 143, __pyx_L1_error)
         }
         __pyx_t_5 = __pyx_v_j;
         __pyx_t_14 = ((*((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_4 * __pyx_v_n_neigh.strides[0]) ))) - 1);
@@ -3932,7 +3932,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
         } else if (unlikely(__pyx_t_14 >= __pyx_v_nlist.shape[1])) __pyx_t_9 = 1;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 142, __pyx_L1_error)
+          __PYX_ERR(0, 143, __pyx_L1_error)
         }
         __pyx_t_15 = __pyx_v_j;
         __pyx_t_16 = __pyx_v_neigh;
@@ -3947,11 +3947,11 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
         } else if (unlikely(__pyx_t_16 >= __pyx_v_nlist.shape[1])) __pyx_t_9 = 1;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 142, __pyx_L1_error)
+          __PYX_ERR(0, 143, __pyx_L1_error)
         }
         *((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nlist.data + __pyx_t_15 * __pyx_v_nlist.strides[0]) ) + __pyx_t_16 * __pyx_v_nlist.strides[1]) )) = (*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nlist.data + __pyx_t_5 * __pyx_v_nlist.strides[0]) ) + __pyx_t_14 * __pyx_v_nlist.strides[1]) )));
 
-        /* "peridynamics/neighbour_list.pyx":143
+        /* "peridynamics/neighbour_list.pyx":144
  *                 # on the list, then reducing the number of neighbours by 1
  *                 nlist[j, neigh] = nlist[j, n_neigh[j]-1]
  *                 n_neigh[j] = n_neigh[j] - 1             # <<<<<<<<<<<<<<
@@ -3965,7 +3965,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
         } else if (unlikely(__pyx_t_4 >= __pyx_v_n_neigh.shape[0])) __pyx_t_9 = 0;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 143, __pyx_L1_error)
+          __PYX_ERR(0, 144, __pyx_L1_error)
         }
         __pyx_t_14 = __pyx_v_j;
         __pyx_t_9 = -1;
@@ -3975,18 +3975,18 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
         } else if (unlikely(__pyx_t_14 >= __pyx_v_n_neigh.shape[0])) __pyx_t_9 = 0;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 143, __pyx_L1_error)
+          __PYX_ERR(0, 144, __pyx_L1_error)
         }
         *((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_14 * __pyx_v_n_neigh.strides[0]) )) = ((*((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_4 * __pyx_v_n_neigh.strides[0]) ))) - 1);
 
-        /* "peridynamics/neighbour_list.pyx":144
+        /* "peridynamics/neighbour_list.pyx":145
  *                 nlist[j, neigh] = nlist[j, n_neigh[j]-1]
  *                 n_neigh[j] = n_neigh[j] - 1
  *                 break             # <<<<<<<<<<<<<<
  */
         goto __pyx_L9_break;
 
-        /* "peridynamics/neighbour_list.pyx":139
+        /* "peridynamics/neighbour_list.pyx":140
  *         # Iterate through j's neighbour list until i is found
  *         for neigh in range(n_neigh[j]):
  *             if nlist[j][neigh] == i:             # <<<<<<<<<<<<<<
@@ -3998,7 +3998,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack(CYTHON_U
     __pyx_L9_break:;
   }
 
-  /* "peridynamics/neighbour_list.pyx":108
+  /* "peridynamics/neighbour_list.pyx":109
  * 
  * 
  * def create_crack(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):             # <<<<<<<<<<<<<<
@@ -17833,8 +17833,8 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_kp_s_contiguous_and_indirect, __pyx_k_contiguous_and_indirect, sizeof(__pyx_k_contiguous_and_indirect), 0, 0, 1, 0},
   {&__pyx_n_s_crack, __pyx_k_crack, sizeof(__pyx_k_crack), 0, 0, 1, 1},
   {&__pyx_n_s_create_crack, __pyx_k_create_crack, sizeof(__pyx_k_create_crack), 0, 0, 1, 1},
-  {&__pyx_n_s_create_neighbour_list, __pyx_k_create_neighbour_list, sizeof(__pyx_k_create_neighbour_list), 0, 0, 1, 1},
-  {&__pyx_n_s_create_neighbour_list_superceded, __pyx_k_create_neighbour_list_superceded, sizeof(__pyx_k_create_neighbour_list_superceded), 0, 0, 1, 1},
+  {&__pyx_n_s_create_neighbour_list_cl, __pyx_k_create_neighbour_list_cl, sizeof(__pyx_k_create_neighbour_list_cl), 0, 0, 1, 1},
+  {&__pyx_n_s_create_neighbour_list_cython, __pyx_k_create_neighbour_list_cython, sizeof(__pyx_k_create_neighbour_list_cython), 0, 0, 1, 1},
   {&__pyx_n_s_dict, __pyx_k_dict, sizeof(__pyx_k_dict), 0, 0, 1, 1},
   {&__pyx_n_s_dtype, __pyx_k_dtype, sizeof(__pyx_k_dtype), 0, 0, 1, 1},
   {&__pyx_n_s_dtype_is_object, __pyx_k_dtype_is_object, sizeof(__pyx_k_dtype_is_object), 0, 0, 1, 1},
@@ -18142,38 +18142,38 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   /* "peridynamics/neighbour_list.pyx":34
  * 
  * 
- * def create_neighbour_list_superceded(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
+ * def create_neighbour_list_cython(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
  *     """
- *     Build a neighbour list.
+ *     Build a neighbour list for the cython implementation.
  */
   __pyx_tuple__21 = PyTuple_Pack(10, __pyx_n_s_r, __pyx_n_s_horizon, __pyx_n_s_size, __pyx_n_s_nnodes, __pyx_n_s_result, __pyx_n_s_result_view, __pyx_n_s_n_neigh, __pyx_n_s_n_neigh_view, __pyx_n_s_i, __pyx_n_s_j); if (unlikely(!__pyx_tuple__21)) __PYX_ERR(0, 34, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__21);
   __Pyx_GIVEREF(__pyx_tuple__21);
-  __pyx_codeobj__22 = (PyObject*)__Pyx_PyCode_New(3, 0, 10, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__21, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_peridynamics_neighbour_list_pyx, __pyx_n_s_create_neighbour_list_superceded, 34, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__22)) __PYX_ERR(0, 34, __pyx_L1_error)
+  __pyx_codeobj__22 = (PyObject*)__Pyx_PyCode_New(3, 0, 10, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__21, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_peridynamics_neighbour_list_pyx, __pyx_n_s_create_neighbour_list_cython, 34, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__22)) __PYX_ERR(0, 34, __pyx_L1_error)
 
-  /* "peridynamics/neighbour_list.pyx":69
+  /* "peridynamics/neighbour_list.pyx":70
  * 
  * 
- * def create_neighbour_list(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
+ * def create_neighbour_list_cl(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
  *     """
- *     Build a neighbour list.
+ *     Build a neighbour list for the OpenCl implementation
  */
-  __pyx_tuple__23 = PyTuple_Pack(12, __pyx_n_s_r, __pyx_n_s_horizon, __pyx_n_s_size, __pyx_n_s_nnodes, __pyx_n_s_nlist, __pyx_n_s_nlist_view, __pyx_n_s_n_neigh, __pyx_n_s_n_neigh_view, __pyx_n_s_material_type_list, __pyx_n_s_material_type_list_view, __pyx_n_s_i, __pyx_n_s_j); if (unlikely(!__pyx_tuple__23)) __PYX_ERR(0, 69, __pyx_L1_error)
+  __pyx_tuple__23 = PyTuple_Pack(12, __pyx_n_s_r, __pyx_n_s_horizon, __pyx_n_s_size, __pyx_n_s_nnodes, __pyx_n_s_nlist, __pyx_n_s_nlist_view, __pyx_n_s_n_neigh, __pyx_n_s_n_neigh_view, __pyx_n_s_material_type_list, __pyx_n_s_material_type_list_view, __pyx_n_s_i, __pyx_n_s_j); if (unlikely(!__pyx_tuple__23)) __PYX_ERR(0, 70, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__23);
   __Pyx_GIVEREF(__pyx_tuple__23);
-  __pyx_codeobj__24 = (PyObject*)__Pyx_PyCode_New(3, 0, 12, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__23, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_peridynamics_neighbour_list_pyx, __pyx_n_s_create_neighbour_list, 69, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__24)) __PYX_ERR(0, 69, __pyx_L1_error)
+  __pyx_codeobj__24 = (PyObject*)__Pyx_PyCode_New(3, 0, 12, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__23, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_peridynamics_neighbour_list_pyx, __pyx_n_s_create_neighbour_list_cl, 70, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__24)) __PYX_ERR(0, 70, __pyx_L1_error)
 
-  /* "peridynamics/neighbour_list.pyx":108
+  /* "peridynamics/neighbour_list.pyx":109
  * 
  * 
  * def create_crack(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):             # <<<<<<<<<<<<<<
  *     """
  *     Create a crack by removing selected pairs from the neighbour list.
  */
-  __pyx_tuple__25 = PyTuple_Pack(8, __pyx_n_s_crack, __pyx_n_s_nlist, __pyx_n_s_n_neigh, __pyx_n_s_n, __pyx_n_s_icrack, __pyx_n_s_i, __pyx_n_s_j, __pyx_n_s_neigh); if (unlikely(!__pyx_tuple__25)) __PYX_ERR(0, 108, __pyx_L1_error)
+  __pyx_tuple__25 = PyTuple_Pack(8, __pyx_n_s_crack, __pyx_n_s_nlist, __pyx_n_s_n_neigh, __pyx_n_s_n, __pyx_n_s_icrack, __pyx_n_s_i, __pyx_n_s_j, __pyx_n_s_neigh); if (unlikely(!__pyx_tuple__25)) __PYX_ERR(0, 109, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__25);
   __Pyx_GIVEREF(__pyx_tuple__25);
-  __pyx_codeobj__26 = (PyObject*)__Pyx_PyCode_New(3, 0, 8, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__25, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_peridynamics_neighbour_list_pyx, __pyx_n_s_create_crack, 108, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__26)) __PYX_ERR(0, 108, __pyx_L1_error)
+  __pyx_codeobj__26 = (PyObject*)__Pyx_PyCode_New(3, 0, 8, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__25, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_peridynamics_neighbour_list_pyx, __pyx_n_s_create_crack, 109, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__26)) __PYX_ERR(0, 109, __pyx_L1_error)
 
   /* "View.MemoryView":286
  *         return self.name
@@ -18624,37 +18624,37 @@ if (!__Pyx_RefNanny) {
   /* "peridynamics/neighbour_list.pyx":34
  * 
  * 
- * def create_neighbour_list_superceded(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
+ * def create_neighbour_list_cython(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
  *     """
- *     Build a neighbour list.
+ *     Build a neighbour list for the cython implementation.
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_12peridynamics_14neighbour_list_3create_neighbour_list_superceded, NULL, __pyx_n_s_peridynamics_neighbour_list); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 34, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_12peridynamics_14neighbour_list_3create_neighbour_list_cython, NULL, __pyx_n_s_peridynamics_neighbour_list); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 34, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_create_neighbour_list_superceded, __pyx_t_1) < 0) __PYX_ERR(0, 34, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_create_neighbour_list_cython, __pyx_t_1) < 0) __PYX_ERR(0, 34, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "peridynamics/neighbour_list.pyx":69
+  /* "peridynamics/neighbour_list.pyx":70
  * 
  * 
- * def create_neighbour_list(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
+ * def create_neighbour_list_cl(double[:, :] r, double horizon, int size):             # <<<<<<<<<<<<<<
  *     """
- *     Build a neighbour list.
+ *     Build a neighbour list for the OpenCl implementation
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_12peridynamics_14neighbour_list_5create_neighbour_list, NULL, __pyx_n_s_peridynamics_neighbour_list); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 69, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_12peridynamics_14neighbour_list_5create_neighbour_list_cl, NULL, __pyx_n_s_peridynamics_neighbour_list); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 70, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_create_neighbour_list, __pyx_t_1) < 0) __PYX_ERR(0, 69, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_create_neighbour_list_cl, __pyx_t_1) < 0) __PYX_ERR(0, 70, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "peridynamics/neighbour_list.pyx":108
+  /* "peridynamics/neighbour_list.pyx":109
  * 
  * 
  * def create_crack(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):             # <<<<<<<<<<<<<<
  *     """
  *     Create a crack by removing selected pairs from the neighbour list.
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_12peridynamics_14neighbour_list_7create_crack, NULL, __pyx_n_s_peridynamics_neighbour_list); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 108, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_12peridynamics_14neighbour_list_7create_crack, NULL, __pyx_n_s_peridynamics_neighbour_list); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 109, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_create_crack, __pyx_t_1) < 0) __PYX_ERR(0, 108, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_create_crack, __pyx_t_1) < 0) __PYX_ERR(0, 109, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
   /* "peridynamics/neighbour_list.pyx":1

@@ -16,34 +16,22 @@ class Integrator(ABC):
     integration step.
     """
 
-    def __init__(self, dt, density, damping=1.0):
+    def __init__(self, dt, density, damping=1.0, context=None):
         """
         Create a :class:`Integrator` object.
 
         :arg float dt: The length of time (in seconds [s]) of one time-step.
         :arg float damping: The damping factor. The default is 1.0
         :arg float density: The density of the bulk material in kg/m^3.
+        :arg context: Optional argument for the user to provide a context with
+            a single suitable device, default is `None`.
+        :type context: :class:`pyopencl._cl.Context` or `NoneType`
 
         :returns: A :class:`Integrator` object
         """
         self.dt = dt
         self.damping = damping
         self.density = density
-
-    def build(
-            self, nnodes, degrees_freedom, max_neighbours, nregimes, coords,
-            volume, family, bc_types, bc_values, force_bc_types,
-            force_bc_values, context):
-        """
-        Build OpenCL programs.
-
-        Builds the programs that are common to all integrators and the
-        buffers which are independent of :class:`Model`.simulation parameters.
-        """
-        self.nnodes = nnodes
-        self.degrees_freedom = degrees_freedom
-        self.max_neighbours = max_neighbours
-        self.nregimes = nregimes
 
         # Get an OpenCL context if none was provided
         if context is None:
@@ -62,6 +50,21 @@ class Integrator(ABC):
                                  "floating-point precision")
         # Print out device info
         output_device_info(self.context.devices[0])
+
+    def build(
+            self, nnodes, degrees_freedom, max_neighbours, nregimes, coords,
+            volume, family, bc_types, bc_values, force_bc_types,
+            force_bc_values):
+        """
+        Build OpenCL programs.
+
+        Builds the programs that are common to all integrators and the
+        buffers which are independent of :class:`Model`.simulation parameters.
+        """
+        self.nnodes = nnodes
+        self.degrees_freedom = degrees_freedom
+        self.max_neighbours = max_neighbours
+        self.nregimes = nregimes
 
         kernel_source = open(
             pathlib.Path(__file__).parent.absolute() /
@@ -217,13 +220,16 @@ class Euler(Integrator):
     :math:`d` is a damping factor.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, dt, damping=1.0):
         """
         Create an :class:`Euler` integrator object.
 
         :returns: A :class:`Euler` object
         """
-        super().__init__(*args, **kwargs)
+        self.dt = dt
+        self.damping = damping
+        # Not an OpenCL integrator
+        self.context=None
 
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """Conduct one iteration of the integrator."""
@@ -254,7 +260,7 @@ class Euler(Integrator):
     def build(
             self, nnodes, degrees_freedom, max_neighbours, nregimes, coords,
             volume, family, bc_types, bc_values, force_bc_types,
-            force_bc_values, context):
+            force_bc_values):
         """
         Initiate integrator arrays.
 

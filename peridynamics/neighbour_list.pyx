@@ -31,9 +31,10 @@ def set_family(double[:, :] r, double horizon):
     return result
 
 
-def create_neighbour_list_superceded(double[:, :] r, double horizon, int size):
+def create_neighbour_list_cython(double[:, :] r, double horizon, int size):
     """
-    Build a neighbour list.
+    Build a neighbour list for the cython implementation.
+
     :arg r: The coordinates of all nodes.
     :type r: :class:`numpy.ndarray`
     :arg float horizon: The horizon distance.
@@ -66,9 +67,9 @@ def create_neighbour_list_superceded(double[:, :] r, double horizon, int size):
     return result, n_neigh
 
 
-def create_neighbour_list(double[:, :] r, double horizon, int size):
+def create_neighbour_list_cl(double[:, :] r, double horizon, int size):
     """
-    Build a neighbour list.
+    Build a neighbour list for the OpenCl implementation
 
     :arg r: The coordinates of all nodes.
     :type r: :class:`numpy.ndarray`

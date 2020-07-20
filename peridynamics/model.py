@@ -1,7 +1,8 @@
 """Peridynamics model."""
 from .integrators import Integrator
 from .utilities import calc_build_time, calc_displacement_scale
-from .neighbour_list import (set_family, create_neighbour_list, create_crack)
+from .neighbour_list import (set_family, create_neighbour_list_cl,
+                             create_neighbour_list_cython, create_crack)
 from collections import namedtuple
 import numpy as np
 import pathlib
@@ -111,7 +112,7 @@ class Model(object):
                  initial_crack=[], dimensions=2, bond_type=None,
                  is_displacement_boundary=None, is_forces_boundary=None,
                  is_tip=None, material_types=None, stiffness_corrections=None,
-                 precise_stiffness_correction=None, context=None):
+                 precise_stiffness_correction=None):
         """
         Create a :class:`ModelCLBen` object.
 
@@ -213,9 +214,6 @@ class Model(object):
             using an average nodal volume. Set to None: All stiffness
             corrections are set to 1.0, i.e. no stiffness correction is
             applied.
-        :arg context: Optional argument for the user to provide a context with
-            a single suitable device, default is `None`.
-        :type context: :class:`pyopencl._cl.Context` or `NoneType`
 
         :raises DimensionalityError: when an invalid `dimensions` argument is
             provided.
@@ -318,15 +316,20 @@ class Model(object):
             raise FamilyError(self.family)
 
         if connectivity is None:
-            # Create the neighbourlist
-            # Maximum number of nodes that any one of the nodes is connected
-            # must be a power of 2 (for the OpenCL reduction algorithm)
-            self.max_neighbours = np.intc(
-                        1 << (int(self.family.max() - 1)).bit_length()
+            if integrator.context is not None:
+                # Create the neighbourlist for the OpenCL implementation
+                self.max_neighbours = np.intc(
+                            1 << (int(self.family.max() - 1)).bit_length()
+                        )
+                nlist, n_neigh = create_neighbour_list_cl(
+                    self.coords, horizon, self.max_neighbours
                     )
-            nlist, n_neigh = create_neighbour_list(
-                self.coords, horizon, self.max_neighbours
-                )
+            else:
+                # Create the neighbourlist for the cython implementation
+                self.max_neighbours = np.intc(self.family.max())
+                nlist, n_neigh = create_neighbour_list_cython(
+                    self.coords, horizon, self.max_neighbours
+                    )
             if write_path is not None:
                 self._write_array(self.write_path, "nlist", nlist)
                 self._write_array(self.write_path, "n_neigh", n_neigh)
@@ -431,7 +434,7 @@ class Model(object):
             self.nnodes, self.degrees_freedom, self.max_neighbours,
             self.nregimes, self.coords, self.volume, self.family,
             self.bc_types, self.bc_values, self.force_bc_types,
-            self.force_bc_values, context)
+            self.force_bc_values)
 
     def _read_mesh(self, filename):
         """
