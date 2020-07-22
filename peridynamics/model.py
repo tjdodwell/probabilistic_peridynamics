@@ -228,8 +228,8 @@ class Model(object):
         else:
             self.integrator = integrator
 
-        # If no write path was provided, assign it as None so that model
-        # arrays are not written, otherwise, ensure write_path is a Path object.
+        # If no write path was provided, assign it as None so that model arrays
+        # are not written, otherwise, ensure write_path is a Path objects
         if write_path is None:
             self.write_path = write_path
         else:
@@ -408,17 +408,17 @@ class Model(object):
         if is_forces_boundary is None:
             def is_forces_boundary(x):
                 # Particle does not live on forces boundary
-                bnd = [2, 2, 2]
+                bnd = [None, None, None]
                 return bnd
         if is_displacement_boundary is None:
             def is_displacement_boundary(x):
                 # Particle does not live on displacement boundary
-                bnd = [2, 2, 2]
+                bnd = [None, None, None]
                 return bnd
         if is_tip is None:
             def is_tip(x):
                 # Particle does not live on tip
-                bnd = [2, 2, 2]
+                bnd = [None, None, None]
                 return bnd
 
         # Apply boundary conditions
@@ -738,11 +738,11 @@ class Model(object):
         :rtype: :class:`numpy.float64`
         """
         # Increase load in linear increments
-        if not (build_load_steps is None):
+        if build_load_steps is not None:
             force_bc_magnitude = np.float64(
                 min(1.0, build_load_steps * step) * max_load)
         else:
-            force_bc_magnitude = np.float64(0.0)
+            force_bc_magnitude = np.float64(max_load)
         return force_bc_magnitude
 
     def _increment_displacement(self, coefficients, build_time, step, ease_off,
@@ -784,12 +784,10 @@ class Model(object):
                 # update the host force load scale
                 displacement_bc_magnitude = np.float64(
                     displacement_bc_magnitude)
-        # No user specified build up parameters case
-        elif not (max_displacement_rate is None):
-            # update the host force load scale
+        # No specified build up parameters
+        elif max_displacement_rate is not None:
+            # update the host displacement boundary magnitude
             displacement_bc_magnitude = np.float64(1.0 * max_displacement_rate)
-        else:
-            displacement_bc_magnitude = np.float64(0.0)
         return displacement_bc_magnitude, ease_off
 
     def _set_boundary_conditions(
@@ -832,6 +830,20 @@ class Model(object):
         :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
                       :class:`numpy.ndarray`, :class:`numpy.ndarray`)
         """
+        functions = {'is_displacement_boundary': is_displacement_boundary,
+                     'is_forces_boundary': is_forces_boundary,
+                     'is_tip': is_tip}
+        for function in functions:
+            if not callable(functions[function]):
+                raise TypeError("{} must be a *function*.".format(function))
+            if type(functions[function]([0, 0, 0])) is not list:
+                raise TypeError(
+                    "{} must be a function that returns a *list*.".format(
+                        function))
+            if len(functions[function]([0, 0, 0])) != 3:
+                raise TypeError("{} must return a function that returns a list"
+                                " of length *3* of floats or None")
+
         bc_types = np.zeros(
             (self.nnodes, self.degrees_freedom), dtype=np.intc)
         bc_values = np.zeros(
@@ -875,9 +887,9 @@ class Model(object):
 
     def simulate(self, steps, u=None, ud=None, connectivity=None,
                  regimes=None, critical_stretch=None, bond_stiffness=None,
-                 max_displacement_rate=None, build_displacement=None,
+                 max_displacement_rate=0.0, build_displacement=None,
                  max_displacement=None, build_load_steps=None,
-                 max_load=None, first_step=1, write=None,
+                 max_load=0.0, first_step=1, write=None,
                  write_path=None):
         """
         Simulate the peridynamics model.
@@ -916,13 +928,13 @@ class Model(object):
         :arg float build_displacement: The displacement in [m] over which the
             displacement-time graph is the smooth 5th order polynomial.
         :arg float max_displacement: The final applied displacement in [m].
+            Default is 0.
         :arg float build_load_steps: The inverse of the number of steps
             required to build up to full external force loading.
         :arg float max_load: The maximum total load applied to the loaded
-            nodes.
+            nodes. Default is 0.
         :arg int first_step: The starting step number. This is useful when
-            restarting a simulation, especially if `boundary_function` depends
-            on the absolute step number.
+            restarting a simulation.
         :arg int write: The frequency, in number of steps, to write the system
             to a mesh file by calling :meth:`Model.write_mesh`. If `None` then
             no output is written. Default `None`.
@@ -1009,7 +1021,7 @@ class Model(object):
                 coefficients, build_time, step, ease_off,
                 max_displacement_rate, build_displacement, max_displacement)
 
-        return (u, damage, ud, (nlist, n_neigh), damage_sum_data,
+        return (u, damage, (nlist, n_neigh), ud, damage_sum_data,
                 tip_displacement_data, tip_force_data)
 
     def _simulate_initialise(

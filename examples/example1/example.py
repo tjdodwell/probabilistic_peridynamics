@@ -50,11 +50,10 @@ def is_displacement_boundary(x):
     """
     Return if the particle coordinate is a displacement boundary.
 
-    Function which marks displacement boundary constrained particles
-    2 is no boundary condition (the number here is an arbitrary choice)
-    -1 is displacement loaded IN -ve direction
-    1 is displacement loaded IN +ve direction
-    0 is clamped boundary
+    Function which marks displacement boundary constrained particles. Returns
+    a list (3) for constraint in each direction. None is no boundary condition,
+    -1 is displacement loaded IN -ve direction, 1 is displacement loaded IN +ve
+    direction, 0 is clamped boundary.
     """
     # Particle does not live on a boundary
     bnd = [None, None, None]
@@ -91,9 +90,9 @@ def main():
         profile.enable()
 
     if args.opencl:
-        integrator = EulerOpenCL(dt=1e-3, density=1.0, damping=1.0)
+        integrator = EulerOpenCL(dt=1e-3, damping=1.0)
     else:
-        integrator = Euler(dt=1e-3, density=1.0, damping=1.0)
+        integrator = Euler(dt=1e-3, damping=1.0)
 
     model = Model(
         mesh_file, integrator=integrator, horizon=0.1, critical_stretch=0.005,

@@ -16,7 +16,7 @@ class Integrator(ABC):
     integration step.
     """
 
-    def __init__(self, dt, density, damping=1.0, context=None):
+    def __init__(self, dt, damping=1.0, context=None):
         """
         Create a :class:`Integrator` object.
 
@@ -31,7 +31,6 @@ class Integrator(ABC):
         """
         self.dt = dt
         self.damping = damping
-        self.density = density
 
         # Get an OpenCL context if none was provided
         if context is None:
@@ -98,7 +97,7 @@ class Integrator(ABC):
             np.dtype(np.float64).itemsize * self.max_neighbours)
         self.local_mem_z = cl.LocalMemory(
             np.dtype(np.float64).itemsize * self.max_neighbours)
-         # Read only
+        # Read only
         self.r0_d = cl.Buffer(
             self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=coords)
@@ -187,8 +186,8 @@ class Integrator(ABC):
         queue = self.queue
 
         # Call kernel
-        self.damage_kernel(queue, (self.nnodes,), None, n_neigh_d,
-                               family_d, damage_d)
+        self.damage_kernel(
+            queue, (self.nnodes,), None, n_neigh_d, family_d, damage_d)
         queue.finish()
 
     def write(self, damage, u, ud, nlist, n_neigh):
@@ -229,7 +228,7 @@ class Euler(Integrator):
         self.dt = dt
         self.damping = damping
         # Not an OpenCL integrator
-        self.context=None
+        self.context = None
 
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """Conduct one iteration of the integrator."""
@@ -242,8 +241,9 @@ class Euler(Integrator):
         # Update neighbour list
         self._break_bonds()
 
-    def set_buffers(self, nlist, n_neigh, bond_stiffness,
-            critical_stretch, plus_cs, u, ud, damage, regimes):
+    def set_buffers(
+            self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
+            u, ud, damage, regimes):
         """
         Initiate arrays that are dependent on simulation parameters.
 
@@ -300,10 +300,10 @@ class Euler(Integrator):
 
     def _bond_force(self, force_bc_scale):
         """Calculate the force due to bonds acting on each node."""
-        ud = bond_force(self.coords+self.u, self.coords, self.nlist,
-                             self.n_neigh, self.volume, self.bond_stiffness,
-                             self.force_bc_values, self.force_bc_types,
-                             force_bc_scale)
+        ud = bond_force(
+            self.coords+self.u, self.coords, self.nlist, self.n_neigh,
+            self.volume, self.bond_stiffness, self.force_bc_values,
+            self.force_bc_types, force_bc_scale)
         return ud
 
     def write(self, damage, u, ud, nlist, n_neigh):

@@ -1,7 +1,7 @@
 """Shared definitions for test modules."""
 from ..cl import get_context
 from ..model import Model, initial_crack_helper
-from ..model_cl import ModelCL
+from ..integrators import Euler, EulerOpenCL
 import numpy as np
 import pathlib
 import pytest
@@ -22,7 +22,7 @@ context_available = pytest.mark.skipif(
 
 @pytest.fixture(
     scope="session",
-    params=[Model, pytest.param(ModelCL, marks=context_available)]
+    params=[Euler, pytest.param(EulerOpenCL, marks=context_available)]
     )
 def simple_model(data_path, request):
     """Create a simple peridynamics Model and ModelCL object."""
@@ -50,30 +50,38 @@ def simple_model(data_path, request):
                 output = 1
         return output
 
-    # Create model
-    model = request.param(mesh_file, horizon=0.1, critical_stretch=0.005,
-                          bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
-                          initial_crack=is_crack)
+    def is_displacement_boundary(x):
+        """Return if the particle coordinate is a displacement boundary."""
+        # Particle does not live on a boundary
+        bnd = [None, None, None]
+        # Particle does live on boundary
+        if x[0] < 1.5 * 0.1:
+            bnd[0] = -1
+        elif x[0] > 1.0 - 1.5 * 0.1:
+            bnd[0] = 1
+        return bnd
 
-    # Set left-hand side and right-hand side of boundary
-    model.lhs = np.nonzero(model.coords[:, 0] < 1.5*model.horizon)
-    model.rhs = np.nonzero(model.coords[:, 0] > 1.0 - 1.5*model.horizon)
+    # Initiate integrator
+    euler = request.param(dt=1e-3)
+
+    # Create model
+    model = Model(mesh_file, integrator=euler, horizon=0.1,
+                  critical_stretch=0.005,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                  initial_crack=is_crack,
+                  is_displacement_boundary=is_displacement_boundary)
 
     return model
 
 
 @pytest.fixture(scope="session")
-def simple_boundary_function():
-    """Return a simple boundary function."""
-    def boundary_function(model, u, step):
-        load_rate = 0.00001
-
-        u[model.lhs, 1:3] = 0.
-        u[model.rhs, 1:3] = 0.
-
-        extension = 0.5 * step * load_rate
-        u[model.lhs, 0] = -extension
-        u[model.rhs, 0] = extension
-
-        return u
-    return boundary_function
+def simple_displacement_boundary(x):
+    """Return a simple displacement boundary function."""
+    # Particle does not live on a boundary
+    bnd = [None, None, None]
+    # Particle does live on boundary
+    if x[0] < 1.5 * 0.1:
+        bnd[0] = -1
+    elif x[0] > 1.0 - 1.5 * 0.1:
+        bnd[0] = 1
+    return bnd

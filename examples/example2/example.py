@@ -120,7 +120,6 @@ def main():
     dx = dxs[args.mesh_file_name]
 
     # Constants
-    density = 2400
     youngs_modulus = 1. * 22e9
     poisson_ratio = 0.25
     strain_energy_release_rate = 100
@@ -152,9 +151,9 @@ def main():
         profile.enable()
 
     if args.opencl:
-        integrator = EulerOpenCL(dt=dt, density=density, damping=1.0)
+        integrator = EulerOpenCL(dt=dt, damping=1.0)
     else:
-        integrator = Euler(dt=dt, density=density, damping=1.0)
+        integrator = Euler(dt=dt, damping=1.0)
 
     model = Model(
         mesh_file, integrator=integrator, horizon=horizon,

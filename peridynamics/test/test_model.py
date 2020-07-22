@@ -2,8 +2,7 @@
 from .conftest import context_available
 from ..model import (Model, DimensionalityError, FamilyError,
                      initial_crack_helper, InvalidIntegrator)
-from ..model_cl import ModelCL
-from ..integrators import Euler
+from ..integrators import Euler, EulerOpenCL
 import meshio
 import numpy as np
 import pytest
@@ -11,45 +10,57 @@ import pytest
 
 @pytest.fixture(
     scope="session",
-    params=[Model, pytest.param(ModelCL, marks=context_available)]
-    )
-def basic_models_2d(data_path, request):
+    params=[Euler, pytest.param(EulerOpenCL, marks=context_available)])
+def basic_models_2d(data_path, request, simple_displacement_boundary):
     """Create a basic 2D model object."""
+
     mesh_file = data_path / "example_mesh.vtk"
-    model = request.param(mesh_file, horizon=0.1, critical_stretch=0.05,
-                          bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
+    euler = request.param(dt=1e-3)
+    model = Model(mesh_file, integrator=euler, horizon=0.1,
+                  critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                  is_displacement_boundary=simple_displacement_boundary)
     return model
 
 
 @pytest.fixture()
-def basic_model_2d(data_path):
+def basic_model_2d(data_path, simple_displacement_boundary):
     """Create a basic 2D model object."""
     mesh_file = data_path / "example_mesh.vtk"
-    model = Model(mesh_file, horizon=0.1, critical_stretch=0.05,
-                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
+
+    euler = Euler(dt=1e-3)
+    model = Model(mesh_file, integrator=euler, horizon=0.1,
+                  critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                  is_displacement_boundary=simple_displacement_boundary)
     return model
 
 
 @pytest.fixture(
     scope="session",
-    params=[Model, pytest.param(ModelCL, marks=context_available)]
-    )
-def basic_models_3d(data_path, request):
-    """Create a basic 3D model object."""
+    params=[Euler, pytest.param(EulerOpenCL, marks=context_available)])
+def basic_models_3d(data_path, simple_displacement_boundary, request):
+    """Create a basic 2D model object."""
     mesh_file = data_path / "example_mesh_3d.vtk"
-    model = request.param(mesh_file, horizon=0.1, critical_stretch=0.05,
-                          bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
-                          dimensions=3)
+    euler = request.param(dt=1e-3)
+    model = Model(mesh_file, integrator=euler, horizon=0.1,
+                  critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                  dimensions=3,
+                  is_displacement_boundary=simple_displacement_boundary)
     return model
 
 
 @pytest.fixture()
-def basic_model_3d(data_path):
+def basic_model_3d(data_path, simple_displacement_boundary):
     """Create a basic 3D model object."""
     mesh_file = data_path / "example_mesh_3d.vtk"
-    model = Model(mesh_file, horizon=0.1, critical_stretch=0.05,
+    euler = Euler(dt=1e-3)
+    model = Model(mesh_file, integrator=euler, horizon=0.1,
+                  critical_stretch=0.05,
                   bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
-                  dimensions=3)
+                  dimensions=3,
+                  is_displacement_boundary=simple_displacement_boundary)
     return model
 
 
@@ -73,8 +84,10 @@ class TestDimension:
     @pytest.mark.parametrize("dimensions", [1, 4])
     def test_dimensionality_error(self, dimensions):
         """Test invalid dimension arguments."""
+        integrator = Euler(dt=1e-3)
         with pytest.raises(DimensionalityError) as exception:
-            Model("abc.msh", horizon=0.1, critical_stretch=0.05,
+            Model("abc.msh", integrator=integrator,
+                  horizon=0.1, critical_stretch=0.05,
                   bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
                   dimensions=dimensions)
             assert str(dimensions) in exception.value
@@ -339,6 +352,120 @@ class TestForce():
         assert np.all(f[2, [0, 2]] == 0)
 
 
+class TestBoundaryConditions:
+    """Tests for the _set_boundary_conditions method."""
+
+    @pytest.fixture(
+        scope="module",
+        params=[Euler, pytest.param(EulerOpenCL, marks=context_available)])
+    def test_invalid_boundary_function(self, data_path, request):
+        mesh_file = data_path / "example_mesh.vtk"
+        euler = request.param(dt=1e-3)
+        invalid_boundary_function = [None, None, None]
+        with pytest.raises(TypeError) as exception:
+            model = Model(
+                mesh_file, integrator=euler, horizon=0.1,
+                critical_stretch=0.05,
+                bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                is_displacement_boundary=invalid_boundary_function)
+            assert("is_displacement_boundary must be a *function*."
+                   in exception.value)
+
+    @pytest.fixture(
+        scope="module",
+        params=[Euler, pytest.param(EulerOpenCL, marks=context_available)])
+    def test_invalid_boundary_function2(self, data_path, request):
+        mesh_file = data_path / "example_mesh.vtk"
+        euler = request.param(dt=1e-3)
+
+        def invalid_boundary_function():
+            """Return an invalid boundary function."""
+            return 1
+
+        with pytest.raises(TypeError) as exception:
+            model = Model(
+                mesh_file, integrator=euler, horizon=0.1,
+                critical_stretch=0.05,
+                bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                is_displacement_boundary=invalid_boundary_function)
+            assert("is_displacement_boundary must be a function that returns"
+                   + " a *list*." in exception.value)
+
+    @pytest.fixture(
+        scope="module",
+        params=[Euler, pytest.param(EulerOpenCL, marks=context_available)])
+    def test_invalid_boundary_function3(self, data_path, request):
+        mesh_file = data_path / "example_mesh.vtk"
+        euler = request.param(dt=1e-3)
+
+        def invalid_boundary_function():
+            """Return an invalid boundary function."""
+            return [None]
+
+        with pytest.raises(TypeError) as exception:
+            model = Model(
+                mesh_file, integrator=euler, horizon=0.1,
+                critical_stretch=0.05,
+                bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                is_displacement_boundary=invalid_boundary_function)
+            assert("{} must return a function that returns a list"
+                   + " of length *3* of floats or None" in exception.value)
+
+    @pytest.fixture(
+        scope="module",
+        params=[Euler, pytest.param(EulerOpenCL, marks=context_available)])
+    def test_no_boundary_function(self, data_path, request):
+        """Ensure passing no boundary function works correctly."""
+        mesh_file = data_path / "example_mesh.vtk"
+        euler = request.param(dt=1e-3)
+
+        def is_displacement_boundary(x):
+            return [None, None, None]
+
+        model = Model(
+            mesh_file, integrator=euler, horizon=0.1,
+            critical_stretch=0.05,
+            bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+            is_displacement_boundary=is_displacement_boundary)
+
+        u, damage, connectivity = model.simulate(
+            steps=2,
+            max_displacement_rate=0.000005/2
+            )
+
+        model = Model(
+            mesh_file, integrator=euler, horizon=0.1,
+            critical_stretch=0.05,
+            bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
+
+        expected_u, expected_damage, expected_connectivity = model.simulate(
+            steps=2,
+            max_displacement_rate=0.000005/2
+            )
+
+        assert np.all(u == expected_u)
+        assert np.all(damage == expected_damage)
+        assert np.all(connectivity[0] == expected_connectivity[0])
+        assert np.all(connectivity[1] == expected_connectivity[1])
+
+
+class TestIntegrator:
+    """ Tests for the simulate method.
+
+    Further tests of integrator are in test_integrator.py
+    """
+    @pytest.fixture(scope="module")
+    def test_invalid_integrator(self, data_path):
+        """Test passing an invalid integrator to simulate."""
+        mesh_file = data_path / "example_mesh.vtk"
+        invalid_integrator = None
+        with pytest.raises(InvalidIntegrator):
+            model = Model(
+                mesh_file, integrator=invalid_integrator, horizon=0.1,
+                critical_stretch=0.05,
+                bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
+
+
 class TestSimulate:
     """
     Tests for the simulate method.
@@ -346,43 +473,29 @@ class TestSimulate:
     Further tests of simulation are in test_regression.py
     """
 
-    def test_invalid_integrator(self, basic_models_2d):
-        """Test passing an invalid integrator to simulate."""
-        model = basic_models_2d
-
-        with pytest.raises(InvalidIntegrator):
-            model.simulate(10, None)
-
     def test_invalid_connectivity(self, basic_models_2d):
         """Test passing an invalid connectivity argument to simulate."""
-        euler = Euler(dt=1e-3)
         with pytest.raises(TypeError) as exception:
-            basic_models_2d.simulate(10, euler, connectivity=[1, 2, 3])
+            basic_models_2d.simulate(steps=10, connectivity=[1, 2, 3])
             assert "connectivity must be a tuple or None" in exception.value
 
     def test_invalid_connectivity2(self, basic_models_2d):
         """Test passing an invalid connectivity argument to simulate."""
-        euler = Euler(dt=1e-3)
         with pytest.raises(ValueError) as exception:
-            basic_models_2d.simulate(10, euler, connectivity=(1, 2, 3))
+            basic_models_2d.simulate(10, connectivity=(1, 2, 3))
             assert "connectivity must be of size 2" in exception.value
 
     def test_stateless(self, simple_model, simple_boundary_function):
         """Ensure the simulate method does not affect the state of Models."""
         model = simple_model
-        euler = Euler(dt=1e-3)
 
         u, damage, connectivity = model.simulate(
             steps=2,
-            integrator=euler,
-            boundary_function=simple_boundary_function
-            )
+            max_displacement_rate=0.000005/2)
 
         expected_u, expected_damage, expected_connectivity = model.simulate(
             steps=2,
-            integrator=euler,
-            boundary_function=simple_boundary_function
-            )
+            max_displacement_rate=0.000005/2)
 
         assert np.all(u == expected_u)
         assert np.all(damage == expected_damage)
@@ -392,17 +505,14 @@ class TestSimulate:
     def test_restart(self, simple_model, simple_boundary_function):
         """Ensure simulation restarting gives consistent results."""
         model = simple_model
-        euler = Euler(dt=1e-3)
 
         u, damage, connectivity = model.simulate(
             steps=1,
-            integrator=euler,
-            boundary_function=simple_boundary_function
+            max_displacement_rate=0.000005/2
             )
         u, damage, connectivity = model.simulate(
             steps=1,
-            integrator=euler,
-            boundary_function=simple_boundary_function,
+            max_displacement_rate=0.000005/2,
             u=u,
             connectivity=connectivity,
             first_step=2
@@ -410,33 +520,7 @@ class TestSimulate:
 
         expected_u, expected_damage, expected_connectivity = model.simulate(
             steps=2,
-            integrator=euler,
-            boundary_function=simple_boundary_function
-            )
-
-        assert np.all(u == expected_u)
-        assert np.all(damage == expected_damage)
-        assert np.all(connectivity[0] == expected_connectivity[0])
-        assert np.all(connectivity[1] == expected_connectivity[1])
-
-    def test_no_boundary_function(self, simple_model):
-        """Ensure passing no boundary function works correctly."""
-        model = simple_model
-        euler = Euler(dt=1e-3)
-
-        u, damage, connectivity = model.simulate(
-            steps=2,
-            integrator=euler,
-            boundary_function=None
-            )
-
-        def boundary_function(model, u, step):
-            return u
-
-        expected_u, expected_damage, expected_connectivity = model.simulate(
-            steps=2,
-            integrator=euler,
-            boundary_function=boundary_function
+            max_displacement_rate=0.000005/2
             )
 
         assert np.all(u == expected_u)
@@ -447,12 +531,10 @@ class TestSimulate:
     def test_write(self, simple_model, simple_boundary_function, tmp_path):
         """Ensure that the mesh file written by simulate is correct."""
         model = simple_model
-        euler = Euler(dt=1e-3)
 
         u, damage, connectivity = model.simulate(
             steps=1,
-            integrator=euler,
-            boundary_function=simple_boundary_function,
+            max_displacement_rate=0.000005/2,
             write=1,
             write_path=tmp_path
             )
