@@ -1,6 +1,6 @@
 """Tests for the OpenCL kernels."""
 from .conftest import context_available
-from ..cl import get_context, pad, kernel_source
+from ..cl import get_context, pad
 from ..cl.utilities import DOUBLE_FP_SUPPORT
 import numpy as np
 from peridynamics.neighbour_list import (create_neighbour_list_cython,
