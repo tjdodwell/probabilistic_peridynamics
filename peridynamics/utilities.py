@@ -45,9 +45,9 @@ def _calc_midpoint_gradient(T, displacement_scale_rate):
     :rtype: A tuple containing (:type float:, :type tuple:)
     """
     A = np.array([
-        [(1 * T**5) / 1, (1 * T**4) / 1, (1 * T**3) / 1],
-        [(20 * T**3) / 1, (12 * T**2) / 1, (6 * T**1) / 1],
-        [(5 * T**4) / 1, (4 * T**3) / 1, (3 * T**2) / 1]
+        [1 * T**5, 1 * T**4, 1 * T**3],
+        [20 * T**3, 12 * T**2, 6 * T],
+        [5 * T**4, 4 * T**3, 3 * T**2]
         ]
         )
     b = np.array(
@@ -60,7 +60,8 @@ def _calc_midpoint_gradient(T, displacement_scale_rate):
     a = x[0][0]
     b = x[1][0]
     c = x[2][0]
-    midpoint_gradient = (5./16)*a*T**4 + (4./8)*b*T**3 + (3./4)*c*T**2
+    midpoint_gradient = (
+        5 * a * (T / 2)**4 + 4 * b * (T/2)**3 + 3 * c * (T/2)**2)
     coefficients = (a, b, c)
     return(midpoint_gradient, coefficients)
 

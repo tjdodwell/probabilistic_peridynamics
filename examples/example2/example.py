@@ -130,7 +130,6 @@ def main():
                 1. / 2))
     bulk_modulus = youngs_modulus / (3 * (1 - 2 * poisson_ratio))
     bond_stiffness = (18.00 * bulk_modulus) / (np.pi * np.power(horizon, 4))
-    dt = 2.5e-13
 
     # Try reading connectivity, material_types and stiffness_correction files
     volume = read_model(write_path_model, "volume")
@@ -151,9 +150,9 @@ def main():
         profile.enable()
 
     if args.opencl:
-        integrator = EulerOpenCL(dt=dt, damping=1.0)
+        integrator = EulerOpenCL(dt=2.5e-13)
     else:
-        integrator = Euler(dt=dt, damping=1.0)
+        integrator = Euler(dt=2.5e-13)
 
     model = Model(
         mesh_file, integrator=integrator, horizon=horizon,

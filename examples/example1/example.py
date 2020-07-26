@@ -90,9 +90,9 @@ def main():
         profile.enable()
 
     if args.opencl:
-        integrator = EulerOpenCL(dt=1e-3, damping=1.0)
+        integrator = EulerOpenCL(dt=1e-3)
     else:
-        integrator = Euler(dt=1e-3, damping=1.0)
+        integrator = Euler(dt=1e-3)
 
     model = Model(
         mesh_file, integrator=integrator, horizon=0.1, critical_stretch=0.005,

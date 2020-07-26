@@ -1,6 +1,6 @@
 """Tests for the OpenCL kernels."""
 from .conftest import context_available
-from ..cl import get_context, pad
+from ..cl import get_context, pad, kernel_source
 from ..cl.utilities import DOUBLE_FP_SUPPORT
 import numpy as np
 from peridynamics.neighbour_list import (create_neighbour_list_cython,
@@ -227,64 +227,101 @@ class TestForce():
         assert np.allclose(force_actual, force_expected)
 
 
+@pytest.fixture
+def basic_model_2d(data_path):
+    """Create a basic 2D model object."""
+    mesh_file = data_path / "example_mesh.vtk"
+    model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
+                    bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
+    return model
+
+
+@pytest.fixture()
+def basic_model_3d(data_path):
+    """Create a basic 3D model object."""
+    mesh_file = data_path / "example_mesh_3d.vtk"
+    model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
+                    bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                    dimensions=3)
+    return model
+
+
+def test_no_context(data_path, monkeypatch):
+    """Test raising error when no suitable device is found."""
+    from .. import model_cl
+
+    # Mock the get_context function to return None as it would if no suitable
+    # device is found.
+    def return_none():
+        return None
+    monkeypatch.setattr(model_cl, "get_context", return_none)
+
+    mesh_file = data_path / "example_mesh.vtk"
+    with pytest.raises(ContextError) as exception:
+        ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
+                bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
+
+        assert "No suitable context was found." in exception.value
+
+
 @context_available
-def test_break_bonds(context, queue, program):
-    """Test neighbour list function."""
-    r0 = np.array([
-        [0.0, 0.0, 0.0],
-        [1.0, 0.0, 0.0],
-        [0.0, 1.0, 0.0],
-        [2.0, 0.0, 0.0],
-        [0.0, 0.0, 1.0],
-        ])
-    horizon = 1.1
-    max_neigh = 3
-    nl, n_neigh = create_neighbour_list(r0, horizon, max_neigh)
+def test_custom_context(data_path):
+    """Test constructing a ModelCL object using the context argument."""
+    mesh_file = data_path / "example_mesh_3d.vtk"
+    context = get_context()
+    model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
+                    bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                    dimensions=3, context=context)
 
-    nl_expected = np.array([
-        [1, 2, 4],
-        [0, 3, 0],
-        [0, 0, 0],
-        [1, 0, 0],
-        [0, 0, 0]
-        ])
-    n_neigh_expected = np.array([3, 2, 1, 1, 1])
+    assert model.context is context
 
-    assert np.all(nl == nl_expected)
-    assert np.all(n_neigh == n_neigh_expected)
 
-    r = np.array([
-        [0.0, 0.0, 0.0],
-        [2.0, 0.0, 0.0],
-        [0.0, 1.0, 0.0],
-        [3.0, 0.0, 0.0],
-        [0.0, 0.0, 2.0],
-        ])
-    critical_strain = 1.0
+def test_invalid_custom_context(data_path):
+    """Test constructing a ModelCL object using the context argument."""
+    mesh_file = data_path / "example_mesh_3d.vtk"
+    with pytest.raises(TypeError) as exception:
+        ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
+                bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                dimensions=3, context=5)
 
-    # Create buffers
-    r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r)
-    r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=r0)
-    nlist_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
-                        hostbuf=nl)
-    n_neigh_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+        assert "context must be a pyopencl Context object" in exception.value
+
+
+def test_initial_damage_2d(basic_model_2d):
+    """Ensure initial damage is zero."""
+    model = basic_model_2d
+    context = model.context
+    queue = model.queue
+    nlist, n_neigh = model.initial_connectivity
+
+    n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                           hostbuf=n_neigh)
+    family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                         hostbuf=model.family)
+    damage = np.empty(n_neigh.shape, dtype=np.float64)
+    damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
 
-    # Call kernel
-    break_bonds = program.break_bonds
-    break_bonds(queue, n_neigh.shape, None, r_d, r0_d, nlist_d, n_neigh_d,
-                np.int32(max_neigh), np.float64(critical_strain))
-    cl.enqueue_copy(queue, nl, nlist_d)
-    cl.enqueue_copy(queue, n_neigh, n_neigh_d)
+    model._damage(n_neigh_d, family_d, damage_d)
+    cl.enqueue_copy(queue, damage, damage_d)
 
-    nl_expected = np.array([
-        [2, 2, 4],
-        [3, 3, 0],
-        [0, 0, 0],
-        [1, 0, 0],
-        [0, 0, 0]
-        ])
-    n_neigh_expected = np.array([1, 1, 1, 1, 0])
+    assert np.all(damage == 0)
 
-    assert np.all(nl == nl_expected)
-    assert np.all(n_neigh == n_neigh_expected)
+
+def test_initial_damage_3d(basic_model_3d):
+    """Ensure initial damage is zero."""
+    model = basic_model_3d
+    context = model.context
+    queue = model.queue
+    nlist, n_neigh = model.initial_connectivity
+
+    n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                          hostbuf=n_neigh)
+    family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                         hostbuf=model.family)
+    damage = np.empty(n_neigh.shape, dtype=np.float64)
+    damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
+
+    model._damage(n_neigh_d, family_d, damage_d)
+    cl.enqueue_copy(queue, damage, damage_d)
+
+    assert np.all(damage == 0)

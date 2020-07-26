@@ -12,17 +12,22 @@ class Integrator(ABC):
     """
     Base class for integrators.
 
-    All integrators must define a call method which performs one
-    integration step.
+    All integrators must define an init method, which may or may not
+    use Integrator as a parent class using `super()`. They must also define a
+    call method which performs one integration step, a build_special method
+    which builds the OpenCL programs which are special to the integrator, and a
+    set_special_buffers method which sets the OpenCL buffers which are special
+    to the integrator.
     """
 
-    def __init__(self, dt, damping=1.0, context=None):
+    @abstractmethod
+    def __init__(self, dt, context=None):
         """
         Create a :class:`Integrator` object.
 
+        This method should be implemennted in every concrete integrator.
+
         :arg float dt: The length of time (in seconds [s]) of one time-step.
-        :arg float damping: The damping factor. The default is 1.0
-        :arg float density: The density of the bulk material in kg/m^3.
         :arg context: Optional argument for the user to provide a context with
             a single suitable device, default is `None`.
         :type context: :class:`pyopencl._cl.Context` or `NoneType`
@@ -30,7 +35,6 @@ class Integrator(ABC):
         :returns: A :class:`Integrator` object
         """
         self.dt = dt
-        self.damping = damping
 
         # Get an OpenCL context if none was provided
         if context is None:
@@ -49,6 +53,30 @@ class Integrator(ABC):
                                  "floating-point precision")
         # Print out device info
         output_device_info(self.context.devices[0])
+
+    @abstractmethod
+    def __call__(self):
+        """
+        Conduct one iteraction of the integrator.
+
+        This method should be implemennted in every concrete integrator.
+        """
+
+    @abstractmethod
+    def _build_special(self):
+        """
+        Build OpenCL kernels special to the chosen integrator.
+
+        This method should be implemented in every concrete integrator.
+        """
+
+    @abstractmethod
+    def _set_special_buffers(self):
+        """
+        Set buffers that are special to the chosen integrator.
+
+        This method should be implemented in every concrete integrator.
+        """
 
     def build(
             self, nnodes, degrees_freedom, max_neighbours, nregimes, coords,
@@ -157,30 +185,6 @@ class Integrator(ABC):
 
         self._set_special_buffers()
 
-    @abstractmethod
-    def __call__(self):
-        """
-        Conduct one iteraction of the integrator.
-
-        This method should be implemennted in every concrete integrator.
-        """
-
-    @abstractmethod
-    def _set_special_buffers(self):
-        """
-        Set buffers that are special to the chosen integrator.
-
-        This method should be implemented in every concrete integrator.
-        """
-
-    @abstractmethod
-    def _build_special(self):
-        """
-        Build OpenCL kernels special to the chosen integrator.
-
-        This method should be implemented in every concrete integrator.
-        """
-
     def _damage(self, n_neigh_d, family_d, damage_d):
         """Calculate bond damage."""
         queue = self.queue
@@ -212,21 +216,19 @@ class Euler(Integrator):
     integration is given by,
 
     .. math::
-        u(t + \delta t) = u(t) + \delta t f(t) d
+        u(t + \delta t) = u(t) + \delta t f(t)
 
     where :math:`u(t)` is the displacement at time :math:`t`, :math:`f(t)` is
     the force at time :math:`t`, :math:`\delta t` is the time step and
-    :math:`d` is a damping factor.
     """
 
-    def __init__(self, dt, damping=1.0):
+    def __init__(self, dt):
         """
         Create an :class:`Euler` integrator object.
 
         :returns: A :class:`Euler` object
         """
         self.dt = dt
-        self.damping = damping
         # Not an OpenCL integrator
         self.context = None
 
@@ -324,7 +326,6 @@ class EulerOpenCL(Integrator):
 
     where :math:`u(t)` is the displacement at time :math:`t`, :math:`f(t)` is
     the force at time :math:`t`, :math:`\delta t` is the time step and
-    :math:`d` is a damping factor.
     """
 
     def __init__(self, *args, **kwargs):
