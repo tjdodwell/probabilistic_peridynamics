@@ -2,7 +2,8 @@
 from .integrators import Integrator
 from .utilities import calc_build_time, calc_displacement_scale, write_array
 from .neighbour_list import (set_family, create_neighbour_list_cl,
-                             create_neighbour_list_cython, create_crack)
+                             create_neighbour_list_cython, create_crack_cython,
+                             create_crack_cl)
 from collections import namedtuple
 import numpy as np
 import pathlib
@@ -314,73 +315,108 @@ class Model(object):
         if np.any(self.family == 0):
             raise FamilyError(self.family)
 
-        if connectivity is None:
-            if integrator.context is not None:
-                # Create the neighbourlist for the OpenCL implementation
-                self.max_neighbours = np.intc(
-                            1 << (int(self.family.max() - 1)).bit_length()
-                        )
-                nlist, n_neigh = create_neighbour_list_cl(
-                    self.coords, horizon, self.max_neighbours
-                    )
-            else:
+        if integrator.context is None:
+            warnings.warn("Some features, such as stiffness correction factors"
+                          ", composites materials, and  non-linear damage "
+                          "models not supported by this integrator. Use an "
+                          "OpenCL integrator for these features, and a faster"
+                          " simulation time.")
+            if connectivity is None:
                 # Create the neighbourlist for the cython implementation
                 self.max_neighbours = np.intc(self.family.max())
                 nlist, n_neigh = create_neighbour_list_cython(
                     self.coords, horizon, self.max_neighbours
                     )
-            if write_path is not None:
-                self.write_array(self.write_path, "nlist", nlist)
-                self.write_array(self.write_path, "n_neigh", n_neigh)
-        elif type(connectivity) == tuple:
-            if len(connectivity) != 2:
-                raise ValueError("connectivity must be of size 2, but was"
-                                 "size {}".format(len(connectivity)))
-            nlist, n_neigh = connectivity
-            self.max_neighbours = np.intc(
-                        np.shape(nlist)[1]
+            elif type(connectivity) == tuple:
+                if len(connectivity) != 2:
+                    raise ValueError("connectivity must be of size 2, but was"
+                                     "size {}".format(len(connectivity)))
+                nlist, n_neigh = connectivity
+                self.max_neighbours = np.intc(
+                            np.shape(nlist)[1]
+                        )
+                if self.max_neighbours != self.family.max():
+                    raise ValueError(
+                        "max_neighbours, which is equal to the"
+                        "size of axis 1 of nlist, should be equal to"
+                        "family.max() = {}, it's value was {}".format(
+                            self.family.max(), self.max_neighbours))
+            else:
+                raise TypeError("connectivity must be a tuple or None but had"
+                                "type {}".format(type(connectivity)))
+            # Initialise initial crack for cython
+            if initial_crack:
+                if callable(initial_crack):
+                    initial_crack = initial_crack(
+                        self.coords, nlist, n_neigh)
+                create_crack_cython(
+                    np.array(initial_crack, dtype=np.int32),
+                    nlist, n_neigh
                     )
-            test = self.max_neighbours - 1
-            if self.max_neighbours & test:
-                raise ValueError(
-                    "max_neighbours, which is equal to the"
-                    "size of axis 1 of nlist, should be a"
-                    "power of two, it's value was {}".format(
-                        self.max_neighbours))
-        else:
-            raise TypeError("connectivity must be a tuple or None but had"
-                            "type {}".format(type(connectivity)))
 
-        # Initialise initial crack
-        if initial_crack:
-            if callable(initial_crack):
-                initial_crack = initial_crack(self.coords, nlist, n_neigh)
-            create_crack(
-                np.array(initial_crack, dtype=np.int32),  nlist, n_neigh
-                )
+        else:
+            if connectivity is None:
+                if integrator.context is not None:
+                    # Create the neighbourlist for the OpenCL implementation
+                    self.max_neighbours = np.intc(
+                                1 << (int(self.family.max() - 1)).bit_length()
+                            )
+                    nlist, n_neigh = create_neighbour_list_cl(
+                        self.coords, horizon, self.max_neighbours
+                        )
+                if write_path is not None:
+                    self.write_array(self.write_path, "nlist", nlist)
+                    self.write_array(self.write_path, "n_neigh", n_neigh)
+            elif type(connectivity) == tuple:
+                if len(connectivity) != 2:
+                    raise ValueError("connectivity must be of size 2, but was"
+                                     "size {}".format(len(connectivity)))
+                nlist, n_neigh = connectivity
+                self.max_neighbours = np.intc(
+                            np.shape(nlist)[1]
+                        )
+                test = self.max_neighbours - 1
+                if self.max_neighbours & test:
+                    raise ValueError(
+                        "max_neighbours, which is equal to the"
+                        "size of axis 1 of nlist, should be a"
+                        "power of two, it's value was {}".format(
+                            self.max_neighbours))
+            else:
+                raise TypeError("connectivity must be a tuple or None but had"
+                                "type {}".format(type(connectivity)))
+            # Initialise initial crack for OpenCL
+            if initial_crack:
+                if callable(initial_crack):
+                    initial_crack = initial_crack(
+                        self.coords, nlist, n_neigh)
+                create_crack_cl(
+                    np.array(initial_crack, dtype=np.int32),
+                    nlist, n_neigh
+                    )
+
         self.initial_connectivity = (nlist, n_neigh)
         self.degrees_freedom = 3
-        self.precise_stiffness_correction = precise_stiffness_correction
 
         if stiffness_corrections is None:
             # Calculate stiffness correction factors and write to file
-            self.stiffness_corrections = \
-                self._set_stiffness_corrections(
-                    self.horizon, self.initial_connectivity,
-                    precise_stiffness_correction, self.write_path)
+            self.stiffness_corrections = self._set_stiffness_corrections(
+                self.horizon, self.initial_connectivity,
+                precise_stiffness_correction, self.write_path)
         elif type(stiffness_corrections) == np.ndarray:
             if np.shape(stiffness_corrections) != (
                     self.nnodes, self.max_neighbours):
-                raise ValueError("stiffness_corrections must have \
-                                 shape (nnodes, max_neighbours) but shape \
-                                 was {}".format(
+                raise ValueError("stiffness_corrections must have "
+                                 "shape (nnodes, max_neighbours) = {} but "
+                                 "shape was {}".format(
+                                     (self.nnodes, self.max_neighbours), 
                                      np.shape(stiffness_corrections)))
             else:
                 self.stiffness_corrections = stiffness_corrections
         else:
             raise TypeError(
-                "stiffness_corrections must be a numpy.ndarray or None, \
-                but had type {}".format(type(stiffness_corrections)))
+                "stiffness_corrections must be a numpy.ndarray or None, "
+                "but had type {}".format(type(stiffness_corrections)))
 
         # Create dummy bond_type function is none is provided
         if bond_type is None:
@@ -393,15 +429,16 @@ class Model(object):
                 self.initial_connectivity, bond_type, self.write_path)
         elif type(material_types) == np.ndarray:
             if np.shape(material_types) != (self.nnodes, self.max_neighbours):
-                raise ValueError("material_types must have shape \
-                                 (nnodes, max_neighbours) but shape \
-                                 was {}".format(np.shape(material_types)))
+                raise ValueError("material_types must have shape "
+                                 "(nnodes, max_neighbours) = {} but shape "
+                                 "was {}".format(
+                                     (self.nnodes, self.max_neighbours),
+                                     np.shape(material_types)))
             else:
                 self.material_types = material_types
         else:
-            raise TypeError("material_types must be an \
-                            numpy.ndarray or None, but was type \
-                            {}".format(type(material_types)))
+            raise TypeError("material_types must be an numpy.ndarray or None,"
+                            " but was type {}".format(type(material_types)))
 
         # Create dummy boundary conditions functions if none is provided
         if is_forces_boundary is None:
