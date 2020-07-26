@@ -3,6 +3,24 @@ import h5py
 import numpy as np
 
 
+def write_array(write_path, dataset, array):
+    """
+    Write a :class: numpy.ndarray to a HDF5 file.
+
+    :arg write_path: The path to which the HDF5 file is written.
+    :type write_path: path-like or str
+    :arg dataset: The name of the dataset stored in the HDF5 file.
+    :type dataset: str
+    :array: The array to be written to file.
+    :type array: :class: numpy.ndarray
+
+    :return: None
+    :rtype: None type
+    """
+    with h5py.File(write_path, 'a') as hf:
+        hf.create_dataset(dataset,  data=array)
+
+
 def read_array(read_path, dataset):
     """
     Read a :class numpy.ndarray: from a HDF5 file.

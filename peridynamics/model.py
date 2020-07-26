@@ -1,6 +1,6 @@
 """Peridynamics model."""
 from .integrators import Integrator
-from .utilities import calc_build_time, calc_displacement_scale
+from .utilities import calc_build_time, calc_displacement_scale, write_array
 from .neighbour_list import (set_family, create_neighbour_list_cl,
                              create_neighbour_list_cython, create_crack)
 from collections import namedtuple
@@ -9,7 +9,6 @@ import pathlib
 from tqdm import trange
 import warnings
 import meshio
-import h5py
 
 _MeshElements = namedtuple("MeshElements", ["connectivity", "boundary"])
 _mesh_elements_2d = _MeshElements(connectivity="triangle",
@@ -285,7 +284,7 @@ class Model(object):
             self.volume, self.sum_total_volume = self._volume(
                 transfinite, volume_total)
             if write_path is not None:
-                self._write_array(write_path, "volume", self.volume)
+                self.write_array(write_path, "volume", self.volume)
         elif type(volume) == np.ndarray:
             if len(volume) != self.nnodes:
                 raise ValueError("volume must be of size nnodes. nnodes was"
@@ -302,7 +301,7 @@ class Model(object):
             # Calculate family
             self.family = set_family(self.coords, horizon)
             if write_path is not None:
-                self._write_array(write_path, "family", self.family)
+                self.write_array(write_path, "family", self.family)
         elif type(family) == np.ndarray:
             if len(family) != self.nnodes:
                 raise ValueError("family must be of size nnodes. nnodes was"
@@ -331,8 +330,8 @@ class Model(object):
                     self.coords, horizon, self.max_neighbours
                     )
             if write_path is not None:
-                self._write_array(self.write_path, "nlist", nlist)
-                self._write_array(self.write_path, "n_neigh", n_neigh)
+                self.write_array(self.write_path, "nlist", nlist)
+                self.write_array(self.write_path, "n_neigh", n_neigh)
         elif type(connectivity) == tuple:
             if len(connectivity) != 2:
                 raise ValueError("connectivity must be of size 2, but was"
@@ -490,23 +489,6 @@ class Model(object):
             file_format=file_format
             )
 
-    def _write_array(self, write_path, dataset, array):
-        """
-        Write a :class: numpy.ndarray to a HDF5 file.
-
-        :arg write_path: The path to which the HDF5 file is written.
-        :type write_path: path-like or str
-        :arg dataset: The name of the dataset stored in the HDF5 file.
-        :type dataset: str
-        :array: The array to be written to file.
-        :type array: :class: numpy.ndarray
-
-        :return: None
-        :rtype: None type
-        """
-        with h5py.File(write_path, 'a') as hf:
-            hf.create_dataset(dataset,  data=array)
-
     def _volume(self, transfinite, volume_total):
         """
         Calculate the value of each node.
@@ -600,7 +582,7 @@ class Model(object):
                     self.coords[i, :], self.coords[j, :])
         material_types = material_types.astype(np.intc)
         if write_path is not None:
-            self._write_array(write_path, "material_types", material_types)
+            self.write_array(write_path, "material_types", material_types)
         return material_types
 
     def _set_stiffness_corrections(
@@ -681,7 +663,7 @@ class Model(object):
                              {}'.format(precise_stiffness_correction))
         if write_path is not None:
             print(write_path)
-            self._write_array(
+            self.write_array(
                 write_path,
                 "stiffness_corrections", stiffness_corrections)
         return stiffness_corrections

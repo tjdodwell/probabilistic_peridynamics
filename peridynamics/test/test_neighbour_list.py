@@ -1,6 +1,7 @@
 """Tests for the neighbour list module."""
 from peridynamics.neighbour_list import (
-    set_family, create_neighbour_list, break_bonds, create_crack
+    set_family, create_neighbour_list_cython, create_crack,
+    create_neighbour_list_cl
     )
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -17,26 +18,71 @@ def test_family():
     assert np.all(family_actual == family_expected)
 
 
-def test_neighbour_list():
+class TestNeigbourList():
     """Test neighbour list function."""
-    r = np.array([
-        [0.0, 0.0, 0.0],
-        [1.0, 0.0, 0.0],
-        [0.0, 1.0, 0.0],
-        [2.0, 0.0, 0.0]
-        ])
 
-    nl, n_neigh = create_neighbour_list(r, 1.1, 3)
-    nl_expected = np.array([
-        [1, 2, 0],
-        [0, 3, 0],
-        [0, 0, 0],
-        [1, 0, 0]
-        ])
-    n_neigh_expected = np.array([2, 2, 1, 1])
+    def test_neighbour_list_cython():
+        """Test cython version of the neighbour list function."""
+        r = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [2.0, 0.0, 0.0]
+            ])
 
-    assert np.all(nl == nl_expected)
-    assert np.all(n_neigh == n_neigh_expected)
+        nl, n_neigh = create_neighbour_list_cython(r, 1.1, 3)
+        nl_expected = np.array([
+            [1, 2, 0],
+            [0, 3, 0],
+            [0, 0, 0],
+            [1, 0, 0]
+            ])
+        n_neigh_expected = np.array([2, 2, 1, 1])
+
+        assert np.all(nl == nl_expected)
+        assert np.all(n_neigh == n_neigh_expected)
+
+    def test_neighbour_list_cl1():
+        """Test OpenCL version of the neighbourlist function."""
+        r = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [2.0, 0.0, 0.0]
+            ])
+
+        nl, n_neigh = create_neighbour_list_cl(r, 1.1, 4)
+        nl_expected = np.array([
+            [1, 2, -1, -1],
+            [0, 3, -1, -1],
+            [0, -1, -1, -1],
+            [1, -1, -1, -1]
+            ])
+        n_neigh_expected = np.array([2, 2, 1, 1])
+
+        assert np.all(nl == nl_expected)
+        assert np.all(n_neigh == n_neigh_expected)
+
+    def test_neighbour_list_cl2():
+        """Test OpenCL version of the neighbourlist function."""
+        r = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [2.0, 0.0, 0.0]
+            ])
+
+        nl, n_neigh = create_neighbour_list_cl(r, 1.1, 2)
+        nl_expected = np.array([
+            [1, 2],
+            [0, 3],
+            [0, -1],
+            [1, -1]
+            ])
+        n_neigh_expected = np.array([2, 2, 1, 1])
+
+        assert np.all(nl == nl_expected)
+        assert np.all(n_neigh == n_neigh_expected)
 
 
 def test_create_crack():
@@ -49,7 +95,7 @@ def test_create_crack():
         [0.0, 0.0, 1.0],
         ])
     horizon = 1.1
-    nl, n_neigh = create_neighbour_list(r, horizon, 3)
+    nl, n_neigh = create_neighbour_list_cython(r, horizon, 3)
 
     nl_expected = np.array([
         [1, 2, 4],
