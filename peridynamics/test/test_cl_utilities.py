@@ -1,5 +1,4 @@
 """Tests for the cl/utilities module."""
-
 from ..cl import get_context, pad
 from ..cl.utilities import DOUBLE_FP_SUPPORT
 import numpy as np

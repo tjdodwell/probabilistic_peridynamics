@@ -1,6 +1,6 @@
 """Tests for the OpenCL kernels."""
 from .conftest import context_available
-from ..cl import get_context
+from ..cl import get_context, kernel_source
 import numpy as np
 from peridynamics.neighbour_list import (create_neighbour_list_cl)
 import pyopencl as cl
@@ -26,10 +26,9 @@ def queue(context):
 @pytest.fixture(scope="module")
 def program(context):
     """Create a program object from the kernel source."""
-    return cl.Program(context, open(pathlib.Path(__file__).parent.absolute() /
-                                    "../cl/euler.cl").read()).build()
+    return cl.Program(context, kernel_source).build([options_string])
 
-s
+
 class TestForce():
     """Test force calculation."""
 
@@ -52,10 +51,6 @@ class TestForce():
         force_expected = np.zeros((5, 3), dtype=np.float64)
         force_actual = np.empty_like(force_expected)
 
-        kernel_source = open(
-            pathlib.Path(__file__).parent.absolute() /
-            "cl/euler.cl").read()
-
         # JIT Compiler command line arguments
         SEP = " "
         options_string = (
@@ -69,7 +64,7 @@ class TestForce():
             self.context, kernel_source).build([options_string])
         self.update_displacement_kernel = self.euler.update_displacement
         self.bond_force_kernel = self.euler.bond_force
-        
+
         # Create buffers
         r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                         hostbuf=r0)
@@ -105,7 +100,7 @@ class TestForce():
         bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
         max_neigh = 3
         volume = np.full(3, 0.16666667, dtype=np.float64)
-        nlist, n_neigh = create_neighbour_list(r0, horizon, max_neigh)
+        nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
 
         # Displace particles, but do not update neighbour list
         r = r0 + np.array([
@@ -157,7 +152,7 @@ def test_break_bonds(context, queue, program):
         ])
     horizon = 1.1
     max_neigh = 3
-    nl, n_neigh = create_neighbour_list(r0, horizon, max_neigh)
+    nl, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
 
     nl_expected = np.array([
         [1, 2, 4],

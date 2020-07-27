@@ -6,7 +6,7 @@ import numpy as np
 import pathlib
 from peridynamics import Model
 from peridynamics.model import initial_crack_helper
-from peridynamics.integrators import Euler, EulerOpenCL
+from peridynamics.integrators import Euler, EulerOpenCL, EulerOpenCL_alt
 from peridynamics.utilities import read_array as read_model
 from peridynamics.utilities import calc_boundary_conditions_magnitudes
 from pstats import SortKey, Stats
@@ -111,6 +111,7 @@ def main():
     parser.add_argument(
         "mesh_file_name", help="run example on a given mesh file name")
     parser.add_argument('--opencl', action='store_const', const=True)
+    parser.add_argument('--alt', action='store_const', const=True)
     parser.add_argument('--profile', action='store_const', const=True)
     args = parser.parse_args()
 
@@ -151,7 +152,10 @@ def main():
         profile.enable()
 
     if args.opencl:
-        integrator = EulerOpenCL(dt=2.5e-13)
+        if args.alt:
+            integrator = EulerOpenCL_alt(dt=2.5e-13)
+        else:
+            integrator = EulerOpenCL(dt=2.5e-13)
     else:
         integrator = Euler(dt=2.5e-13)
 
@@ -164,7 +168,8 @@ def main():
         stiffness_corrections=stiffness_corrections,
         is_displacement_boundary=is_displacement_boundary,
         is_forces_boundary=is_forces_boundary,
-        is_tip=is_tip)
+        is_tip=is_tip,
+        write_path=write_path_model)
 
     # Example function for calculating the boundary conditions magnitudes
     displacement_bc_array, *_ = calc_boundary_conditions_magnitudes(

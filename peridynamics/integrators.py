@@ -398,6 +398,74 @@ class EulerOpenCL(Integrator):
         return u_d
 
 
+class EulerOpenCL_alt(Integrator):
+    r"""
+    Euler integrator for OpenCL.
+
+    The Euler method is a first-order numerical integration method. The
+    integration is given by,
+
+    .. math::
+        u(t + \delta t) = u(t) + \delta t f(t) d
+
+    where :math:`u(t)` is the displacement at time :math:`t`, :math:`f(t)` is
+    the force at time :math:`t`, :math:`\delta t` is the time step and
+    """
+
+    def __init__(self, *args, **kwargs):
+        """
+        Create an :class:`Euler` integrator object.
+
+        :returns: A :class:`Euler` object
+        """
+        super().__init__(*args, **kwargs)
+
+    def __call__(self, displacement_bc_scale, force_bc_scale):
+        """Conduct one iteration of the integrator."""
+        self._update_displacement(
+            self.ud_d, self.u_d, self.bc_types_d, self.bc_values_d,
+            displacement_bc_scale, self.dt)
+        self._bond_force(
+            self.u_d, self.ud_d, self.r0_d, self.vols_d, self.nlist_d,
+            self.n_neigh_d, self.force_bc_types_d, self.force_bc_values_d,
+            self.local_mem_x, self.local_mem_y, self.local_mem_z,
+            force_bc_scale, self.bond_stiffness, self.critical_stretch)
+
+    def _build_special(self):
+        """Build OpenCL kernels special to the Euler integrator."""
+        kernel_source = open(
+            pathlib.Path(__file__).parent.absolute() /
+            "cl/euler.cl").read()
+
+        # JIT Compiler command line arguments
+        SEP = " "
+        options_string = (
+            "-cl-fast-relaxed-math" + SEP
+            + "-Ddof_nnodes=" + str(self.degrees_freedom * self.nnodes) + SEP)
+
+        # Build kernels
+        self.euler = cl.Program(
+            self.context, kernel_source).build([options_string])
+        self.update_displacement_kernel = self.euler.update_displacement_alt
+        self.bond_force_kernel = self.euler.bond_force_alt
+
+    def _set_special_buffers(self):
+        """Set buffers special to the Euler integrator."""
+
+    def _update_displacement(
+            self, ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale,
+            dt):
+        """Update displacements."""
+        queue = self.queue
+        # Call kernel
+        self.update_displacement_kernel(
+                self.queue, (self.degrees_freedom * self.nnodes,), None,
+                ud_d, u_d, bc_types_d, bc_values_d,
+                np.float64(displacement_load_scale), np.float64(dt))
+        queue.finish()
+        return u_d
+
+
 class ContextError(Exception):
     """No suitable context was found by :func:`get_context`."""
 
