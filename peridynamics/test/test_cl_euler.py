@@ -1,13 +1,13 @@
 """Tests for the OpenCL kernels."""
 from .conftest import context_available
-from ..cl import get_context, pad
-from ..cl.utilities import DOUBLE_FP_SUPPORT
+from ..cl import get_context
 import numpy as np
-from peridynamics.neighbour_list import (create_neighbour_list_cython,
-                                         create_neighbour_list_cl)
+from peridynamics.neighbour_list import (create_neighbour_list_cl)
 import pyopencl as cl
 from pyopencl import mem_flags as mf
 import pytest
+import pathlib
+
 
 @pytest.fixture(scope="module")
 def context():
@@ -26,9 +26,10 @@ def queue(context):
 @pytest.fixture(scope="module")
 def program(context):
     """Create a program object from the kernel source."""
-    return cl.Program(context, kernel_source).build()
+    return cl.Program(context, open(pathlib.Path(__file__).parent.absolute() /
+                                    "../cl/euler.cl").read()).build()
 
-
+s
 class TestForce():
     """Test force calculation."""
 
@@ -45,12 +46,30 @@ class TestForce():
         horizon = 1.1
         volume = np.ones(5, dtype=np.float64)
         bond_stiffness = 1.0
-        max_neigh = 3
-        nlist, n_neigh = create_neighbour_list(r0, horizon, max_neigh)
+        max_neigh = 4
+        nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
 
         force_expected = np.zeros((5, 3), dtype=np.float64)
         force_actual = np.empty_like(force_expected)
 
+        kernel_source = open(
+            pathlib.Path(__file__).parent.absolute() /
+            "cl/euler.cl").read()
+
+        # JIT Compiler command line arguments
+        SEP = " "
+        options_string = (
+            "-cl-fast-relaxed-math" + SEP
+            + "-Ddof_nnodes=" + str(self.degrees_freedom * self.nnodes) + SEP
+            + "-Dnnodes=" + str(self.nnodes) + SEP
+            + "-Ddof=" + str(self.degrees_freedom) + SEP)
+
+        # Build kernels
+        self.euler = cl.Program(
+            self.context, kernel_source).build([options_string])
+        self.update_displacement_kernel = self.euler.update_displacement
+        self.bond_force_kernel = self.euler.bond_force
+        
         # Create buffers
         r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                         hostbuf=r0)

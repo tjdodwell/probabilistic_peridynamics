@@ -3,6 +3,7 @@
 // Constants
 // dof, max_neighbours, dx, nnodes, dof_nnodes, nregimes will be defined on JIT compiler's command line
 
+
 __kernel void
 	bond_force(
     __global double const* u,
@@ -29,16 +30,16 @@ __kernel void
      *     a value of -1 corresponds to a broken bond.
      * r0 - An (n,3) array of the coordinates of the nodes in the initial state.
      *     stiffness_corrections - An (n * max_neigh) array of bond stiffness correction factors.
-     *     critical_stretches - An (n * max_neigh) array of bond critical stretchs.
+     *     critical_stretches - An (n * max_neigh) array of bond critical strains.
      * fc_types - An (n,3) array of force boundary condition types...
-     *     a value of 2 denotes a particle that is not externally loaded.
+     *     a value of 0 denotes a particle that is not externally loaded.
      * fc_values - An (n,3) array of the force boundary condition values applied to particles.
      * local_cache_x - local (local_size) array to store the x components of the bond forces.
      * local_cache_y - local (local_size) array to store the y components of the bond forces.
      * local_cache_z - local (local_size) array to store the z components of the bond forces.
      * fc_scale - scale factor applied to 
      * bond_stiffness - The bond stiffness.
-     * critical_stretch - The critical stretch, at and above which bonds will be
+     * critical_strain - The critical strain, at and above which bonds will be
      *     broken. */
     // global_id is the bond number
     const int global_id = get_global_id(0);
@@ -67,27 +68,21 @@ __kernel void
 
         const double xi = sqrt(xi_x * xi_x + xi_y * xi_y + xi_z * xi_z);
         const double y = sqrt(xi_eta_x * xi_eta_x + xi_eta_y * xi_eta_y + xi_eta_z * xi_eta_z);
-        const double y_xi = (y - xi);
+        const double s = (y -  xi)/ xi;
 
         const double cx = xi_eta_x / y;
         const double cy = xi_eta_y / y;
         const double cz = xi_eta_z / y;
 
-        const double _E = bond_stiffness;
-        const double _A = vols[node_id_j];
-        const double _L = xi;
-
-        const double _EAL = _E * _A / _L;
+        const double f = s * bond_stiffness * vols[node_id_j];
 
         // Copy bond forces into local memory
-        local_cache_x[local_id] = _EAL * cx * y_xi;
-        local_cache_y[local_id] = _EAL * cy * y_xi;
-        local_cache_z[local_id] = _EAL * cz * y_xi;
+        local_cache_x[local_id] = f * cx;
+        local_cache_y[local_id] = f * cy;
+        local_cache_z[local_id] = f * cz;
 
         // Check for state of bonds here, and break it if necessary
-        const double s0 = critical_stretch;
-        const double s = (y - xi) / xi;
-        if (s > s0) {
+        if (s > critical_stretch) {
             nlist[global_id] = -1;  // Break the bond
             n_neigh[node_id_i] -= 1;
         }
@@ -117,12 +112,13 @@ __kernel void
         // node_no == node_id_i
         int node_no = global_id/local_size;
         // Update accelerations in each direction
-        ud[dof * node_no + 0] = (fc_types[dof * node_no + 0] == 2 ? local_cache_x[0] : (local_cache_x[0] + fc_scale * fc_values[dof * node_no + 0]));
-        ud[dof * node_no + 1] = (fc_types[dof * node_no + 1] == 2 ? local_cache_y[0] : (local_cache_y[0] + fc_scale * fc_values[dof * node_no + 1]));
-        ud[dof * node_no + 2] = (fc_types[dof * node_no + 2] == 2 ? local_cache_z[0] : (local_cache_z[0] + fc_scale * fc_values[dof * node_no + 2]));
+        ud[dof * node_no + 0] = (fc_types[dof * node_no + 0] == 0 ? local_cache_x[0] : (local_cache_x[0] + fc_scale * fc_values[dof * node_no + 0]));
+        ud[dof * node_no + 1] = (fc_types[dof * node_no + 1] == 0 ? local_cache_y[0] : (local_cache_y[0] + fc_scale * fc_values[dof * node_no + 1]));
+        ud[dof * node_no + 2] = (fc_types[dof * node_no + 2] == 0 ? local_cache_z[0] : (local_cache_z[0] + fc_scale * fc_values[dof * node_no + 2]));
     }
   }
 }
+
 
 __kernel void 
     damage(

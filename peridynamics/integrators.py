@@ -194,6 +194,21 @@ class Integrator(ABC):
             queue, (self.nnodes,), None, n_neigh_d, family_d, damage_d)
         queue.finish()
 
+    def _bond_force(
+            self, u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d,
+            force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
+            local_mem_z, force_load_scale, bond_stiffness, critical_stretch):
+        """Calculate the force due to bonds acting on each node."""
+        queue = self.queue
+        # Call kernel
+        self.bond_force_kernel(
+                queue, (self.nnodes * self.max_neighbours,),
+                (self.max_neighbours,), u_d, ud_d, r0_d, vols_d, nlist_d,
+                n_neigh_d, force_bc_types_d, force_bc_values_d, local_mem_x,
+                local_mem_y, local_mem_z, np.float64(force_load_scale),
+                np.float64(bond_stiffness), np.float64(critical_stretch))
+        queue.finish()
+
     def write(self, damage, u, ud, nlist, n_neigh):
         """Copy the state variables from device memory to host memory."""
         queue = self.queue
@@ -365,7 +380,6 @@ class EulerOpenCL(Integrator):
         self.euler = cl.Program(
             self.context, kernel_source).build([options_string])
         self.update_displacement_kernel = self.euler.update_displacement
-        self.bond_force_kernel = self.euler.bond_force
 
     def _set_special_buffers(self):
         """Set buffers special to the Euler integrator."""
@@ -382,21 +396,6 @@ class EulerOpenCL(Integrator):
                 np.float64(displacement_load_scale), np.float64(dt))
         queue.finish()
         return u_d
-
-    def _bond_force(
-            self, u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d,
-            force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
-            local_mem_z, force_load_scale, bond_stiffness, critical_stretch):
-        """Calculate the force due to bonds acting on each node."""
-        queue = self.queue
-        # Call kernel
-        self.bond_force_kernel(
-                queue, (self.nnodes * self.max_neighbours,),
-                (self.max_neighbours,), u_d, ud_d, r0_d, vols_d, nlist_d,
-                n_neigh_d, force_bc_types_d, force_bc_values_d, local_mem_x,
-                local_mem_y, local_mem_z, np.float64(force_load_scale),
-                np.float64(bond_stiffness), np.float64(critical_stretch))
-        queue.finish()
 
 
 class ContextError(Exception):

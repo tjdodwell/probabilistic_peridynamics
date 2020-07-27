@@ -285,7 +285,7 @@ class Model(object):
             self.volume, self.sum_total_volume = self._volume(
                 transfinite, volume_total)
             if write_path is not None:
-                self.write_array(write_path, "volume", self.volume)
+                write_array(write_path, "volume", self.volume)
         elif type(volume) == np.ndarray:
             if len(volume) != self.nnodes:
                 raise ValueError("volume must be of size nnodes. nnodes was"
@@ -302,7 +302,7 @@ class Model(object):
             # Calculate family
             self.family = set_family(self.coords, horizon)
             if write_path is not None:
-                self.write_array(write_path, "family", self.family)
+                write_array(write_path, "family", self.family)
         elif type(family) == np.ndarray:
             if len(family) != self.nnodes:
                 raise ValueError("family must be of size nnodes. nnodes was"
@@ -365,8 +365,8 @@ class Model(object):
                         self.coords, horizon, self.max_neighbours
                         )
                 if write_path is not None:
-                    self.write_array(self.write_path, "nlist", nlist)
-                    self.write_array(self.write_path, "n_neigh", n_neigh)
+                    write_array(self.write_path, "nlist", nlist)
+                    write_array(self.write_path, "n_neigh", n_neigh)
             elif type(connectivity) == tuple:
                 if len(connectivity) != 2:
                     raise ValueError("connectivity must be of size 2, but was"
@@ -619,7 +619,7 @@ class Model(object):
                     self.coords[i, :], self.coords[j, :])
         material_types = material_types.astype(np.intc)
         if write_path is not None:
-            self.write_array(write_path, "material_types", material_types)
+            write_array(write_path, "material_types", material_types)
         return material_types
 
     def _set_stiffness_corrections(
@@ -700,7 +700,7 @@ class Model(object):
                              {}'.format(precise_stiffness_correction))
         if write_path is not None:
             print(write_path)
-            self.write_array(
+            write_array(
                 write_path,
                 "stiffness_corrections", stiffness_corrections)
         return stiffness_corrections
