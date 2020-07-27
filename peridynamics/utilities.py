@@ -1,6 +1,8 @@
 """Utilitie functions that are unrelated to peridynamics."""
 import h5py
 import numpy as np
+import matplotlib.pyplot as plt
+import warnings
 
 
 def write_array(write_path, dataset, array):
@@ -37,17 +39,19 @@ def read_array(read_path, dataset):
         with h5py.File(read_path, 'r') as hf:
             try:
                 array = hf[dataset][:]
-            except IOError:
-                print("The array {} does not appear to exist in the file {}."
-                      "Please set a write_path keyword argument in `Model`"
-                      "and the {} array will be created and then written to"
-                      "that file path.".format(dataset, read_path))
-        return array
+                return array
+            except KeyError:
+                warnings.warn(
+                    "The {} array does not appear to exist in the file {}. "
+                    "Please set a write_path keyword argument in `Model` "
+                    "and the {} array will be created and then written to "
+                    "that file path.".format(dataset, read_path, dataset))
     except IOError:
-        print("The .h5 file at {} does not appear to exist, yet. Please set a "
-              "write_path keyword argument in `Model` and the {} array will "
-              "be created and then written to that file path.".format(
-                  read_path, dataset))
+        warnings.warn(
+            "The {} file does not appear to exist yet. Please set a "
+            "write_path keyword argument in `Model` and the {} array will "
+            "be created and then written to that file path.".format(
+                read_path, dataset))
         return None
 
 
@@ -91,13 +95,13 @@ def _calc_midpoint_gradient(T, displacement):
     return(midpoint_gradient, coefficients)
 
 
-def calc_displacement_scale(
+def calc_displacement_magnitude(
         coefficients, max_displacement, build_time, max_displacement_rate,
         step, build_displacement, ease_off):
     """
     Calculate the displacement scale.
 
-    Calculates the displacement boundary condition scale according to a
+    Calculates the displacement boundary condition magnitude according to a
     5th order polynomial/ linear displacement-time curve for which initial
     acceleration is 0.
 
@@ -116,35 +120,38 @@ def calc_displacement_scale(
         displacement-rate hasn't started decreasing yet. Equal to the step
         at which the displacement rate starts decreasing once it does so.
 
-    :returns: The displacement_bc_rate between [0.0, max_displacement_rate],
-        a scale applied to the displacement boundary conditions.
+    :returns: The displacement_bc_magnitude between
+        [0.0, max_displacement], a scale applied to the displacement
+        boundary conditions.
     :rtype: np.float64
     """
     a, b, c = coefficients
     # Acceleration part of displacement-time curve.
     if step < build_time / 2:
-        m = 5 * a * step**4 + 4 * b * step**3 + 3 * c * step**2
-        displacement_bc_rate = m
+        displacement_bc_magnitude = a * step**5 + b * step**4 + c * step**3
     # Deceleration part of dispalcement-time curve.
     elif ease_off != 0:
         t = step - ease_off + build_time / 2
         if t > build_time:
-            displacement_bc_rate = 0.0
+            displacement_bc_magnitude = max_displacement
         else:
-            m = 5 * a * t**4 + 4 * b * t**3 + 3 * c * t**2
-            displacement_bc_rate = m
+            displacement_bc_magnitude = (
+                a * t**5 + b * t**4 + c * t**3
+                + max_displacement
+                - build_displacement)
     # Constant velocity
     else:
         # Calculate displacement.
-        linear_time = step - build_time/2
+        linear_time = step - build_time / 2
         linear_displacement = linear_time * max_displacement_rate
-        displacement = linear_displacement + build_displacement/2
+        displacement = linear_displacement + build_displacement / 2
         if displacement + build_displacement / 2 < max_displacement:
-            displacement_bc_rate = 1.0 * max_displacement_rate
+            displacement_bc_magnitude = displacement
         else:
             ease_off = step
-            displacement_bc_rate = 1.0 * max_displacement_rate
-    return(displacement_bc_rate, ease_off)
+            displacement_bc_magnitude = (
+                max_displacement - build_displacement / 2)
+    return(displacement_bc_magnitude, ease_off)
 
 
 def calc_build_time(build_displacement, max_displacement_rate, steps):
@@ -167,7 +174,6 @@ def calc_build_time(build_displacement, max_displacement_rate, steps):
     :rtype: A tuple containing (:type int:, :type tuple:)
     """
     build_time = 0
-    test = 0
     midpoint_gradient = np.inf
     while midpoint_gradient > max_displacement_rate:
         # Try to calculate gradient
@@ -187,3 +193,127 @@ def calc_build_time(build_displacement, max_displacement_rate, steps):
                 "steps = {}".format(steps))
             break
     return(build_time, coefficients)
+
+
+def _increment_displacement(coefficients, build_time, step, ease_off,
+                            max_displacement_rate, build_displacement,
+                            max_displacement):
+    """
+    Increment the displacement boundary condition values.
+
+    According to a 5th order polynomial/ linear displacement-time curve
+    for which initial acceleration is 0.
+
+    :arg tuple coefficients: Tuple containing the 3 free coefficients
+        of the 5th order polynomial.
+    :arg int build_time: The number of time steps over which the
+        applied displacement-time curve is not linear.
+    :arg int step: The current time-step of the simulation.
+    :arg int ease_off: A boolean-like variable which is 0 if the
+        displacement-rate hasn't started decreasing yet. Equal to the step
+        at which the displacement rate starts decreasing once it does so.
+    :arg float max_displacement_rate: The displacement rate in [m] per step
+        during the linear phase of the displacement-time graph.
+    :arg float build_displacement: The displacement in [m] over which the
+        displacement-time graph is the smooth 5th order polynomial.
+    :arg float max_displacement: The final applied displacement in [m].
+
+    :returns: The displacement_bc_magnitude between [0.0, max_displacement],
+        a scale applied to the displacement boundary conditions.
+    :rtype: np.float64
+    :returns: ease_off
+    :rtype: int
+    """
+    if not ((max_displacement_rate is None) or (build_displacement is None)
+            or (max_displacement is None)):
+        # Calculate the scale applied to the displacements
+        displacement_bc_magnitude, ease_off = calc_displacement_magnitude(
+            coefficients, max_displacement, build_time,
+            max_displacement_rate, step, build_displacement, ease_off)
+    # No specified build up parameters
+    elif max_displacement_rate is not None:
+        # Increase displacement in linear increments
+        displacement_bc_magnitude = max_displacement_rate * step
+    elif max_displacement is not None:
+        # Increase displacement in linear increments
+        displacement_bc_magnitude = max_displacement / step
+    return displacement_bc_magnitude, ease_off
+
+
+def _increment_load(build_load_steps, max_load, step):
+    """
+    Increment and update the force boundary conditions.
+
+    :arg float build_load_steps: The inverse of the number of steps
+        required to build up to full external force loading.
+    :arg float max_load: The maximum total external load in [N] applied to the
+        loaded nodes.
+    :arg int step: The current time-step of the simulation.
+
+    :returns: The force_bc_magnitude between [0.0, max_load], in [N], a
+        magnitude applied to the force boundary conditions.
+    :rtype: :class:`numpy.float64`
+    """
+    # Increase load in linear increments
+    if build_load_steps is not None:
+        force_bc_magnitude = np.float64(
+            min(1.0, build_load_steps * step) * max_load)
+    else:
+        force_bc_magnitude = np.float64(max_load)
+    return force_bc_magnitude
+
+
+def calc_boundary_conditions_magnitudes(
+        steps, max_displacement_rate, max_displacement=None,
+        build_displacement=0, build_load_steps=None, max_load=None):
+    """
+    Caclulate the boundary condition magnitudes arrays.
+
+    Calculates the magnitude applied to the boundary conditions for each time-
+    step for displacement and force boundary conditions.
+
+    :arg float max_displacement_rate: The displacement rate in [m] per step
+        during the linear phase of the displacement-time graph, and the
+        maximum displacement rate of any part of the simulation.
+    :arg int steps: The number of simulation steps to conduct.
+    :arg float max_displacement: The final applied displacement in [m].
+        Default is 0.
+    :arg float build_displacement: The displacement in [m] over which the
+        displacement-time graph is the smooth 5th order polynomial.
+    :arg float build_load_steps: The inverse of the number of steps
+        required to build up to full external force loading.
+    :arg float max_load: The maximum total external load in [N] applied to the
+        loaded nodes.
+
+    :returns tuple: A tuple of the (steps) displacement_bc_array and the
+        (steps) force_bc_array which are the magnitudes applied to the
+        displacement and force boundary conditions over each step,
+        respectively.
+    :rtype tuple (numpy.ndarray, numpy.ndarray):
+    """
+    # Calculate no. of time steps that applied BCs are in the build phase
+    if not ((max_displacement_rate is None)
+            or (build_displacement is None)
+            or (max_displacement is None)):
+        build_time, coefficients = calc_build_time(
+            build_displacement, max_displacement_rate, steps)
+    else:
+        build_time, coefficients = None, None
+
+    displacement_bc_array = []
+    force_bc_array = []
+
+    ease_off = 0
+    for step in range(steps):
+        # Increase external forces in linear incremenets
+        force_bc_array.append(
+            _increment_load(build_load_steps, max_load, step))
+
+        # Increase displacement in 5th order polynomial increments
+        displacement_bc_magnitude, ease_off = _increment_displacement(
+            coefficients, build_time, step, ease_off,
+            max_displacement_rate, build_displacement, max_displacement)
+        displacement_bc_array.append(
+            displacement_bc_magnitude)
+
+    return (np.array(displacement_bc_array), np.array(force_bc_array))

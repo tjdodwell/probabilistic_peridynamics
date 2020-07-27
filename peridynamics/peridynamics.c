@@ -3871,7 +3871,7 @@ __pyx_t_6 = ((fabs(__pyx_f_12peridynamics_7spatial_cstrain(__pyx_t_8, __pyx_t_9,
 
 /* Python wrapper */
 static PyObject *__pyx_pw_12peridynamics_12peridynamics_7update_displacement(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static char __pyx_doc_12peridynamics_12peridynamics_6update_displacement[] = "\n    Update the displacement of each node for each node using an Euler\n    integrator.\n\n    :arg u: The current displacements of each node.\n    :type u: :class:`numpy.ndarray`\n    :arg bc_values: An (n,3) array of the boundary condition values\n        applied nodes.\n    :type bc_values: :class:`numpy.ndarray`\n    :arg bc_types: An (n,3) array of the boundary condition types, where a\n        value of 2 represents an unconstrained node.\n    :type bc_types: :class:`numpy.ndarray`\n    :arg force: The force due to bonds on each node.\n    :type force: :class:`numpy.ndarray`\n    :arg float bc_scale: The scalar value applied to the\n        displacement boundary conditions.\n    :arg float dt: The length of the timestep in seconds.\n    ";
+static char __pyx_doc_12peridynamics_12peridynamics_6update_displacement[] = "\n    Update the displacement of each node for each node using an Euler\n    integrator.\n\n    :arg u: The current displacements of each node.\n    :type u: :class:`numpy.ndarray`\n    :arg bc_values: An (n,3) array of the boundary condition values.\n    :type bc_values: :class:`numpy.ndarray`\n    :arg bc_types: An (n,3) array of the boundary condition types, where a\n        value of 2 represents an unconstrained node.\n    :type bc_types: :class:`numpy.ndarray`\n    :arg force: The force due to bonds on each node.\n    :type force: :class:`numpy.ndarray`\n    :arg float bc_scale: The scalar value applied to the\n        displacement boundary conditions.\n    :arg float dt: The length of the timestep in seconds.\n    ";
 static PyMethodDef __pyx_mdef_12peridynamics_12peridynamics_7update_displacement = {"update_displacement", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_12peridynamics_12peridynamics_7update_displacement, METH_VARARGS|METH_KEYWORDS, __pyx_doc_12peridynamics_12peridynamics_6update_displacement};
 static PyObject *__pyx_pw_12peridynamics_12peridynamics_7update_displacement(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   __Pyx_memviewslice __pyx_v_u = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -3997,14 +3997,12 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
   Py_ssize_t __pyx_t_10;
   Py_ssize_t __pyx_t_11;
   Py_ssize_t __pyx_t_12;
-  Py_ssize_t __pyx_t_13;
-  Py_ssize_t __pyx_t_14;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("update_displacement", 0);
 
-  /* "peridynamics/peridynamics.pyx":179
+  /* "peridynamics/peridynamics.pyx":178
  *     :arg float dt: The length of the timestep in seconds.
  *     """
  *     cdef int nnodes = u.shape[0]             # <<<<<<<<<<<<<<
@@ -4013,7 +4011,7 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
  */
   __pyx_v_nnodes = (__pyx_v_u.shape[0]);
 
-  /* "peridynamics/peridynamics.pyx":180
+  /* "peridynamics/peridynamics.pyx":179
  *     """
  *     cdef int nnodes = u.shape[0]
  *     for i in range(nnodes):             # <<<<<<<<<<<<<<
@@ -4025,7 +4023,7 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "peridynamics/peridynamics.pyx":181
+    /* "peridynamics/peridynamics.pyx":180
  *     cdef int nnodes = u.shape[0]
  *     for i in range(nnodes):
  *             for dim in range(3):             # <<<<<<<<<<<<<<
@@ -4035,7 +4033,7 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
     for (__pyx_t_4 = 0; __pyx_t_4 < 3; __pyx_t_4+=1) {
       __pyx_v_dim = __pyx_t_4;
 
-      /* "peridynamics/peridynamics.pyx":182
+      /* "peridynamics/peridynamics.pyx":181
  *     for i in range(nnodes):
  *             for dim in range(3):
  *                 if(bc_types[i, dim] == 0):             # <<<<<<<<<<<<<<
@@ -4055,17 +4053,17 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
       } else if (unlikely(__pyx_t_6 >= __pyx_v_bc_types.shape[1])) __pyx_t_7 = 1;
       if (unlikely(__pyx_t_7 != -1)) {
         __Pyx_RaiseBufferIndexError(__pyx_t_7);
-        __PYX_ERR(0, 182, __pyx_L1_error)
+        __PYX_ERR(0, 181, __pyx_L1_error)
       }
       __pyx_t_8 = (((*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_bc_types.data + __pyx_t_5 * __pyx_v_bc_types.strides[0]) ) + __pyx_t_6 * __pyx_v_bc_types.strides[1]) ))) == 0) != 0);
       if (__pyx_t_8) {
 
-        /* "peridynamics/peridynamics.pyx":183
+        /* "peridynamics/peridynamics.pyx":182
  *             for dim in range(3):
  *                 if(bc_types[i, dim] == 0):
  *                     u[i, dim] = u[i, dim] + dt * force[i, dim]             # <<<<<<<<<<<<<<
  *                 else:
- *                     u[i, dim] = u[i, dim] + bc_scale * bc_values[i, dim]
+ *                     u[i, dim] = bc_scale * bc_values[i, dim]
  */
         __pyx_t_6 = __pyx_v_i;
         __pyx_t_5 = __pyx_v_dim;
@@ -4080,7 +4078,7 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
         } else if (unlikely(__pyx_t_5 >= __pyx_v_u.shape[1])) __pyx_t_7 = 1;
         if (unlikely(__pyx_t_7 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_7);
-          __PYX_ERR(0, 183, __pyx_L1_error)
+          __PYX_ERR(0, 182, __pyx_L1_error)
         }
         __pyx_t_9 = __pyx_v_i;
         __pyx_t_10 = __pyx_v_dim;
@@ -4095,7 +4093,7 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
         } else if (unlikely(__pyx_t_10 >= __pyx_v_force.shape[1])) __pyx_t_7 = 1;
         if (unlikely(__pyx_t_7 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_7);
-          __PYX_ERR(0, 183, __pyx_L1_error)
+          __PYX_ERR(0, 182, __pyx_L1_error)
         }
         __pyx_t_11 = __pyx_v_i;
         __pyx_t_12 = __pyx_v_dim;
@@ -4110,11 +4108,11 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
         } else if (unlikely(__pyx_t_12 >= __pyx_v_u.shape[1])) __pyx_t_7 = 1;
         if (unlikely(__pyx_t_7 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_7);
-          __PYX_ERR(0, 183, __pyx_L1_error)
+          __PYX_ERR(0, 182, __pyx_L1_error)
         }
         *((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_u.data + __pyx_t_11 * __pyx_v_u.strides[0]) ) + __pyx_t_12 * __pyx_v_u.strides[1]) )) = ((*((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_u.data + __pyx_t_6 * __pyx_v_u.strides[0]) ) + __pyx_t_5 * __pyx_v_u.strides[1]) ))) + (__pyx_v_dt * (*((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_force.data + __pyx_t_9 * __pyx_v_force.strides[0]) ) + __pyx_t_10 * __pyx_v_force.strides[1]) )))));
 
-        /* "peridynamics/peridynamics.pyx":182
+        /* "peridynamics/peridynamics.pyx":181
  *     for i in range(nnodes):
  *             for dim in range(3):
  *                 if(bc_types[i, dim] == 0):             # <<<<<<<<<<<<<<
@@ -4124,58 +4122,43 @@ static PyObject *__pyx_pf_12peridynamics_12peridynamics_6update_displacement(CYT
         goto __pyx_L7;
       }
 
-      /* "peridynamics/peridynamics.pyx":185
+      /* "peridynamics/peridynamics.pyx":184
  *                     u[i, dim] = u[i, dim] + dt * force[i, dim]
  *                 else:
- *                     u[i, dim] = u[i, dim] + bc_scale * bc_values[i, dim]             # <<<<<<<<<<<<<<
+ *                     u[i, dim] = bc_scale * bc_values[i, dim]             # <<<<<<<<<<<<<<
  */
       /*else*/ {
         __pyx_t_10 = __pyx_v_i;
         __pyx_t_9 = __pyx_v_dim;
         __pyx_t_7 = -1;
         if (__pyx_t_10 < 0) {
-          __pyx_t_10 += __pyx_v_u.shape[0];
+          __pyx_t_10 += __pyx_v_bc_values.shape[0];
           if (unlikely(__pyx_t_10 < 0)) __pyx_t_7 = 0;
-        } else if (unlikely(__pyx_t_10 >= __pyx_v_u.shape[0])) __pyx_t_7 = 0;
+        } else if (unlikely(__pyx_t_10 >= __pyx_v_bc_values.shape[0])) __pyx_t_7 = 0;
         if (__pyx_t_9 < 0) {
-          __pyx_t_9 += __pyx_v_u.shape[1];
+          __pyx_t_9 += __pyx_v_bc_values.shape[1];
           if (unlikely(__pyx_t_9 < 0)) __pyx_t_7 = 1;
-        } else if (unlikely(__pyx_t_9 >= __pyx_v_u.shape[1])) __pyx_t_7 = 1;
+        } else if (unlikely(__pyx_t_9 >= __pyx_v_bc_values.shape[1])) __pyx_t_7 = 1;
         if (unlikely(__pyx_t_7 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_7);
-          __PYX_ERR(0, 185, __pyx_L1_error)
+          __PYX_ERR(0, 184, __pyx_L1_error)
         }
         __pyx_t_5 = __pyx_v_i;
         __pyx_t_6 = __pyx_v_dim;
         __pyx_t_7 = -1;
         if (__pyx_t_5 < 0) {
-          __pyx_t_5 += __pyx_v_bc_values.shape[0];
+          __pyx_t_5 += __pyx_v_u.shape[0];
           if (unlikely(__pyx_t_5 < 0)) __pyx_t_7 = 0;
-        } else if (unlikely(__pyx_t_5 >= __pyx_v_bc_values.shape[0])) __pyx_t_7 = 0;
+        } else if (unlikely(__pyx_t_5 >= __pyx_v_u.shape[0])) __pyx_t_7 = 0;
         if (__pyx_t_6 < 0) {
-          __pyx_t_6 += __pyx_v_bc_values.shape[1];
+          __pyx_t_6 += __pyx_v_u.shape[1];
           if (unlikely(__pyx_t_6 < 0)) __pyx_t_7 = 1;
-        } else if (unlikely(__pyx_t_6 >= __pyx_v_bc_values.shape[1])) __pyx_t_7 = 1;
+        } else if (unlikely(__pyx_t_6 >= __pyx_v_u.shape[1])) __pyx_t_7 = 1;
         if (unlikely(__pyx_t_7 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_7);
-          __PYX_ERR(0, 185, __pyx_L1_error)
+          __PYX_ERR(0, 184, __pyx_L1_error)
         }
-        __pyx_t_13 = __pyx_v_i;
-        __pyx_t_14 = __pyx_v_dim;
-        __pyx_t_7 = -1;
-        if (__pyx_t_13 < 0) {
-          __pyx_t_13 += __pyx_v_u.shape[0];
-          if (unlikely(__pyx_t_13 < 0)) __pyx_t_7 = 0;
-        } else if (unlikely(__pyx_t_13 >= __pyx_v_u.shape[0])) __pyx_t_7 = 0;
-        if (__pyx_t_14 < 0) {
-          __pyx_t_14 += __pyx_v_u.shape[1];
-          if (unlikely(__pyx_t_14 < 0)) __pyx_t_7 = 1;
-        } else if (unlikely(__pyx_t_14 >= __pyx_v_u.shape[1])) __pyx_t_7 = 1;
-        if (unlikely(__pyx_t_7 != -1)) {
-          __Pyx_RaiseBufferIndexError(__pyx_t_7);
-          __PYX_ERR(0, 185, __pyx_L1_error)
-        }
-        *((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_u.data + __pyx_t_13 * __pyx_v_u.strides[0]) ) + __pyx_t_14 * __pyx_v_u.strides[1]) )) = ((*((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_u.data + __pyx_t_10 * __pyx_v_u.strides[0]) ) + __pyx_t_9 * __pyx_v_u.strides[1]) ))) + (__pyx_v_bc_scale * (*((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_bc_values.data + __pyx_t_5 * __pyx_v_bc_values.strides[0]) ) + __pyx_t_6 * __pyx_v_bc_values.strides[1]) )))));
+        *((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_u.data + __pyx_t_5 * __pyx_v_u.strides[0]) ) + __pyx_t_6 * __pyx_v_u.strides[1]) )) = (__pyx_v_bc_scale * (*((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_bc_values.data + __pyx_t_10 * __pyx_v_bc_values.strides[0]) ) + __pyx_t_9 * __pyx_v_bc_values.strides[1]) ))));
       }
       __pyx_L7:;
     }

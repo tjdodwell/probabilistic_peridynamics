@@ -7,6 +7,7 @@ import pathlib
 from peridynamics import Model
 from peridynamics.model import initial_crack_helper
 from peridynamics.integrators import EulerOpenCL, Euler
+from peridynamics.utilities import calc_boundary_conditions_magnitudes
 from pstats import SortKey, Stats
 
 
@@ -101,9 +102,14 @@ def main():
         is_forces_boundary=is_forces_boundary,
         is_tip=is_tip, dimensions=2, initial_crack=is_crack)
 
+    # Example function for calculating the boundary conditions magnitudes
+    displacement_bc_array, *_ = calc_boundary_conditions_magnitudes(
+        steps=1000, max_displacement_rate=0.000005/2)
+
     u, damage, *_ = model.simulate(
         steps=1000,
-        max_displacement_rate=0.000005/2, write=100)
+        displacement_bc_magnitudes=displacement_bc_array,
+        write=100)
 
     if args.profile:
         profile.disable()

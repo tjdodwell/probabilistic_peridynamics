@@ -2,35 +2,29 @@
 import numpy as np
 from peridynamics.utilities import (read_array, write_array,
                                     _calc_midpoint_gradient,
-                                    calc_displacement_scale, calc_build_time)
+                                    calc_build_time)
 import pytest
-import pathlib
+import os
 
 
-def test_read_and_write_array():
-    write_path = pathlib.path
+def test_read_and_write_array(data_path):
+    rw_path = data_path/"test_rw_array.h5"
     expected_array = np.empty((2113, 256))
-    write_array(expected_array, "name")
-    array = read_array(write_path, "name")
+    write_array(rw_path, "name", expected_array)
+    array = read_array(rw_path, "name")
     assert np.all(array == expected_array)
+    read_array(rw_path, "no_name")
+    with pytest.warns(UserWarning) as warning:
+        read_array(rw_path, "no_name")
+        assert "array does not appear to exist" in str(warning[0].message)
+        os.remove(rw_path)
 
 
-def test_read_bad_file():
-    write_path = pathlib.path
-    expected_array = np.empty((2113, 256))
-    write_array(expected_array, "name")
-    with pytest.raises(IOError) as exception:
-        read_array(write_path, "name")
-        assert ("The .h5 file") in exception.value
-
-
-def test_read_bad_array():
-    write_path = pathlib.path
-    expected_array = np.empty((2113, 256))
-    write_array(expected_array, "name")
-    with pytest.raises(IOError) as exception:
-        read_array(write_path, "no_name")
-        assert ("The array") in exception.value
+def test_read_bad_file(data_path):
+    read_path = data_path/"no_file_here.h5"
+    with pytest.warns(UserWarning) as warning:
+        read_array(read_path, "name")
+        assert "file does not appear to exist" in str(warning[0].message)
 
 
 def test_calc_midpoint_gradient():
@@ -75,37 +69,3 @@ def test_calc_build_time():
     assert np.isclose(actual_velocity, expected_velocity)
     assert np.isclose(actual_acceleration, expected_acceleration)
     assert np.isclose(actual_max_velocity, expected_max_velocity)
-
-
-def test_calc_displacement_scale():
-    """Test calculation of displacement boundary condition scale."""
-
-    steps = 1000
-    ease_off = 0
-    build_displacement = 0.0025
-    max_displacement_rate = 0.00001
-    max_displacement = 0.005
-    build_time, coefficients = calc_build_time(
-        build_displacement, max_displacement_rate, steps)
-
-    step = int(build_time/2 - 1)
-    displacement_bc_rate, ease_off = calc_displacement_scale(
-        coefficients, max_displacement, build_time, max_displacement_rate,
-        step, build_displacement, ease_off)
-    assert displacement_bc_rate < max_displacement_rate
-    assert ease_off == 0
-
-    step = int(build_time/2 + 1)
-    displacement_bc_rate, ease_off = calc_displacement_scale(
-        coefficients, max_displacement, build_time, max_displacement_rate,
-        step, build_displacement, ease_off)
-    assert displacement_bc_rate == max_displacement_rate
-    assert ease_off == 0
-
-    ease_off = 990 - build_time/2
-    step = 991
-    displacement_bc_rate, ease_off = calc_displacement_scale(
-        coefficients, max_displacement, build_time, max_displacement_rate,
-        step, build_displacement, ease_off)
-    assert displacement_bc_rate == 0
-    assert ease_off > build_time/2

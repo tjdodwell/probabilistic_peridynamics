@@ -1,6 +1,6 @@
 """Peridynamics model."""
 from .integrators import Integrator
-from .utilities import calc_build_time, calc_displacement_scale, write_array
+from .utilities import write_array
 from .neighbour_list import (set_family, create_neighbour_list_cl,
                              create_neighbour_list_cython, create_crack_cython,
                              create_crack_cl)
@@ -231,7 +231,7 @@ class Model(object):
         # If no write path was provided, assign it as None so that model arrays
         # are not written, otherwise, ensure write_path is a Path objects
         if write_path is None:
-            self.write_path = write_path
+            self.write_path = None
         else:
             self.write_path = pathlib.Path(write_path)
 
@@ -317,7 +317,7 @@ class Model(object):
 
         if integrator.context is None:
             warnings.warn("Some features, such as stiffness correction factors"
-                          ", composites materials, and  non-linear damage "
+                          ", composites materials, and non-linear damage "
                           "models not supported by this integrator. Use an "
                           "OpenCL integrator for these features, and a faster"
                           " simulation time.")
@@ -744,71 +744,6 @@ class Model(object):
         plus_cs = np.array(plus_cs, dtype=np.float64)
         return plus_cs
 
-    def _increment_load(self, build_load_steps, max_load, step):
-        """
-        Increment and update the force boundary conditions.
-
-        :arg float build_load_steps: The inverse of the number of steps
-            required to build up to full external force loading.
-        :arg int step: The current time-step of the simulation.
-
-        :returns: The force_bc_magnitude between [0.0, 1.0], a scale applied to
-            the force boundary conditions.
-        :rtype: :class:`numpy.float64`
-        """
-        # Increase load in linear increments
-        if build_load_steps is not None:
-            force_bc_magnitude = np.float64(
-                min(1.0, build_load_steps * step) * max_load)
-        else:
-            force_bc_magnitude = np.float64(max_load)
-        return force_bc_magnitude
-
-    def _increment_displacement(self, coefficients, build_time, step, ease_off,
-                                max_displacement_rate, build_displacement,
-                                max_displacement):
-        """
-        Increment the displacement boundary condition values.
-
-        According to a 5th order polynomial/ linear displacement-time curve
-        for which initial acceleration is 0.
-
-        :arg tuple coefficients: Tuple containing the 3 free coefficients
-            of the 5th order polynomial.
-        :arg int build_time: The number of time steps over which the
-            applied displacement-time curve is not linear.
-        :arg int step: The current time-step of the simulation.
-        :arg int ease_off: A boolean-like variable which is 0 if the
-            displacement-rate hasn't started decreasing yet. Equal to the step
-            at which the displacement rate starts decreasing once it does so.
-        :arg float max_displacement_rate: The displacement rate in [m] per step
-            during the linear phase of the displacement-time graph.
-        :arg float build_displacement: The displacement in [m] over which the
-            displacement-time graph is the smooth 5th order polynomial.
-        :arg float max_displacement: The final applied displacement in [m].
-
-        :returns: The displacement_bc_magnitude between [0.0, max_displacement]
-            , a scale applied to the displacement boundary conditions.
-        :rtype: np.float64
-        :returns: ease_off
-        :rtype: int
-        """
-        if not ((max_displacement_rate is None) or (build_displacement is None)
-                or (max_displacement is None)):
-            # Calculate the scale applied to the displacements
-            displacement_bc_magnitude, ease_off = calc_displacement_scale(
-                coefficients, max_displacement, build_time,
-                max_displacement_rate, step, build_displacement, ease_off)
-            if displacement_bc_magnitude != 0.0:
-                # update the host force load scale
-                displacement_bc_magnitude = np.float64(
-                    displacement_bc_magnitude)
-        # No specified build up parameters
-        elif max_displacement_rate is not None:
-            # update the host displacement boundary magnitude
-            displacement_bc_magnitude = np.float64(1.0 * max_displacement_rate)
-        return displacement_bc_magnitude, ease_off
-
     def _set_boundary_conditions(
             self, is_displacement_boundary, is_forces_boundary, is_tip):
         """
@@ -906,8 +841,7 @@ class Model(object):
 
     def simulate(self, steps, u=None, ud=None, connectivity=None,
                  regimes=None, critical_stretch=None, bond_stiffness=None,
-                 max_displacement_rate=0.0, build_displacement=None,
-                 max_displacement=None, build_load_steps=None, ease_off=0,
+                 displacement_bc_magnitudes=None, force_bc_magnitudes=None,
                  max_load=0.0, first_step=1, write=None,
                  write_path=None):
         """
@@ -941,21 +875,6 @@ class Model(object):
             or a float value of the bond stiffness the Peridynamic bond-based
             prototype microelastic brittle (PMB) model.
         :type bond_stiffness: :class:`numpy.ndarray` or float
-        :arg float max_displacement_rate: The displacement rate in [m] per step
-            during the linear phase of the displacement-time graph, and the
-            maximum displacement rate of any part of the simulation.
-        :arg float build_displacement: The displacement in [m] over which the
-            displacement-time graph is the smooth 5th order polynomial.
-        :arg float max_displacement: The final applied displacement in [m].
-            Default is 0.
-        :arg float build_load_steps: The inverse of the number of steps
-            required to build up to full external force loading.
-        :arg float ease_off: The number of time steps at which the simulation
-            displacement-time curve started to decelerate. This is only used
-            when simulation has been 'resumed'. Default is 0 for a
-            new simulation.
-        :arg float max_load: The maximum total load applied to the loaded
-            nodes. Default is 0.
         :arg int first_step: The starting step number. This is useful when
             restarting a simulation.
         :arg int write: The frequency, in number of steps, to write the system
@@ -973,30 +892,30 @@ class Model(object):
             the current value of ease_off
         :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
                       :class:`numpy.ndarray`,
-            tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`), int)
+            tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`))
         """
         (damage,
          u,
          ud,
          nlist,
          n_neigh,
-         force_bc_magnitude,
-         displacement_bc_magnitude,
-         build_time,
-         coefficients,
+         displacement_bc_magnitudes,
+         force_bc_magnitudes,
          damage_sum_data,
          tip_displacement_data,
          tip_force_data,
          write_path) = self._simulate_initialise(
-             max_displacement_rate, build_displacement, max_displacement,
-             steps, regimes, max_load, u, ud, connectivity, bond_stiffness,
-             critical_stretch, write_path, ease_off)
+             steps, regimes, u, ud, displacement_bc_magnitudes,
+             force_bc_magnitudes, connectivity, bond_stiffness,
+             critical_stretch, write_path)
 
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
 
             # Call one integration step
-            self.integrator(displacement_bc_magnitude, force_bc_magnitude)
+            self.integrator(
+                displacement_bc_magnitudes[step - 1],
+                force_bc_magnitudes[step - 1])
 
             if write:
                 if step % write == 0:
@@ -1034,23 +953,13 @@ class Model(object):
                         warnings.warn('Warning: over 7% of bonds have broken!\
                                       peridynamics simulation continuing')
 
-            # Increase external forces in linear incremenets
-            if force_bc_magnitude != max_load:
-                force_bc_magnitude = self._increment_load(
-                    build_load_steps, max_load, step)
-
-            # Increase displacement in 5th order polynomial increments
-            displacement_bc_magnitude, ease_off = self._increment_displacement(
-                coefficients, build_time, step, ease_off,
-                max_displacement_rate, build_displacement, max_displacement)
-
         return (u, damage, (nlist, n_neigh), ud, damage_sum_data,
-                tip_displacement_data, tip_force_data, ease_off)
+                tip_displacement_data, tip_force_data)
 
     def _simulate_initialise(
-            self, max_displacement_rate, build_displacement,
-            max_displacement, max_load, steps, regimes, u, ud, connectivity,
-            bond_stiffness, critical_stretch, write_path, ease_off):
+            self, steps, regimes, u, ud,
+            displacement_bc_magnitudes, force_bc_magnitudes, connectivity,
+            bond_stiffness, critical_stretch, write_path):
         """
         Initialise simulation variables.
 
@@ -1099,12 +1008,39 @@ class Model(object):
                      :class:`numpy.ndarray`, :class:`numpy.ndarray`,
                      :class:`numpy.ndarray`, :class`pathlib.Path`)
         """
-        # Create initial displacements is none is provided
+        # Create initial displacements if none is provided
         if u is None:
             u = np.empty((self.nnodes, 3), dtype=np.float64)
         if ud is None:
             ud = np.empty((self.nnodes, 3), dtype=np.float64)
         damage = np.empty(self.nnodes).astype(np.float64)
+        # Create boundary condition magnitudes if none is provided
+        if displacement_bc_magnitudes is None:
+            displacement_bc_magnitudes = np.zeros(steps, dtype=np.float64)
+        elif type(displacement_bc_magnitudes) == np.ndarray:
+            if np.shape(displacement_bc_magnitudes) != (steps,):
+                raise ValueError("displacement_bc_magnitudes must be of shape "
+                                 "(steps,), but was shape {}".format(
+                                     np.shape(displacement_bc_magnitudes)))
+            displacement_bc_magnitudes = displacement_bc_magnitudes.astype(
+                np.float64)
+        else:
+            raise TypeError("displacement_bc_magnitudes must be a "
+                            "numpy.npdarray or None, but had "
+                            "type {}".format(type(displacement_bc_magnitudes)))
+        if force_bc_magnitudes is None:
+            force_bc_magnitudes = np.zeros(steps, dtype=np.float64)
+        elif type(force_bc_magnitudes) == np.ndarray:
+            if np.shape(force_bc_magnitudes) != (steps,):
+                raise ValueError("force_bc_magnitudes must be of shape "
+                                 "(steps,), but was shape {}".format(
+                                     np.shape(force_bc_magnitudes)))
+            force_bc_magnitudes = force_bc_magnitudes.astype(
+                np.float64)
+        else:
+            raise TypeError("force_bc_magnitudes must be a "
+                            "numpy.npdarray or None, but had "
+                            "type {}".format(type(force_bc_magnitudes)))
         # Use the initial connectivity (when the Model was constructed) if none
         # is provided
         if connectivity is None:
@@ -1153,20 +1089,6 @@ class Model(object):
         else:
             write_path = pathlib.Path(write_path)
 
-        # Calculate no. of time steps that applied BCs are in the build phase
-        if not ((max_displacement_rate is None)
-                or (build_displacement is None)
-                or (max_displacement is None)):
-            build_time, coefficients = calc_build_time(
-                build_displacement, max_displacement_rate, steps)
-        else:
-            build_time, coefficients = None, None
-
-        # For applying force in incriments
-        force_bc_magnitude = np.float64(0.0)
-        # For applying displacement in incriments
-        displacement_bc_magnitude = np.float64(0.0)
-
         # Container for plotting data
         damage_sum_data = []
         tip_displacement_data = []
@@ -1177,10 +1099,9 @@ class Model(object):
             nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs, u, ud,
             damage, regimes)
 
-        return (damage, u, ud, nlist, n_neigh, force_bc_magnitude,
-                displacement_bc_magnitude, build_time, coefficients,
-                damage_sum_data, tip_displacement_data, tip_force_data,
-                ease_off, write_path)
+        return (damage, u, ud, nlist, n_neigh, displacement_bc_magnitudes,
+                force_bc_magnitudes, damage_sum_data, tip_displacement_data,
+                tip_force_data, write_path)
 
 
 def initial_crack_helper(crack_function):

@@ -23,7 +23,7 @@ __kernel void
 	const int i = get_global_id(0);
 
 	if (i < dof_nnodes)	{
-		u[i] = (bc_types[i] == 0 ? (u[i] + dt * ud[i]) : (u[i] + bc_scale * bc_values[i]));
+		u[i] = (bc_types[i] == 0 ? (u[i] + dt * ud[i]) : (bc_scale * bc_values[i]));
 	}
 }
 

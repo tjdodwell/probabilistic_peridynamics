@@ -1,7 +1,7 @@
 """Tests for the neighbour list module."""
 from peridynamics.neighbour_list import (
-    set_family, create_neighbour_list_cython, create_crack,
-    create_neighbour_list_cl
+    set_family, create_neighbour_list_cython, create_crack_cython,
+    create_crack_cl, create_neighbour_list_cl
     )
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -108,7 +108,7 @@ class TestNeigbourList():
         assert np.all(n_neigh == n_neigh_expected)
 
         crack = np.array([(0, 2), (1, 3)], dtype=np.int32)
-        create_crack(crack, nl, n_neigh)
+        create_crack_cython(crack, nl, n_neigh)
 
         nl_expected = np.array([
             [1, 4, 4],

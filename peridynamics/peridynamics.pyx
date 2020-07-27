@@ -164,8 +164,7 @@ def update_displacement(double[:, :] u, double[:, :] bc_values,
 
     :arg u: The current displacements of each node.
     :type u: :class:`numpy.ndarray`
-    :arg bc_values: An (n,3) array of the boundary condition values
-        applied nodes.
+    :arg bc_values: An (n,3) array of the boundary condition values.
     :type bc_values: :class:`numpy.ndarray`
     :arg bc_types: An (n,3) array of the boundary condition types, where a
         value of 2 represents an unconstrained node.
@@ -182,4 +181,4 @@ def update_displacement(double[:, :] u, double[:, :] bc_values,
                 if(bc_types[i, dim] == 0):
                     u[i, dim] = u[i, dim] + dt * force[i, dim]
                 else:
-                    u[i, dim] = u[i, dim] + bc_scale * bc_values[i, dim]
+                    u[i, dim] = bc_scale * bc_values[i, dim]
