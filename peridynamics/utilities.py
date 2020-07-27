@@ -35,31 +35,38 @@ def read_array(read_path, dataset):
     """
     try:
         with h5py.File(read_path, 'r') as hf:
-            array = hf[dataset][:]
+            try:
+                array = hf[dataset][:]
+            except IOError:
+                print("The array {} does not appear to exist in the file {}."
+                      "Please set a write_path keyword argument in `Model`"
+                      "and the {} array will be created and then written to"
+                      "that file path.".format(dataset, read_path))
         return array
     except IOError:
         print("The .h5 file at {} does not appear to exist, yet. Please set a "
-              "write_path key word argument in `Model` and the {} array will "
+              "write_path keyword argument in `Model` and the {} array will "
               "be created and then written to that file path.".format(
                   read_path, dataset))
         return None
 
 
-def _calc_midpoint_gradient(T, displacement_scale_rate):
+def _calc_midpoint_gradient(T, displacement):
     """
     Calculate the midpoint gradient and coefficients of a 5th order polynomial.
 
     Calculates the midpoint gradient and coefficients of a 5th order
     polynomial displacement-time curve which is defined by acceleration being
-    0 at t=0 and t=T and a midpoint gradient.
+    0 at t=0 and t=T and a total displacement.
 
-    :arg int T: The finish time-step of the displacement-time curve.
-    :arg float displacement_scale_rate: The midpoint gradient of the curve.
-
-    :returns: A tuple containing a float
-        the midpoint gradient of the displacement-time curve and a tuple
-        containing the 3 unconstrained coefficients of the 5th-order
+    :arg int T: The total time in number of time steps of the smooth 5th order
         polynomial.
+    :arg float displacement: The final displacement in [m] of the smooth 5th
+        order polynomial.
+
+    :returns: A tuple containing the midpoint gradient of the
+        displacement-time curve and a tuple containing the 3 unconstrained
+        coefficients of the 5th-order polynomial.
     :rtype: A tuple containing (:type float:, :type tuple:)
     """
     A = np.array([
@@ -70,7 +77,7 @@ def _calc_midpoint_gradient(T, displacement_scale_rate):
         )
     b = np.array(
         [
-            [displacement_scale_rate],
+            [displacement],
             [0.0],
             [0.0]
                 ])
@@ -114,9 +121,11 @@ def calc_displacement_scale(
     :rtype: np.float64
     """
     a, b, c = coefficients
+    # Acceleration part of displacement-time curve.
     if step < build_time / 2:
         m = 5 * a * step**4 + 4 * b * step**3 + 3 * c * step**2
         displacement_bc_rate = m
+    # Deceleration part of dispalcement-time curve.
     elif ease_off != 0:
         t = step - ease_off + build_time / 2
         if t > build_time:
@@ -124,8 +133,9 @@ def calc_displacement_scale(
         else:
             m = 5 * a * t**4 + 4 * b * t**3 + 3 * c * t**2
             displacement_bc_rate = m
-    else:  # linear increments
-        # calculate displacement
+    # Constant velocity
+    else:
+        # Calculate displacement.
         linear_time = step - build_time/2
         linear_displacement = linear_time * max_displacement_rate
         displacement = linear_displacement + build_displacement/2
@@ -157,20 +167,23 @@ def calc_build_time(build_displacement, max_displacement_rate, steps):
     :rtype: A tuple containing (:type int:, :type tuple:)
     """
     build_time = 0
+    test = 0
     midpoint_gradient = np.inf
     while midpoint_gradient > max_displacement_rate:
         # Try to calculate gradient
         try:
             midpoint_gradient, coefficients = _calc_midpoint_gradient(
                 build_time, build_displacement)
-        # No solution.. try increasing the build_time
-        except Exception:
-            pass
+        # No solution, so increase the build_time
+        except np.linalg.LinAlgError as err:
+            if 'Singular matrix' in str(err):
+                pass
         build_time += 1
         if build_time > steps:
             raise ValueError(
-                'Displacement build-up time was larger than total simulation \
-                time steps! \ntry decreasing build_displacement, or\
-                increasing max_displacement_rate. steps = {}'.format(steps))
+                "Displacement build-up time was larger than total simulation "
+                "time steps! \nTry increasing steps, decreasing "
+                "build_displacement, or increasing max_displacement_rate. "
+                "steps = {}".format(steps))
             break
     return(build_time, coefficients)

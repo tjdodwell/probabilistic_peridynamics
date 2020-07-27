@@ -409,7 +409,7 @@ class Model(object):
                 raise ValueError("stiffness_corrections must have "
                                  "shape (nnodes, max_neighbours) = {} but "
                                  "shape was {}".format(
-                                     (self.nnodes, self.max_neighbours), 
+                                     (self.nnodes, self.max_neighbours),
                                      np.shape(stiffness_corrections)))
             else:
                 self.stiffness_corrections = stiffness_corrections
@@ -907,7 +907,7 @@ class Model(object):
     def simulate(self, steps, u=None, ud=None, connectivity=None,
                  regimes=None, critical_stretch=None, bond_stiffness=None,
                  max_displacement_rate=0.0, build_displacement=None,
-                 max_displacement=None, build_load_steps=None,
+                 max_displacement=None, build_load_steps=None, ease_off=0,
                  max_load=0.0, first_step=1, write=None,
                  write_path=None):
         """
@@ -950,6 +950,10 @@ class Model(object):
             Default is 0.
         :arg float build_load_steps: The inverse of the number of steps
             required to build up to full external force loading.
+        :arg float ease_off: The number of time steps at which the simulation
+            displacement-time curve started to decelerate. This is only used
+            when simulation has been 'resumed'. Default is 0 for a
+            new simulation.
         :arg float max_load: The maximum total load applied to the loaded
             nodes. Default is 0.
         :arg int first_step: The starting step number. This is useful when
@@ -966,9 +970,10 @@ class Model(object):
             total sum of all damage over the time steps, a (steps, 3) array of
             the tip displacements over the time-steps and a (steps, 3) array of
             the tip resultant force over the time-steps.
+            the current value of ease_off
         :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
                       :class:`numpy.ndarray`,
-            tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`))
+            tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`), int)
         """
         (damage,
          u,
@@ -982,11 +987,10 @@ class Model(object):
          damage_sum_data,
          tip_displacement_data,
          tip_force_data,
-         ease_off,
          write_path) = self._simulate_initialise(
              max_displacement_rate, build_displacement, max_displacement,
              steps, regimes, max_load, u, ud, connectivity, bond_stiffness,
-             critical_stretch, write_path)
+             critical_stretch, write_path, ease_off)
 
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
@@ -1041,12 +1045,12 @@ class Model(object):
                 max_displacement_rate, build_displacement, max_displacement)
 
         return (u, damage, (nlist, n_neigh), ud, damage_sum_data,
-                tip_displacement_data, tip_force_data)
+                tip_displacement_data, tip_force_data, ease_off)
 
     def _simulate_initialise(
             self, max_displacement_rate, build_displacement,
             max_displacement, max_load, steps, regimes, u, ud, connectivity,
-            bond_stiffness, critical_stretch, write_path):
+            bond_stiffness, critical_stretch, write_path, ease_off):
         """
         Initialise simulation variables.
 
@@ -1167,9 +1171,6 @@ class Model(object):
         damage_sum_data = []
         tip_displacement_data = []
         tip_force_data = []
-
-        # Ease off displacement loading switch
-        ease_off = 0
 
         # Initialise the OpenCL buffers
         self.integrator.set_buffers(
