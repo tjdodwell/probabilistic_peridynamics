@@ -230,7 +230,7 @@ class Euler(Integrator):
         u(t + \delta t) = u(t) + \delta t f(t)
 
     where :math:`u(t)` is the displacement at time :math:`t`, :math:`f(t)` is
-    the force at time :math:`t`, :math:`\delta t` is the time step and
+    the force at time :math:`t`, :math:`\delta t` is the time step.
     """
 
     def __init__(self, dt):
@@ -336,7 +336,7 @@ class EulerOpenCL(Integrator):
         u(t + \delta t) = u(t) + \delta t f(t) d
 
     where :math:`u(t)` is the displacement at time :math:`t`, :math:`f(t)` is
-    the force at time :math:`t`, :math:`\delta t` is the time step and
+    the force at time :math:`t`, :math:`\delta t` is the time step.
     """
 
     def __init__(self, *args, **kwargs):
