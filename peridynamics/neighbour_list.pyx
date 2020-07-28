@@ -88,8 +88,6 @@ def create_neighbour_list_cl(double[:, :] r, double horizon, int size):
     cdef int[:, :] nlist_view = nlist
     n_neigh = np.zeros(nnodes, dtype=np.intc)
     cdef int[:] n_neigh_view = n_neigh
-    material_type_list = -1*np.ones((nnodes, size), dtype=np.intc)
-    cdef int[:, :] material_type_list_view = material_type_list
 
     cdef int i, j
 
