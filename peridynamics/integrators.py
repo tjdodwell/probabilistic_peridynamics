@@ -143,7 +143,7 @@ class Integrator(ABC):
 
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness,
-            critical_stretch, plus_cs, u, ud, damage, regimes):
+            critical_stretch, plus_cs, u, ud, force, damage, regimes):
         """
         Initialise the OpenCL buffers.
 
@@ -156,8 +156,9 @@ class Integrator(ABC):
 
         # Build OpenCL data structures that are dependent on
         # :class: Model.simulation parameters
-
         # Read and write
+        self.force_d = cl.Buffer(
+            self.context, mf.READ_WRITE, force.nbytes)
         self.nlist_d = cl.Buffer(
             self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=nlist)
@@ -165,10 +166,11 @@ class Integrator(ABC):
             self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=n_neigh)
         self.u_d = cl.Buffer(
-            self.context, mf.READ_WRITE, u.nbytes)
+            self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+            hostbuf=u)
         self.ud_d = cl.Buffer(
-            self.context, mf.READ_WRITE, ud.nbytes)
-
+            self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+            hostbuf=ud)
         # Write only
         self.damage_d = cl.Buffer(
             self.context, mf.WRITE_ONLY, damage.nbytes)
@@ -185,7 +187,7 @@ class Integrator(ABC):
         queue.finish()
 
     def _bond_force(
-            self, u_d, ud_d, r0_d, vols_d, nlist_d, n_neigh_d,
+            self, u_d, force_d, r0_d, vols_d, nlist_d, n_neigh_d,
             force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
             local_mem_z, force_load_scale, bond_stiffness, critical_stretch):
         """Calculate the force due to bonds acting on each node."""
@@ -193,13 +195,13 @@ class Integrator(ABC):
         # Call kernel
         self.bond_force_kernel(
                 queue, (self.nnodes * self.max_neighbours,),
-                (self.max_neighbours,), u_d, ud_d, r0_d, vols_d, nlist_d,
+                (self.max_neighbours,), u_d, force_d, r0_d, vols_d, nlist_d,
                 n_neigh_d, force_bc_types_d, force_bc_values_d, local_mem_x,
                 local_mem_y, local_mem_z, np.float64(force_load_scale),
                 np.float64(bond_stiffness), np.float64(critical_stretch))
         queue.finish()
 
-    def write(self, damage, u, ud, nlist, n_neigh):
+    def write(self, u, ud, force, damage, nlist, n_neigh):
         """Copy the state variables from device memory to host memory."""
         queue = self.queue
         # Calculate the damage
@@ -208,9 +210,10 @@ class Integrator(ABC):
         cl.enqueue_copy(queue, damage, self.damage_d)
         cl.enqueue_copy(queue, u, self.u_d)
         cl.enqueue_copy(queue, ud, self.ud_d)
+        cl.enqueue_copy(queue, force, self.force_d)
         cl.enqueue_copy(queue, nlist, self.nlist_d)
         cl.enqueue_copy(queue, n_neigh, self.n_neigh_d)
-        return (damage, u, ud, nlist, n_neigh)
+        return (u, ud, force, damage, nlist, n_neigh)
 
 
 class Euler(Integrator):
@@ -240,17 +243,17 @@ class Euler(Integrator):
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """Conduct one iteration of the integrator."""
         # Calculate the force due to bonds on each node
-        self.ud = self._bond_force(force_bc_scale)
+        self.force = self._bond_force(force_bc_scale)
 
         # Conduct one integration step
-        self._update_displacement(self.ud, displacement_bc_scale)
+        self._update_displacement(self.force, displacement_bc_scale)
 
         # Update neighbour list
         self._break_bonds()
 
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
-            u, ud, damage, regimes):
+            u, force, damage, regimes):
         """
         Initiate arrays that are dependent on simulation parameters.
 
@@ -262,7 +265,7 @@ class Euler(Integrator):
         self.bond_stiffness = bond_stiffness
         self.critical_stretch = critical_stretch
         self.u = u
-        self.ud = ud
+        self.force = force
 
     def build(
             self, nnodes, degrees_freedom, max_neighbours, nregimes, coords,
@@ -291,9 +294,9 @@ class Euler(Integrator):
     def _build_special(self):
         """Build programs that are special to the Euler integrator."""
 
-    def _update_displacement(self, ud, displacement_bc_scale):
+    def _update_displacement(self, force, displacement_bc_scale):
         update_displacement(
-            self.u, self.bc_values, self.bc_types, ud,
+            self.u, self.bc_values, self.bc_types, force,
             displacement_bc_scale, self.dt)
 
     def _break_bonds(self):
@@ -307,16 +310,16 @@ class Euler(Integrator):
 
     def _bond_force(self, force_bc_scale):
         """Calculate the force due to bonds acting on each node."""
-        ud = bond_force(
+        force = bond_force(
             self.coords+self.u, self.coords, self.nlist, self.n_neigh,
             self.volume, self.bond_stiffness, self.force_bc_values,
             self.force_bc_types, force_bc_scale)
-        return ud
+        return force
 
-    def write(self, damage, u, ud, nlist, n_neigh):
+    def write(self, damage, u, force, nlist, n_neigh):
         """Return the state variable arrays."""
         damage = self._damage()
-        return (damage, self.u, self.ud, self.nlist, self.n_neigh)
+        return (damage, self.u, self.force, self.nlist, self.n_neigh)
 
 
 class EulerOpenCL(Integrator):
@@ -344,10 +347,10 @@ class EulerOpenCL(Integrator):
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """Conduct one iteration of the integrator."""
         self._update_displacement(
-            self.ud_d, self.u_d, self.bc_types_d, self.bc_values_d,
+            self.force_d, self.u_d, self.bc_types_d, self.bc_values_d,
             displacement_bc_scale, self.dt)
         self._bond_force(
-            self.u_d, self.ud_d, self.r0_d, self.vols_d, self.nlist_d,
+            self.u_d, self.force_d, self.r0_d, self.vols_d, self.nlist_d,
             self.n_neigh_d, self.force_bc_types_d, self.force_bc_values_d,
             self.local_mem_x, self.local_mem_y, self.local_mem_z,
             force_bc_scale, self.bond_stiffness, self.critical_stretch)
@@ -367,14 +370,14 @@ class EulerOpenCL(Integrator):
         """Set buffers special to the Euler integrator."""
 
     def _update_displacement(
-            self, ud_d, u_d, bc_types_d, bc_values_d, displacement_load_scale,
-            dt):
+            self, force_d, u_d, bc_types_d, bc_values_d,
+            displacement_load_scale, dt):
         """Update displacements."""
         queue = self.queue
         # Call kernel
         self.update_displacement_kernel(
                 self.queue, (self.degrees_freedom * self.nnodes,), None,
-                ud_d, u_d, bc_types_d, bc_values_d,
+                force_d, u_d, bc_types_d, bc_values_d,
                 np.float64(displacement_load_scale), np.float64(dt))
         queue.finish()
         return u_d

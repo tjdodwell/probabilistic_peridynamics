@@ -458,10 +458,10 @@ class Model(object):
                 return bnd
 
         # Apply boundary conditions
-        (self.bc_types,
-         self.bc_values,
-         self.force_bc_types,
-         self.force_bc_values,
+        (bc_types,
+         bc_values,
+         force_bc_types,
+         force_bc_values,
          self.tip_types) = self._set_boundary_conditions(
             is_displacement_boundary, is_forces_boundary, is_tip)
 
@@ -469,8 +469,8 @@ class Model(object):
         self.integrator.build(
             self.nnodes, self.degrees_freedom, self.max_neighbours,
             self.nregimes, self.coords, self.volume, self.family,
-            self.bc_types, self.bc_values, self.force_bc_types,
-            self.force_bc_values)
+            bc_types, bc_values, force_bc_types,
+            force_bc_values)
 
     def _read_mesh(self, filename):
         """
@@ -875,6 +875,12 @@ class Model(object):
             or a float value of the bond stiffness the Peridynamic bond-based
             prototype microelastic brittle (PMB) model.
         :type bond_stiffness: :class:`numpy.ndarray` or float
+        :arg displacement_bc_magnitudes: (steps, ) array of the magnitude
+            applied to the displacement boundary conditions over time.
+        :type displacement_bc_magnitudes: :class:`numpy.ndarray`
+        :arg force_bc_magnitudes: (steps, ) array of the magnitude applied to
+            the force boundary conditions over time.
+        :type force_bc_magnitudes: :class:`numpy.ndarray`
         :arg int first_step: The starting step number. This is useful when
             restarting a simulation.
         :arg int write: The frequency, in number of steps, to write the system
@@ -885,7 +891,7 @@ class Model(object):
         :type write_path: path-like or str
 
         :returns: A tuple of the final displacements (`u`), damage,
-            the final velocities (`ud`)connectivity, a (steps) list of the
+            the final velocities (`ud`) connectivity, a (steps, ) list of the
             total sum of all damage over the time steps, a (steps, 3) array of
             the tip displacements over the time-steps and a (steps, 3) array of
             the tip resultant force over the time-steps.
@@ -894,15 +900,17 @@ class Model(object):
                       :class:`numpy.ndarray`,
             tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`))
         """
-        (damage,
-         u,
+        (u,
          ud,
+         force,
          nlist,
          n_neigh,
          displacement_bc_magnitudes,
          force_bc_magnitudes,
+         damage,
          damage_sum_data,
          tip_displacement_data,
+         tip_velocity_data,
          tip_force_data,
          write_path) = self._simulate_initialise(
              steps, regimes, u, ud, displacement_bc_magnitudes,
@@ -919,31 +927,37 @@ class Model(object):
 
             if write:
                 if step % write == 0:
-                    (damage,
-                     u,
+                    (u,
                      ud,
+                     force,
+                     damage,
                      nlist,
                      n_neigh) = self.integrator.write(
-                         damage, u, ud, nlist, n_neigh)
+                         u, ud, force, damage, nlist, n_neigh)
 
                     self.write_mesh(write_path/f"U_{step}.vtk", damage, u)
 
                     tip_displacement = 0
-                    tip_shear_force = 0
+                    tip_velocity = 0
+                    tip_force = 0
                     tmp = 0
                     for i in range(self.nnodes):
                         for j in range(self.degrees_freedom):
                             if self.tip_types[i][j] == 1:
                                 tmp += 1
                                 tip_displacement += u[i][j]
-                                tip_shear_force += ud[i][j]
+                                tip_velocity += ud[i][j]
+                                tip_force += force[i][j]
                     if tmp != 0:
                         tip_displacement /= tmp
+                        tip_velocity /= tmp
                     else:
                         tip_displacement = None
+                        tip_velocity = None
 
                     tip_displacement_data.append(tip_displacement)
-                    tip_force_data.append(tip_shear_force)
+                    tip_velocity_data.append(tip_velocity)
+                    tip_force_data.append(tip_force)
                     damage_sum = np.sum(damage)
                     damage_sum_data.append(damage_sum)
                     if damage_sum > 0.05*self.nnodes:
@@ -954,7 +968,7 @@ class Model(object):
                                       peridynamics simulation continuing')
 
         return (u, damage, (nlist, n_neigh), ud, damage_sum_data,
-                tip_displacement_data, tip_force_data)
+                tip_displacement_data, tip_velocity_data, tip_force_data)
 
     def _simulate_initialise(
             self, steps, regimes, u, ud,
@@ -963,14 +977,6 @@ class Model(object):
         """
         Initialise simulation variables.
 
-        :arg float max_displacement_rate: The displacement rate in [m] per step
-            during the linear phase of the displacement-time graph, and the
-            maximum displacement rate of any part of the simulation.
-        :arg float build_displacement: The displacement in [m] over which the
-            displacement-time graph is the smooth 5th order polynomial.
-        :arg float max_displacement: The final applied displacement in [m].
-        :arg float max_load: The maximum total load applied to the loaded
-            nodes.
         :arg int steps: The number of simulation steps to conduct.
         :arg regimes: The initial regimes for the simulation. A
             (`nodes`, `max_neighbours`) array of type
@@ -983,6 +989,12 @@ class Model(object):
         :arg ud: The initial velocities for the simulation. If `None` the
             velocities will be initialised to zero. Default `None`.
         :type ud: :class:`numpy.ndarray`
+        :arg displacement_bc_magnitudes: (steps, ) array of the magnitude
+            applied to the displacement boundary conditions over time.
+        :type displacement_bc_magnitudes: :class:`numpy.ndarray`
+        :arg force_bc_magnitudes: (steps, ) array of the magnitude applied to
+            the force boundary conditions over time.
+        :type force_bc_magnitudes: :class:`numpy.ndarray`
         :arg connectivity: The initial connectivity for the simulation. A tuple
             of a neighbour list and the number of neighbours for each node. If
             `None` the connectivity at the time of construction of the
@@ -1013,14 +1025,16 @@ class Model(object):
             u = np.empty((self.nnodes, 3), dtype=np.float64)
         if ud is None:
             ud = np.empty((self.nnodes, 3), dtype=np.float64)
-        damage = np.empty(self.nnodes).astype(np.float64)
+        # Initiate forces and damage
+        force = np.empty((self.nnodes, 3), dtype=np.float64)
+        damage = np.empty(self.nnodes, dtype=np.float64)
         # Create boundary condition magnitudes if none is provided
         if displacement_bc_magnitudes is None:
             displacement_bc_magnitudes = np.zeros(steps, dtype=np.float64)
         elif type(displacement_bc_magnitudes) == np.ndarray:
             if np.shape(displacement_bc_magnitudes) != (steps,):
                 raise ValueError("displacement_bc_magnitudes must be of shape "
-                                 "(steps,), but was shape {}".format(
+                                 "(steps, ), but was shape {}".format(
                                      np.shape(displacement_bc_magnitudes)))
             displacement_bc_magnitudes = displacement_bc_magnitudes.astype(
                 np.float64)
@@ -1033,7 +1047,7 @@ class Model(object):
         elif type(force_bc_magnitudes) == np.ndarray:
             if np.shape(force_bc_magnitudes) != (steps,):
                 raise ValueError("force_bc_magnitudes must be of shape "
-                                 "(steps,), but was shape {}".format(
+                                 "(steps, ), but was shape {}".format(
                                      np.shape(force_bc_magnitudes)))
             force_bc_magnitudes = force_bc_magnitudes.astype(
                 np.float64)
@@ -1092,15 +1106,17 @@ class Model(object):
         # Container for plotting data
         damage_sum_data = []
         tip_displacement_data = []
+        tip_velocity_data = []
         tip_force_data = []
 
         # Initialise the OpenCL buffers
         self.integrator.set_buffers(
             nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs, u, ud,
-            damage, regimes)
+            force, damage, regimes)
 
-        return (damage, u, ud, nlist, n_neigh, displacement_bc_magnitudes,
-                force_bc_magnitudes, damage_sum_data, tip_displacement_data,
+        return (u, ud, force, nlist, n_neigh, displacement_bc_magnitudes,
+                force_bc_magnitudes, damage,
+                damage_sum_data, tip_displacement_data, tip_velocity_data,
                 tip_force_data, write_path)
 
 
