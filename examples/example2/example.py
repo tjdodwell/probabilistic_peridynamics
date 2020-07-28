@@ -1,11 +1,10 @@
-"""A simple, 2D peridynamics simulation example."""
+"""A simple, 3D peridynamics simulation example for varying problem sizes."""
 import argparse
 import cProfile
 from io import StringIO
 import numpy as np
 import pathlib
 from peridynamics import Model
-from peridynamics.model import initial_crack_helper
 from peridynamics.integrators import Euler, EulerOpenCL
 from peridynamics.utilities import read_array as read_model
 from peridynamics.utilities import calc_boundary_conditions_magnitudes
@@ -34,29 +33,6 @@ dxs = {
     '1650beam74800t.msh': 0.015,
     '1650beam144900t.msh': 0.012,
     '1650beam247500t.msh': 0.010}
-
-
-@initial_crack_helper
-def is_crack(x, y):
-    """Determine whether a pair of particles define the crack."""
-    output = 0
-    crack_length = 0.3
-    p1 = x
-    p2 = y
-    if x[0] > y[0]:
-        p2 = x
-        p1 = y
-    # 1e-6 makes it fall one side of central line of particles
-    if p1[0] < 0.5 + 1e-6 and p2[0] > 0.5 + 1e-6:
-        # draw a straight line between them
-        m = (p2[1] - p1[1]) / (p2[0] - p1[0])
-        c = p1[1] - m * p1[0]
-        # height a x = 0.5
-        height = m * 0.5 + c
-        if (height > 0.5 * (1 - crack_length)
-                and height < 0.5 * (1 + crack_length)):
-            output = 1
-    return output
 
 
 def is_tip(x):
