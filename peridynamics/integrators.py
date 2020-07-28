@@ -108,12 +108,15 @@ class Integrator(ABC):
 
         # Build OpenCL data structures that are independent of
         # :class: Model.simulation parameters
-        # Local memory containers for Bond forces
+        # Local memory containers for bond forces
         self.local_mem_x = cl.LocalMemory(
             np.dtype(np.float64).itemsize * self.max_neighbours)
         self.local_mem_y = cl.LocalMemory(
             np.dtype(np.float64).itemsize * self.max_neighbours)
         self.local_mem_z = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * self.max_neighbours)
+        # Local memory container for damage
+        self.local_mem = cl.LocalMemory(
             np.dtype(np.float64).itemsize * self.max_neighbours)
         # Read only
         self.r0_d = cl.Buffer(
@@ -142,8 +145,8 @@ class Integrator(ABC):
         self._build_special()
 
     def set_buffers(
-            self, nlist, n_neigh, bond_stiffness,
-            critical_stretch, plus_cs, u, ud, force, damage, regimes):
+            self, nlist, bond_stiffness, critical_stretch, plus_cs, u, ud,
+            force, damage, regimes):
         """
         Initialise the OpenCL buffers.
 
@@ -162,9 +165,6 @@ class Integrator(ABC):
         self.nlist_d = cl.Buffer(
             self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=nlist)
-        self.n_neigh_d = cl.Buffer(
-            self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
-            hostbuf=n_neigh)
         self.u_d = cl.Buffer(
             self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=u)
@@ -177,17 +177,19 @@ class Integrator(ABC):
 
         self._set_special_buffers()
 
-    def _damage(self, n_neigh_d, family_d, damage_d):
+    def _damage(self, n_list_d, family_d, n_neigh_d, damage_d, local_mem):
         """Calculate bond damage."""
         queue = self.queue
 
         # Call kernel
         self.damage_kernel(
-            queue, (self.nnodes,), None, n_neigh_d, family_d, damage_d)
+            queue, (self.nnodes * self.max_neighbours,),
+            (self.max_neighbours,), n_list_d, family_d, n_neigh_d, damage_d,
+            local_mem)
         queue.finish()
 
     def _bond_force(
-            self, u_d, force_d, r0_d, vols_d, nlist_d, n_neigh_d,
+            self, u_d, force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
             local_mem_z, force_load_scale, bond_stiffness, critical_stretch):
         """Calculate the force due to bonds acting on each node."""
@@ -196,7 +198,7 @@ class Integrator(ABC):
         self.bond_force_kernel(
                 queue, (self.nnodes * self.max_neighbours,),
                 (self.max_neighbours,), u_d, force_d, r0_d, vols_d, nlist_d,
-                n_neigh_d, force_bc_types_d, force_bc_values_d, local_mem_x,
+                force_bc_types_d, force_bc_values_d, local_mem_x,
                 local_mem_y, local_mem_z, np.float64(force_load_scale),
                 np.float64(bond_stiffness), np.float64(critical_stretch))
         queue.finish()
@@ -205,7 +207,8 @@ class Integrator(ABC):
         """Copy the state variables from device memory to host memory."""
         queue = self.queue
         # Calculate the damage
-        self._damage(self.n_neigh_d, self.family_d, self.damage_d)
+        self._damage(self.nlist_d, self.family_d, self.n_neigh_d,
+                     self.damage_d, self.local_mem)
 
         cl.enqueue_copy(queue, damage, self.damage_d)
         cl.enqueue_copy(queue, u, self.u_d)

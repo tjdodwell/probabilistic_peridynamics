@@ -8,7 +8,6 @@ __kernel void
     __global double const* r0,
     __global double const* vols,
 	__global int* nlist,
-    __global int* n_neigh,
     __global int const* fc_types,
     __global double const* fc_values,
     __local double* local_cache_x,
@@ -78,9 +77,8 @@ __kernel void
 		local_cache_z[local_id] = f * cz;
 
 		// Check for state of bonds here, and break it if necessary
-		if (s > critical_stretch) {
+		if (s >= critical_stretch) {
 			nlist[global_id] = -1;  // Break the bond
-			n_neigh[node_id_i] -= 1;
 		}
     }
     // bond is broken
@@ -114,17 +112,46 @@ __kernel void
     }
 }
 
-
-__kernel void damage(__global const int* n_neigh, __global const int* family,
-                     __global double* damage){
+__kernel void damage(
+        __global int const *nlist,
+		__global int const *family,
+        __global int *n_neigh,
+        __global double *damage,
+        __local double* local_cache
+    )
+{
     /* Calculate the damage of each node.
      *
+     * nlist - An (n, local_size) array containing the neighbour lists,
+     *     a value of -1 corresponds to a broken bond.
+     * family - An (n) array of the initial number of neighbours for each node.
      * n_neigh - An (n) array of the number of neighbours (particles bound) for
      *     each node.
-     * family - An (n) array of the initial number of neighbours for each node.
-     * damage - An (n) array of the damage for each node. */
-    int i = get_global_id(0);
+     * damage - An (n) array of the damage for each node. 
+     * local_cache - local (local_size) array to store the bond breakages.*/
+    int global_id = get_global_id(0); 
+    int local_id = get_local_id(0); 
+    int local_size = get_local_size(0); 
+    
+    //Copy values into local memory 
+    local_cache[local_id] = nlist[global_id] != -1 ? 1.00 : 0.00; 
 
-    int ifamily = family[i];
-    damage[i] = (double)(ifamily - n_neigh[i])/ifamily;
+    //Wait for all threads to catch up 
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int i = local_size/2; i > 0; i /= 2){
+        if(local_id < i){
+            local_cache[local_id] += local_cache[local_id + i];
+        } 
+        //Wait for all threads to catch up 
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    if (!local_id) {
+        //Get the reduced forces
+        int node_id = global_id/local_size;
+        // Update damage and n_neigh
+        int neighbours = local_cache[0];
+        n_neigh[node_id] = neighbours;
+        damage[node_id] = 1.00 - (double) neighbours / (double) (family[node_id]);
+    }
 }

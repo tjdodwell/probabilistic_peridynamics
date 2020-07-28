@@ -1,10 +1,8 @@
 """Tests for the OpenCL kernels."""
 from .conftest import context_available
-from ..cl import get_context, pad, kernel_source
-from ..cl.utilities import DOUBLE_FP_SUPPORT
+from ..cl import get_context, kernel_source
 import numpy as np
-from peridynamics.neighbour_list import (create_neighbour_list_cython,
-                                         create_neighbour_list_cl)
+from peridynamics.neighbour_list import (create_neighbour_list_cl, set_family)
 import pyopencl as cl
 from pyopencl import mem_flags as mf
 import pytest
@@ -30,29 +28,6 @@ def program(context):
     return cl.Program(context, kernel_source).build()
 
 
-@context_available
-def test_damage(context, queue, program):
-    """Test damage kernel."""
-    n_neigh = np.array([5, 5, 3, 0, 4, 5, 8, 3, 2, 1], dtype=np.int32)
-    family = np.array([10, 5, 5, 1, 5, 7, 10, 3, 3, 4], dtype=np.int32)
-    damage = np.empty(n_neigh.shape, dtype=np.float64)
-
-    # Create buffers
-    n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                          hostbuf=n_neigh)
-    family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                         hostbuf=family)
-    damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
-
-    # Call kernel
-    damage_kernel = program.damage
-    damage_kernel(queue, family.shape, None, n_neigh_d, family_d, damage_d)
-    cl.enqueue_copy(queue, damage, damage_d)
-
-    damage_expected = (family - n_neigh) / family
-    assert np.allclose(damage, damage_expected)
-
-
 class TestForce():
     """Test force calculation."""
 
@@ -66,33 +41,60 @@ class TestForce():
             [2.0, 0.0, 0.0],
             [0.0, 0.0, 1.0],
             ], dtype=np.float64)
-        horizon = 1.1
-        volume = np.ones(5, dtype=np.float64)
-        bond_stiffness = 1.0
-        max_neigh = 3
-        nlist, n_neigh = create_neighbour_list(r0, horizon, max_neigh)
 
-        force_expected = np.zeros((5, 3), dtype=np.float64)
+        horizon = 1.1
+        nnodes = 5
+        u = np.zeros((nnodes, 3), dtype=np.float64)
+        volume = np.ones(nnodes, dtype=np.float64)
+        bond_stiffness = 1.0
+        critical_stretch = 1000.0
+        max_neigh = 4
+        nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
+        force_load_scale = 1.0
+        force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
+        force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
+
+        force_expected = np.zeros((nnodes, 3), dtype=np.float64)
         force_actual = np.empty_like(force_expected)
 
         # Create buffers
-        r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                        hostbuf=r0)
-        r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                         hostbuf=r0)
-        nlist_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                            hostbuf=nlist)
-        n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                              hostbuf=n_neigh)
-        volume_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                             hostbuf=volume)
+        # Read and write
+        nlist_d = cl.Buffer(
+            context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+            hostbuf=nlist)
+        local_mem_x = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        local_mem_y = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        local_mem_z = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        # Read only
+        u_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                        hostbuf=u)
+        r0_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=r0)
+        vols_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=volume)
+        force_bc_types_d = cl.Buffer(
+           context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+           hostbuf=force_bc_types)
+        force_bc_values_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=force_bc_values)
+        # Write only
         force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
 
         # Call kernel
         bond_force = program.bond_force
-        bond_force(queue, n_neigh.shape, None, r_d, r0_d, nlist_d, n_neigh_d,
-                   np.int32(max_neigh), volume_d, np.float64(bond_stiffness),
-                   force_d)
+        bond_force(
+            queue, (nnodes * max_neigh,),
+            (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
+            force_bc_types_d, force_bc_values_d, local_mem_x,
+            local_mem_y, local_mem_z, np.float64(force_load_scale),
+            np.float64(bond_stiffness), np.float64(critical_stretch))
+
         cl.enqueue_copy(queue, force_actual, force_d)
 
         assert np.allclose(force_actual, force_expected)
@@ -106,14 +108,19 @@ class TestForce():
             [1.0, 1.0, 0.0],
             ], dtype=np.float64)
         horizon = 1.01
+        nnodes = 3
         elastic_modulus = 0.05
         bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
-        max_neigh = 3
-        volume = np.full(3, 0.16666667, dtype=np.float64)
-        nlist, n_neigh = create_neighbour_list(r0, horizon, max_neigh)
+        critical_stretch = 1000.0
+        max_neigh = 4
+        volume = np.full(nnodes, 0.16666667, dtype=np.float64)
+        nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
+        force_load_scale = 1.0
+        force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
+        force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
 
         # Displace particles, but do not update neighbour list
-        r = r0 + np.array([
+        u = np.array([
             [0.0, 0.0, 0.0],
             [0.05, 0.0, 0.0],
             [0.05, 0.05, 0.0]
@@ -128,123 +135,157 @@ class TestForce():
         force_actual = np.empty_like(force_expected)
 
         # Create buffers
-        r_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                        hostbuf=r)
-        r0_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                         hostbuf=r0)
-        nlist_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                            hostbuf=nlist)
-        n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                              hostbuf=n_neigh)
-        volume_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                             hostbuf=volume)
+        # Read and write
+        nlist_d = cl.Buffer(
+            context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+            hostbuf=nlist)
+        local_mem_x = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        local_mem_y = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        local_mem_z = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        # Read only
+        u_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                        hostbuf=u)
+        r0_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=r0)
+        vols_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=volume)
+        force_bc_types_d = cl.Buffer(
+           context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+           hostbuf=force_bc_types)
+        force_bc_values_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=force_bc_values)
+        # Write only
         force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
 
         # Call kernel
         bond_force = program.bond_force
-        bond_force(queue, n_neigh.shape, None, r_d, r0_d, nlist_d, n_neigh_d,
-                   np.int32(max_neigh), volume_d, np.float64(bond_stiffness),
-                   force_d)
+        bond_force(
+            queue, (nnodes * max_neigh,),
+            (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
+            force_bc_types_d, force_bc_values_d, local_mem_x,
+            local_mem_y, local_mem_z, np.float64(force_load_scale),
+            np.float64(bond_stiffness), np.float64(critical_stretch))
+
         cl.enqueue_copy(queue, force_actual, force_d)
 
         assert np.allclose(force_actual, force_expected)
 
+    @context_available
+    def test_break_bonds(self, context, queue, program):
+        """Test break bonds and damage calculation."""
+        r0 = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0],
+            ])
+        horizon = 1.1
+        nnodes = 5
+        max_neigh = 4
+        elastic_modulus = 0.05
+        bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
+        volume = np.full(nnodes, 0.16666667, dtype=np.float64)
+        family = set_family(r0, horizon)
+        nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
+        force_load_scale = 1.0
+        force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
+        force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
 
-@pytest.fixture
-def basic_model_2d(data_path):
-    """Create a basic 2D model object."""
-    mesh_file = data_path / "example_mesh.vtk"
-    model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
-                    bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
-    return model
+        nlist_expected = np.array([
+            [1, 2, 4, -1],
+            [0, 3, -1, -1],
+            [0, -1, -1, -1],
+            [1, -1, -1, -1],
+            [0, -1, -1, -1]
+            ])
+        n_neigh_expected = np.array([3, 2, 1, 1, 1])
 
+        assert np.all(nlist == nlist_expected)
+        assert np.all(n_neigh == n_neigh_expected)
 
-@pytest.fixture()
-def basic_model_3d(data_path):
-    """Create a basic 3D model object."""
-    mesh_file = data_path / "example_mesh_3d.vtk"
-    model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
-                    bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
-                    dimensions=3)
-    return model
+        u = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0]
+            ])
+        critical_stretch = 1.0
+        force = np.empty((nnodes, 3), dtype=np.float64)
+        damage = np.empty(nnodes, dtype=np.float64)
 
+        # Read and write
+        nlist_d = cl.Buffer(
+            context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+            hostbuf=nlist)
+        n_neigh_d = cl.Buffer(
+            context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+            hostbuf=n_neigh)
+        local_mem_x = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        local_mem_y = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        local_mem_z = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        local_mem = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        # Read only
+        u_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                        hostbuf=u)
+        r0_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=r0)
+        vols_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=volume)
+        family_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=family)
+        force_bc_types_d = cl.Buffer(
+           context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+           hostbuf=force_bc_types)
+        force_bc_values_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=force_bc_values)
+        # Write only
+        force_d = cl.Buffer(context, mf.WRITE_ONLY, force.nbytes)
+        damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
+        # Call kernel
+        bond_force_kernel = program.bond_force
+        damage_kernel = program.damage
+        bond_force_kernel(
+            queue, (nnodes * max_neigh,),
+            (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
+            force_bc_types_d, force_bc_values_d, local_mem_x,
+            local_mem_y, local_mem_z, np.float64(force_load_scale),
+            np.float64(bond_stiffness), np.float64(critical_stretch))
+        damage_kernel(
+            queue, (nnodes * max_neigh,),
+            (max_neigh,), nlist_d, family_d, n_neigh_d, damage_d,
+            local_mem)
 
-def test_no_context(data_path, monkeypatch):
-    """Test raising error when no suitable device is found."""
-    from .. import model_cl
+        cl.enqueue_copy(queue, force, force_d)
+        cl.enqueue_copy(queue, nlist, nlist_d)
+        cl.enqueue_copy(queue, n_neigh, n_neigh_d)
+        cl.enqueue_copy(queue, damage, damage_d)
 
-    # Mock the get_context function to return None as it would if no suitable
-    # device is found.
-    def return_none():
-        return None
-    monkeypatch.setattr(model_cl, "get_context", return_none)
+        nlist_expected = np.array([
+            [-1, 2, -1, -1],
+            [-1, 3, -1, -1],
+            [0, -1, -1, -1],
+            [1, -1, -1, -1],
+            [-1, -1, -1, -1]
+            ])
+        n_neigh_expected = np.array([1, 1, 1, 1, 0])
+        damage_expected = np.array([2./3, 1./2, 0.0, 0.0, 1.0])
 
-    mesh_file = data_path / "example_mesh.vtk"
-    with pytest.raises(ContextError) as exception:
-        ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
-                bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
-
-        assert "No suitable context was found." in exception.value
-
-
-@context_available
-def test_custom_context(data_path):
-    """Test constructing a ModelCL object using the context argument."""
-    mesh_file = data_path / "example_mesh_3d.vtk"
-    context = get_context()
-    model = ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
-                    bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
-                    dimensions=3, context=context)
-
-    assert model.context is context
-
-
-def test_invalid_custom_context(data_path):
-    """Test constructing a ModelCL object using the context argument."""
-    mesh_file = data_path / "example_mesh_3d.vtk"
-    with pytest.raises(TypeError) as exception:
-        ModelCL(mesh_file, horizon=0.1, critical_stretch=0.05,
-                bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
-                dimensions=3, context=5)
-
-        assert "context must be a pyopencl Context object" in exception.value
-
-
-def test_initial_damage_2d(basic_model_2d):
-    """Ensure initial damage is zero."""
-    model = basic_model_2d
-    context = model.context
-    queue = model.queue
-    nlist, n_neigh = model.initial_connectivity
-
-    n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                          hostbuf=n_neigh)
-    family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                         hostbuf=model.family)
-    damage = np.empty(n_neigh.shape, dtype=np.float64)
-    damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
-
-    model._damage(n_neigh_d, family_d, damage_d)
-    cl.enqueue_copy(queue, damage, damage_d)
-
-    assert np.all(damage == 0)
-
-
-def test_initial_damage_3d(basic_model_3d):
-    """Ensure initial damage is zero."""
-    model = basic_model_3d
-    context = model.context
-    queue = model.queue
-    nlist, n_neigh = model.initial_connectivity
-
-    n_neigh_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                          hostbuf=n_neigh)
-    family_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-                         hostbuf=model.family)
-    damage = np.empty(n_neigh.shape, dtype=np.float64)
-    damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
-
-    model._damage(n_neigh_d, family_d, damage_d)
-    cl.enqueue_copy(queue, damage, damage_d)
-
-    assert np.all(damage == 0)
+        assert np.all(nlist == nlist_expected)
+        assert np.all(n_neigh == n_neigh_expected)
+        assert np.allclose(damage, damage_expected)
