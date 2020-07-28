@@ -4,7 +4,7 @@
 __kernel void
 	bond_force(
     __global double const* u,
-    __global double* ud,
+    __global double* force,
     __global double const* r0,
     __global double const* vols,
 	__global int* nlist,
@@ -20,7 +20,7 @@ __kernel void
     /* Calculate the force due to bonds on each node and update node velocities.
      *
      * u - An (n,3) array of the current displacements of the particles.
-     * ud - An (n,3) array of the current velocities of the particles.
+     * force - An (n,3) array of the current forces on the particles.
      * vols - the volumes of each of the nodes.
      * nlist - An (n, local_size) array containing the neighbour lists,
      *     a value of -1 corresponds to a broken bond.
@@ -106,9 +106,9 @@ __kernel void
         // node_no == node_id_i
         int node_no = global_id/local_size;
         // Update accelerations in each direction
-        ud[3 * node_no + 0] = (fc_types[3 * node_no + 0] == 0 ? local_cache_x[0] : (local_cache_x[0] + fc_scale * fc_values[3 * node_no + 0]));
-        ud[3 * node_no + 1] = (fc_types[3 * node_no + 1] == 0 ? local_cache_y[0] : (local_cache_y[0] + fc_scale * fc_values[3 * node_no + 1]));
-        ud[3 * node_no + 2] = (fc_types[3 * node_no + 2] == 0 ? local_cache_z[0] : (local_cache_z[0] + fc_scale * fc_values[3 * node_no + 2]));
+        force[3 * node_no + 0] = (fc_types[3 * node_no + 0] == 0 ? local_cache_x[0] : (local_cache_x[0] + fc_scale * fc_values[3 * node_no + 0]));
+        force[3 * node_no + 1] = (fc_types[3 * node_no + 1] == 0 ? local_cache_y[0] : (local_cache_y[0] + fc_scale * fc_values[3 * node_no + 1]));
+        force[3 * node_no + 2] = (fc_types[3 * node_no + 2] == 0 ? local_cache_z[0] : (local_cache_z[0] + fc_scale * fc_values[3 * node_no + 2]));
     }
 }
 
