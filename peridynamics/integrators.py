@@ -191,7 +191,7 @@ class Integrator(ABC):
     def _bond_force(
             self, u_d, force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
-            local_mem_z, force_load_scale, bond_stiffness, critical_stretch):
+            local_mem_z, force_bc_scale, bond_stiffness, critical_stretch):
         """Calculate the force due to bonds acting on each node."""
         queue = self.queue
         # Call kernel
@@ -199,7 +199,7 @@ class Integrator(ABC):
                 queue, (self.nnodes * self.max_neighbours,),
                 (self.max_neighbours,), u_d, force_d, r0_d, vols_d, nlist_d,
                 force_bc_types_d, force_bc_values_d, local_mem_x,
-                local_mem_y, local_mem_z, np.float64(force_load_scale),
+                local_mem_y, local_mem_z, np.float64(force_bc_scale),
                 np.float64(bond_stiffness), np.float64(critical_stretch))
         queue.finish()
 
@@ -374,14 +374,14 @@ class EulerOpenCL(Integrator):
 
     def _update_displacement(
             self, force_d, u_d, bc_types_d, bc_values_d,
-            displacement_load_scale, dt):
+            displacement_bc_scale, dt):
         """Update displacements."""
         queue = self.queue
         # Call kernel
         self.update_displacement_kernel(
                 self.queue, (self.degrees_freedom * self.nnodes,), None,
                 force_d, u_d, bc_types_d, bc_values_d,
-                np.float64(displacement_load_scale), np.float64(dt))
+                np.float64(displacement_bc_scale), np.float64(dt))
         queue.finish()
         return u_d
 
