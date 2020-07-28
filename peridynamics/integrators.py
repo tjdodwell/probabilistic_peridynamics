@@ -81,7 +81,7 @@ class Integrator(ABC):
     def build(
             self, nnodes, degrees_freedom, max_neighbours, nregimes, coords,
             volume, family, bc_types, bc_values, force_bc_types,
-            force_bc_values):
+            force_bc_values, stiffness_corrections, material_types):
         """
         Build OpenCL programs.
 
@@ -102,8 +102,12 @@ class Integrator(ABC):
             self.context, kernel_source).build()
         self.queue = cl.CommandQueue(self.context)
 
-        # Kernels shared between integrators
-        self.bond_force_kernel = self.program.bond_force
+        # Set bond_force program
+        if ((stiffness_corrections is None) and (material_types is None)):
+            self.bond_force_kernel = self.program.bond_force
+        else:
+            raise ValueError("stiffness_corrections and material_types "
+                             "are not yet supported.")
         self.damage_kernel = self.program.damage
 
         # Build OpenCL data structures that are independent of

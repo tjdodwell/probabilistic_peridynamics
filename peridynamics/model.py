@@ -253,9 +253,9 @@ class Model(object):
             if np.shape(bond_stiffness) != np.shape(critical_stretch):
                 raise ValueError(
                     "The shape of bond_stiffness must be equal to the shape "
-                    "of critical_stretch. Shape of bond_stiffness was {},"
-                    "and the shape of critical stretch was {}.".format(
-                        np.shape(bond_stiffness), np.shape(critical_stretch)))
+                    "of critical_stretch (expected {}, got {})".format(
+                        np.shape(critical_stretch),
+                        np.shape(bond_stiffness)))
             else:
                 if np.shape(bond_stiffness) == (1,):
                     self.nregimes = 1
@@ -275,9 +275,10 @@ class Model(object):
 
         if transfinite:
             if volume_total is None:
-                raise ValueError("If the mesh is regular cuboidal tensor grid"
-                                 "(transfinite), a total volume (key word arg"
-                                 "'volume_total') must be provided")
+                raise ValueError("In transfinite mode, a total mesh volume "
+                                 "volume_total' must be provided as a keyword"
+                                 " argument (expected {}, got {})".format(
+                                     float, type(volume_total)))
 
         # Calculate the volume for each node, if None is provided
         if volume is None:
@@ -287,14 +288,16 @@ class Model(object):
             if write_path is not None:
                 write_array(write_path, "volume", self.volume)
         elif type(volume) == np.ndarray:
-            if len(volume) != self.nnodes:
-                raise ValueError("volume must be of size nnodes. nnodes was"
-                                 "{} and volume was size {}".format(
-                                     self.nnodes, len(volume)))
+            if np.shape(volume) != np.shape(np.empty(self.nnodes)):
+                raise ValueError("volume shape is wrong, and must be "
+                                 "(nnodes, ) (expected {}, got {})".format(
+                                     np.shape(np.empty(self.nnodes)),
+                                     np.shape(volume)))
             self.volume = volume
         else:
-            raise TypeError("volume type must be numpy.ndarray, but was"
-                            "{}".format(type(volume)))
+            raise TypeError("volume type is wrong (expected {}, got "
+                            "{})".format(type(volume),
+                                         type(np.empty(self.nnodes))))
 
         # Calculate the family (number of bonds in the initial configuration)
         # for each node, if None is provided
@@ -304,14 +307,16 @@ class Model(object):
             if write_path is not None:
                 write_array(write_path, "family", self.family)
         elif type(family) == np.ndarray:
-            if len(family) != self.nnodes:
-                raise ValueError("family must be of size nnodes. nnodes was"
-                                 "{} and family was size {}".format(
-                                     self.nnodes, len(family)))
+            if np.shape(family) != np.shape(np.empty(self.nnodes)):
+                raise ValueError("family shape is wrong, and must be "
+                                 "(nnodes, ) (expected {}, got {})".format(
+                                     np.shape(np.empty(self.nnodes)),
+                                     np.shape(family)))
             self.family = family
         else:
-            raise TypeError("family type must be numpy.ndarray, but was"
-                            "{}".format(type(family)))
+            raise TypeError("family type is wrong (expected {}, got "
+                            "{})".format(type(family),
+                                         type(np.empty(self.nnodes))))
         if np.any(self.family == 0):
             raise FamilyError(self.family)
 
@@ -319,8 +324,8 @@ class Model(object):
             warnings.warn("Some features, such as stiffness correction factors"
                           ", composites materials, and non-linear damage "
                           "models not supported by this integrator. Use an "
-                          "OpenCL integrator for these features, and a faster"
-                          " simulation time.")
+                          "OpenCL integrator for these features, and a faster "
+                          "simulation time.")
             if connectivity is None:
                 # Create the neighbourlist for the cython implementation
                 self.max_neighbours = np.intc(self.family.max())
@@ -329,8 +334,8 @@ class Model(object):
                     )
             elif type(connectivity) == tuple:
                 if len(connectivity) != 2:
-                    raise ValueError("connectivity must be of size 2, but was"
-                                     "size {}".format(len(connectivity)))
+                    raise ValueError("connectivity size is wrong (expected 2,"
+                                     " got {})".format(len(connectivity)))
                 nlist, n_neigh = connectivity
                 self.max_neighbours = np.intc(
                             np.shape(nlist)[1]
@@ -338,12 +343,14 @@ class Model(object):
                 if self.max_neighbours != self.family.max():
                     raise ValueError(
                         "max_neighbours, which is equal to the"
-                        "size of axis 1 of nlist, should be equal to"
-                        "family.max() = {}, it's value was {}".format(
+                        " size of axis 1 of nlist is wrong (expected "
+                        " max_neighbours = np.shape(nlist)[1] = family.max()"
+                        " = {}, got {})".format(
                             self.family.max(), self.max_neighbours))
             else:
-                raise TypeError("connectivity must be a tuple or None but had"
-                                "type {}".format(type(connectivity)))
+                raise TypeError("connectivity type is wrong (expected {} or"
+                                " {}, got {})".format(
+                                    tuple, type(None), type(connectivity)))
             # Initialise initial crack for cython
             if initial_crack:
                 if callable(initial_crack):
@@ -369,8 +376,8 @@ class Model(object):
                     write_array(self.write_path, "n_neigh", n_neigh)
             elif type(connectivity) == tuple:
                 if len(connectivity) != 2:
-                    raise ValueError("connectivity must be of size 2, but was"
-                                     "size {}".format(len(connectivity)))
+                    raise ValueError("connectivity size is wrong (expected 2, "
+                                     " got {})".format(len(connectivity)))
                 nlist, n_neigh = connectivity
                 self.max_neighbours = np.intc(
                             np.shape(nlist)[1]
@@ -379,12 +386,15 @@ class Model(object):
                 if self.max_neighbours & test:
                     raise ValueError(
                         "max_neighbours, which is equal to the"
-                        "size of axis 1 of nlist, should be a"
-                        "power of two, it's value was {}".format(
+                        " size of axis 1 of nlist is wrong (expected "
+                        " max_neighbours = np.shape(nlist)[1] = {},"
+                        " got {})".format(
+                            1 << (int(self.family.max() - 1)).bit_length(),
                             self.max_neighbours))
             else:
-                raise TypeError("connectivity must be a tuple or None but had"
-                                "type {}".format(type(connectivity)))
+                raise TypeError("connectivity type is wrong (expected {} or"
+                                " {}, got {})".format(
+                                    tuple, type(None), type(connectivity)))
             # Initialise initial crack for OpenCL
             if initial_crack:
                 if callable(initial_crack):
@@ -399,24 +409,25 @@ class Model(object):
         self.degrees_freedom = 3
 
         if stiffness_corrections is None:
-            # Calculate stiffness correction factors and write to file
-            self.stiffness_corrections = self._set_stiffness_corrections(
-                self.horizon, self.initial_connectivity,
-                precise_stiffness_correction, self.write_path)
+            if precise_stiffness_correction is not None:
+                # Calculate stiffness correction factors and write to file
+                self.stiffness_corrections = self._set_stiffness_corrections(
+                    self.horizon, self.initial_connectivity,
+                    precise_stiffness_correction, self.write_path)
         elif type(stiffness_corrections) == np.ndarray:
             if np.shape(stiffness_corrections) != (
                     self.nnodes, self.max_neighbours):
-                raise ValueError("stiffness_corrections must have "
-                                 "shape (nnodes, max_neighbours) = {} but "
-                                 "shape was {}".format(
+                raise ValueError("stiffness_corrections shape is wrong, "
+                                 "and must be (nnodes, max_neighbours) "
+                                 "(expected {}, got {})".format(
                                      (self.nnodes, self.max_neighbours),
                                      np.shape(stiffness_corrections)))
             else:
                 self.stiffness_corrections = stiffness_corrections
         else:
-            raise TypeError(
-                "stiffness_corrections must be a numpy.ndarray or None, "
-                "but had type {}".format(type(stiffness_corrections)))
+            raise TypeError("stiffness_corrections type is wrong (expected {}"
+                            ", got {})".format(
+                                    np.ndarray, type(stiffness_corrections)))
 
         # Create dummy bond_type function is none is provided
         if bond_type is None:
@@ -424,21 +435,24 @@ class Model(object):
                 return 0
 
         if material_types is None:
-            # Calculate material types and write to file
-            self.material_types = self._set_material_types(
-                self.initial_connectivity, bond_type, self.write_path)
+            # Material types needed for composites only
+            if type(bond_stiffness) != float:
+                # Calculate material types and write to file
+                self.material_types = self._set_material_types(
+                    self.initial_connectivity, bond_type, self.write_path)
         elif type(material_types) == np.ndarray:
             if np.shape(material_types) != (self.nnodes, self.max_neighbours):
-                raise ValueError("material_types must have shape "
-                                 "(nnodes, max_neighbours) = {} but shape "
-                                 "was {}".format(
+                raise ValueError("material_types shape is wrong, "
+                                 "and must be (nnodes, max_neighbours) "
+                                 "(expected {}, got {})".format(
                                      (self.nnodes, self.max_neighbours),
                                      np.shape(material_types)))
             else:
                 self.material_types = material_types
         else:
-            raise TypeError("material_types must be an numpy.ndarray or None,"
-                            " but was type {}".format(type(material_types)))
+            raise TypeError("material_types type is wrong (expected {}"
+                            ", got {})".format(
+                                    np.ndarray, type(material_types)))
 
         # Create dummy boundary conditions functions if none is provided
         if is_forces_boundary is None:
@@ -470,7 +484,7 @@ class Model(object):
             self.nnodes, self.degrees_freedom, self.max_neighbours,
             self.nregimes, self.coords, self.volume, self.family,
             bc_types, bc_values, force_bc_types,
-            force_bc_values)
+            force_bc_values, stiffness_corrections, material_types)
 
     def _read_mesh(self, filename):
         """
@@ -691,13 +705,10 @@ class Model(object):
                         nodej_family_volume + nodei_family_volume)
                     stiffness_corrections[i][neigh] = (
                         stiffness_correction_factor)
-
-        elif precise_stiffness_correction is None:
-            pass
         else:
-            raise ValueError('precise_stiffness_correction can \
-                             only take values 0 or 1 or None. Its value was \
-                             {}'.format(precise_stiffness_correction))
+            raise ValueError("precise_stiffness_correction value is wrong "
+                             "(expected 0 or 1 or None, got {})".format(
+                                 precise_stiffness_correction))
         if write_path is not None:
             print(write_path)
             write_array(
@@ -1033,40 +1044,47 @@ class Model(object):
             displacement_bc_magnitudes = np.zeros(steps, dtype=np.float64)
         elif type(displacement_bc_magnitudes) == np.ndarray:
             if np.shape(displacement_bc_magnitudes) != (steps,):
-                raise ValueError("displacement_bc_magnitudes must be of shape "
-                                 "(steps, ), but was shape {}".format(
+                raise ValueError("displacement_bc_magnitudes shape is wrong "
+                                 " and must be (steps, ), (expected {}, got "
+                                 "{})".format(
+                                     (steps, ),
                                      np.shape(displacement_bc_magnitudes)))
             displacement_bc_magnitudes = displacement_bc_magnitudes.astype(
                 np.float64)
         else:
-            raise TypeError("displacement_bc_magnitudes must be a "
-                            "numpy.npdarray or None, but had "
-                            "type {}".format(type(displacement_bc_magnitudes)))
+            raise TypeError("displacement_bc_magnitudes type is wrong "
+                            "(expected {}, got {})".format(
+                                np.ndarray,
+                                type(displacement_bc_magnitudes)))
         if force_bc_magnitudes is None:
             force_bc_magnitudes = np.zeros(steps, dtype=np.float64)
         elif type(force_bc_magnitudes) == np.ndarray:
             if np.shape(force_bc_magnitudes) != (steps,):
-                raise ValueError("force_bc_magnitudes must be of shape "
-                                 "(steps, ), but was shape {}".format(
+                raise ValueError("force_bc_magnitudes shape is wrong "
+                                 " and must be (steps, ), (expected {}, got "
+                                 "{})".format(
+                                     (steps, ),
                                      np.shape(force_bc_magnitudes)))
             force_bc_magnitudes = force_bc_magnitudes.astype(
                 np.float64)
         else:
-            raise TypeError("force_bc_magnitudes must be a "
-                            "numpy.npdarray or None, but had "
-                            "type {}".format(type(force_bc_magnitudes)))
+            raise TypeError("force_bc_magnitudes type is wrong "
+                            "(expected {}, got {})".format(
+                                np.ndarray,
+                                type(force_bc_magnitudes)))
         # Use the initial connectivity (when the Model was constructed) if none
         # is provided
         if connectivity is None:
             nlist, n_neigh = self.initial_connectivity
         elif type(connectivity) == tuple:
             if len(connectivity) != 2:
-                raise ValueError("connectivity must be of size 2, but was\
-                                 size {}".format(len(connectivity)))
+                raise ValueError("connectivity size is wrong (expected 2,"
+                                 " got {})".format(len(connectivity)))
             nlist, n_neigh = connectivity
         else:
-            raise TypeError("connectivity must be a tuple or None, but had \
-                            type {}".format(type(connectivity)))
+            raise TypeError("connectivity type is wrong (expected {} or"
+                            " {}, got {})".format(
+                                    tuple, type(None), type(connectivity)))
         # Use the initial regimes of linear elastic (0 values) if none
         # is provided
         if regimes is None:
@@ -1074,13 +1092,18 @@ class Model(object):
                 (self.nnodes, self.max_neighbours), dtype=np.intc)
         elif type(regimes) == np.ndarray:
             if np.shape(regimes) != (self.nnodes, self.max_neighbours):
-                raise ValueError("regimes must have shape\
-                                 (nnodes, max_neighbours) but the shape was\
-                                {}".format(np.shape(regimes)))
+                raise ValueError("regimes shape is wrong, and must be "
+                                 "(nnodes, max_neighbours) "
+                                 "(expected {}, got {})".format(
+                                     (self.nnodes, self.max_neighbours),
+                                     np.shape(regimes)))
             regimes = regimes.astype(np.intc)
         else:
-            raise TypeError("regimes must be a numpy.ndarray or \
-                            None, but had type {}".format(type(regimes)))
+            raise TypeError("regimes type is wrong "
+                            "(expected {} or {}, got {})".format(
+                                np.ndarray,
+                                type(None),
+                                type(regimes)))
         # Use the initial bond_stiffness and critical_stretch
         # (when the Model was constructed) if none is provided
         if bond_stiffness is None:

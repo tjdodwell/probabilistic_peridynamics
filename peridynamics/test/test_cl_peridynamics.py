@@ -1,10 +1,11 @@
 """Tests for the OpenCL kernels."""
 from .conftest import context_available
-from ..cl import get_context, kernel_source
+from ..cl import get_context
 import numpy as np
 from peridynamics.neighbour_list import (create_neighbour_list_cl, set_family)
 import pyopencl as cl
 from pyopencl import mem_flags as mf
+import pathlib
 import pytest
 
 
@@ -25,6 +26,9 @@ def queue(context):
 @pytest.fixture(scope="module")
 def program(context):
     """Create a program object from the kernel source."""
+    kernel_source = open(
+            pathlib.Path(__file__).parent.absolute() /
+            "../cl/peridynamics.cl").read()
     return cl.Program(context, kernel_source).build()
 
 
