@@ -167,7 +167,7 @@ def update_displacement(double[:, :] u, double[:, :] bc_values,
     :arg bc_values: An (n,3) array of the boundary condition values.
     :type bc_values: :class:`numpy.ndarray`
     :arg bc_types: An (n,3) array of the boundary condition types, where a
-        value of 2 represents an unconstrained node.
+        zero value represents an unconstrained node.
     :type bc_types: :class:`numpy.ndarray`
     :arg force: The force due to bonds on each node.
     :type force: :class:`numpy.ndarray`

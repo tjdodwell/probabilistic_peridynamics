@@ -21,7 +21,7 @@ def test_family():
 class TestNeigbourList():
     """Test neighbour list function."""
 
-    def test_neighbour_list_cython():
+    def test_neighbour_list_cython(self):
         """Test cython version of the neighbour list function."""
         r = np.array([
             [0.0, 0.0, 0.0],
@@ -42,7 +42,7 @@ class TestNeigbourList():
         assert np.all(nl == nl_expected)
         assert np.all(n_neigh == n_neigh_expected)
 
-    def test_neighbour_list_cl1():
+    def test_neighbour_list_cl1(self):
         """Test OpenCL version of the neighbourlist function."""
         r = np.array([
             [0.0, 0.0, 0.0],
@@ -63,7 +63,7 @@ class TestNeigbourList():
         assert np.all(nl == nl_expected)
         assert np.all(n_neigh == n_neigh_expected)
 
-    def test_neighbour_list_cl2():
+    def test_neighbour_list_cl2(self):
         """Test OpenCL version of the neighbourlist function."""
         r = np.array([
             [0.0, 0.0, 0.0],
@@ -84,7 +84,7 @@ class TestNeigbourList():
         assert np.all(nl == nl_expected)
         assert np.all(n_neigh == n_neigh_expected)
 
-    def test_create_crack_cython():
+    def test_create_crack_cython(self):
         """Test crack creations function."""
         r = np.array([
             [0.0, 0.0, 0.0],
@@ -121,7 +121,7 @@ class TestNeigbourList():
         assert np.all(nl == nl_expected)
         assert np.all(n_neigh == n_neigh_expected)
 
-    def test_create_crack_cl():
+    def test_create_crack_cl(self):
         """Test crack creations function."""
         r = np.array([
             [0.0, 0.0, 0.0],
@@ -131,7 +131,7 @@ class TestNeigbourList():
             [0.0, 0.0, 1.0],
             ])
         horizon = 1.1
-        nl, n_neigh = create_neighbour_list_cython(r, horizon, 4)
+        nl, n_neigh = create_neighbour_list_cl(r, horizon, 4)
 
         nl_expected = np.array([
             [1, 2, 4, -1],
@@ -148,7 +148,7 @@ class TestNeigbourList():
         create_crack_cl(crack, nl, n_neigh)
 
         nl_expected = np.array([
-            [1, 4, -1, -1],
+            [1, -1, 4, -1],
             [0, -1, -1, -1],
             [-1, -1, -1, -1],
             [-1, -1, -1, -1],

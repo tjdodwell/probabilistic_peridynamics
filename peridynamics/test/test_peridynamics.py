@@ -76,13 +76,18 @@ class TestForce():
             [0.0, 0.0, 1.0],
             ])
         horizon = 1.1
-        volume = np.ones(5)
+        nnodes = 5
+        volume = np.ones(nnodes)
         bond_stiffness = 1.0
         nl, n_neigh = create_neighbour_list_cython(r0, horizon, 3)
+        force_bc_scale = 1.0
+        force_bc_types = np.zeros((nnodes, 3), dtype=np.int32)
+        force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
 
         force_expected = np.zeros((5, 3))
-        force_actual = bond_force(r0, r0, nl, n_neigh, volume, bond_stiffness)
-
+        force_actual = bond_force(r0, r0, nl, n_neigh, volume, bond_stiffness,
+                                  force_bc_values, force_bc_types,
+                                  force_bc_scale)
         assert np.allclose(force_actual, force_expected)
 
     def test_force(self):
@@ -93,10 +98,14 @@ class TestForce():
             [1.0, 1.0, 0.0],
             ])
         horizon = 1.01
+        nnodes = 3
         elastic_modulus = 0.05
         bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
-        volume = np.full(3, 0.16666667)
+        volume = np.full(nnodes, 0.16666667)
         nl, n_neigh = create_neighbour_list_cython(r0, horizon, 3)
+        force_bc_scale = 1.0
+        force_bc_types = np.zeros((nnodes, 3), dtype=np.int32)
+        force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
 
         # Displace particles, but do not update neighbour list
         r = r0 + np.array([
@@ -106,7 +115,8 @@ class TestForce():
             ])
 
         actual_force = bond_force(r, r0, nl, n_neigh, volume,
-                                  bond_stiffness)
+                                  bond_stiffness, force_bc_values,
+                                  force_bc_types, force_bc_scale)
 
         # Ensure force array is correct
         force_value = 0.00229417
@@ -123,21 +133,29 @@ class TestUpdateDisplacement:
 
     def test_update_displacement(self):
         """Test basic displacement update."""
-        u = np.zeros(3)
-        f = np.array([1.0, 2.0, 3.0])
-        bc_types = np.array([0, 0, 0])
-        bc_values = np.array([0, 0, 0])
+        nnodes = 3
+        u = np.zeros((nnodes, 3))
+        f = np.array([
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0]])
+        bc_types = np.zeros((nnodes, 3), dtype=np.int32)
+        bc_values = np.zeros((nnodes, 3))
         bc_scale = 0
-        dt = 1
+        dt = 1.0
         update_displacement(u, bc_values, bc_types, f, bc_scale, dt)
         assert np.all(u == f)
 
     def test_update_displacement2(self):
         """Test displacement update."""
-        u = np.zeros(3)
-        f = np.array([1.0, 2.0, 3.0])
-        bc_types = np.array([0, 0, 0])
-        bc_values = np.array([0, 0, 0])
+        nnodes = 3
+        u = np.zeros((nnodes, 3))
+        f = np.array([
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0]])
+        bc_types = np.zeros((nnodes, 3), dtype=np.int32)
+        bc_values = np.zeros((nnodes, 3))
         bc_scale = 0
         dt = 2.0
         update_displacement(u, bc_values, bc_types, f, bc_scale, dt)
@@ -145,24 +163,42 @@ class TestUpdateDisplacement:
 
     def test_update_displacement3(self):
         """Test displacement update with displacement boundary conditions."""
-        u = np.zeros(3)
-        f = np.array([1.0, 2.0, 3.0])
-        bc_types = np.array([1, 1, 0])
-        bc_values = np.array([0.0, 0.0, 0.0])
+        nnodes = 3
+        u = np.zeros((nnodes, 3))
+        f = np.array([
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0]])
+        bc_types = np.array([
+            [1, 1, 0],
+            [1, 1, 0],
+            [1, 1, 0]])
+        bc_values = np.zeros((nnodes, 3))
         bc_scale = 1.0
         dt = 2.0
         update_displacement(u, bc_values, bc_types, f, bc_scale, dt)
-        u_expected = np.array([0, 0, 6.0])
+        u_expected = np.array([[0, 0, 6.0],
+                               [0, 0, 6.0],
+                               [0, 0, 6.0]])
         assert np.all(u == u_expected)
 
     def test_update_displacement4(self):
         """Test displacement update with displacement B.C. scale."""
-        u = np.zeros(3)
-        f = np.array([1.0, 2.0, 3.0])
-        bc_types = np.array([1, 1, 0])
-        bc_values = np.array([2.0, 2.0, 0.0])
+        nnodes = 3
+        u = np.zeros((nnodes, 3))
+        f = np.array([[1.0, 2.0, 3.0],
+                      [1.0, 2.0, 3.0],
+                      [1.0, 2.0, 3.0]])
+        bc_types = np.array([[1, 1, 0],
+                             [1, 1, 0],
+                             [1, 1, 0]])
+        bc_values = np.array([[2.0, 2.0, 0.0],
+                              [2.0, 2.0, 0.0],
+                              [2.0, 2.0, 0.0]])
         bc_scale = 0.5
         dt = 2.0
         update_displacement(u, bc_values, bc_types, f, bc_scale, dt)
-        u_expected = np.array([1.0, 1.0, 6.0])
+        u_expected = np.array([[1.0, 1.0, 6.0],
+                               [1.0, 1.0, 6.0],
+                               [1.0, 1.0, 6.0]])
         assert np.all(u == u_expected)

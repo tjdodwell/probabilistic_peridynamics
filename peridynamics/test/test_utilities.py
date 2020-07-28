@@ -13,7 +13,6 @@ def test_read_and_write_array(data_path):
     write_array(rw_path, "name", expected_array)
     array = read_array(rw_path, "name")
     assert np.all(array == expected_array)
-    read_array(rw_path, "no_name")
     with pytest.warns(UserWarning) as warning:
         read_array(rw_path, "no_name")
         assert "array does not appear to exist" in str(warning[0].message)
