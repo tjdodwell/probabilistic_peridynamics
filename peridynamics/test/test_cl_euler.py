@@ -63,15 +63,9 @@ class TestUpdateDisplacement:
             hostbuf=bc_values)
         force_d = cl.Buffer(
             context, mf.READ_WRITE, force.nbytes)
-        nlist_d = cl.Buffer(
-            context, mf.READ_WRITE | mf.COPY_HOST_PTR,
-            hostbuf=nlist)
         u_d = cl.Buffer(
             context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=u)
-        ud_d = cl.Buffer(
-            context, mf.READ_WRITE | mf.COPY_HOST_PTR,
-            hostbuf=ud)
         # Write only
         damage_d = cl.Buffer(
             context, mf.WRITE_ONLY, damage.nbytes)

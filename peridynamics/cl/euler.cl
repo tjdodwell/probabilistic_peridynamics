@@ -2,16 +2,17 @@
 
 __kernel void
 	update_displacement(
-    	__global double const* ud,
+    	__global double const* force,
     	__global double* u,
 		__global int const* bc_types,
 		__global double const* bc_values,
 		double bc_scale,
         double dt
 	){
-    /* Calculate the displacement of each node.
+    /* Calculate the displacement of each node using an Euler
+     * integrator.
      *
-     * ud - An (n,3) array of the velocities of each node.
+     * force - An (n,3) array of the forces of each node.
      * u - An (n,3) array of the current displacements of each node.
      * BC_types - An (n,3) array of the boundary condition types...
      * a value of 0 denotes an unconstrained node.
@@ -19,5 +20,5 @@ __kernel void
      * bc_scale - The scalar value applied to the displacement BCs. */
 	const int i = get_global_id(0);
 
-	u[i] = (bc_types[i] == 0 ? (u[i] + dt * ud[i]) : (bc_scale * bc_values[i]));
+	u[i] = (bc_types[i] == 0 ? (u[i] + dt * force[i]) : (bc_scale * bc_values[i]));
 }
