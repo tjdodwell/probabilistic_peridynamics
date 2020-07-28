@@ -54,7 +54,7 @@ class TestForce():
         critical_stretch = 1000.0
         max_neigh = 4
         nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
-        force_load_scale = 1.0
+        force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
 
@@ -96,7 +96,7 @@ class TestForce():
             queue, (nnodes * max_neigh,),
             (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, local_mem_x,
-            local_mem_y, local_mem_z, np.float64(force_load_scale),
+            local_mem_y, local_mem_z, np.float64(force_bc_scale),
             np.float64(bond_stiffness), np.float64(critical_stretch))
 
         cl.enqueue_copy(queue, force_actual, force_d)
@@ -119,7 +119,7 @@ class TestForce():
         max_neigh = 4
         volume = np.full(nnodes, 0.16666667, dtype=np.float64)
         nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
-        force_load_scale = 1.0
+        force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
 
@@ -173,7 +173,7 @@ class TestForce():
             queue, (nnodes * max_neigh,),
             (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, local_mem_x,
-            local_mem_y, local_mem_z, np.float64(force_load_scale),
+            local_mem_y, local_mem_z, np.float64(force_bc_scale),
             np.float64(bond_stiffness), np.float64(critical_stretch))
 
         cl.enqueue_copy(queue, force_actual, force_d)
@@ -198,7 +198,7 @@ class TestForce():
         volume = np.full(nnodes, 0.16666667, dtype=np.float64)
         family = set_family(r0, horizon)
         nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
-        force_load_scale = 1.0
+        force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
 
@@ -268,7 +268,7 @@ class TestForce():
             queue, (nnodes * max_neigh,),
             (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, local_mem_x,
-            local_mem_y, local_mem_z, np.float64(force_load_scale),
+            local_mem_y, local_mem_z, np.float64(force_bc_scale),
             np.float64(bond_stiffness), np.float64(critical_stretch))
         damage_kernel(
             queue, (nnodes * max_neigh,),
