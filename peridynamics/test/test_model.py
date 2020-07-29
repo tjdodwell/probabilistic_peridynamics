@@ -2,7 +2,7 @@
 from .conftest import context_available
 from ..model import (Model, DimensionalityError, FamilyError,
                      initial_crack_helper, InvalidIntegrator)
-from ..integrators import Euler, EulerOpenCL
+from ..integrators import Euler, EulerCL
 import meshio
 import numpy as np
 import pytest
@@ -10,7 +10,7 @@ import pytest
 
 @pytest.fixture(
     scope="session",
-    params=[Euler, pytest.param(EulerOpenCL, marks=context_available)])
+    params=[Euler, pytest.param(EulerCL, marks=context_available)])
 def basic_models_2d(data_path, request, simple_displacement_boundary):
     """Create a basic 2D model object."""
 
@@ -33,12 +33,12 @@ def basic_model_2d(data_path, simple_displacement_boundary):
                   critical_stretch=0.05,
                   bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
                   is_displacement_boundary=simple_displacement_boundary)
-    return model
+    return model, euler
 
 
 @pytest.fixture(
     scope="session",
-    params=[Euler, pytest.param(EulerOpenCL, marks=context_available)])
+    params=[Euler, pytest.param(EulerCL, marks=context_available)])
 def basic_models_3d(data_path, simple_displacement_boundary, request):
     """Create a basic 2D model object."""
     mesh_file = data_path / "example_mesh_3d.vtk"
@@ -61,7 +61,7 @@ def basic_model_3d(data_path, simple_displacement_boundary):
                   bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
                   dimensions=3,
                   is_displacement_boundary=simple_displacement_boundary)
-    return model
+    return model, euler
 
 
 class TestDimension:
@@ -224,19 +224,19 @@ def test_bond_stiffness_2d(basic_models_2d):
 class TestConnectivity:
     """Test the initial neighbour list."""
 
-    def test_basic_connectivity(self, basic_models_2d, data_path):
+    def test_basic_connectivity(self, basic_model_2d, data_path):
         """Test connectivity calculation with no initial crack."""
         npz_file = np.load(
             data_path/"expected_connectivity_basic.npz"
             )
         expected_nlist = npz_file["nlist"]
         expected_n_neigh = npz_file["n_neigh"]
-
-        actual_nlist, actual_n_neigh = basic_models_2d.initial_connectivity
+        model, integrator = basic_model_2d
+        actual_nlist, actual_n_neigh = model.initial_connectivity
         assert np.all(expected_nlist == actual_nlist)
         assert np.all(expected_n_neigh == actual_n_neigh)
 
-    def test_connectivity(self, simple_model, data_path):
+    def test_connectivity(self, cython_model, data_path):
         """Test connectivity calculation with initial crack."""
         npz_file = np.load(
             data_path/"expected_connectivity_crack.npz"
@@ -244,25 +244,25 @@ class TestConnectivity:
         expected_nlist = npz_file["nlist"]
         expected_n_neigh = npz_file["n_neigh"]
 
-        actual_nlist, actual_n_neigh = simple_model.initial_connectivity
+        actual_nlist, actual_n_neigh = cython_model.initial_connectivity
         assert np.all(expected_nlist == actual_nlist)
         assert np.all(expected_n_neigh == actual_n_neigh)
 
 
 def test_initial_damage_2d(basic_model_2d):
     """Ensure initial damage is zero."""
-    model = basic_model_2d
+    model, integrator = basic_model_2d
     connectivity = model.initial_connectivity
-    damage = model._damage(connectivity[1])
+    damage = integrator._damage(connectivity[1])
 
     assert np.all(damage == 0)
 
 
 def test_initial_damage_3d(basic_model_3d):
     """Ensure initial damage is zero."""
-    model = basic_model_3d
+    model, integrator = basic_model_3d
     connectivity = model.initial_connectivity
-    damage = model._damage(connectivity[1])
+    damage = integrator._damage(connectivity[1])
 
     assert np.all(damage == 0)
 
@@ -270,94 +270,11 @@ def test_initial_damage_3d(basic_model_3d):
 def test_family_error(data_path):
     """Test raising of exception when a node has no neighbours."""
     with pytest.raises(FamilyError):
+        integrator = Euler(1)
         mesh_file = data_path / "example_mesh_3d.vtk"
-        Model(mesh_file, horizon=0.0001, critical_stretch=0.05,
+        Model(mesh_file, integrator, horizon=0.0001, critical_stretch=0.05,
               bond_stiffness=18.0 * 0.05 / (np.pi * 0.0001**4),
               dimensions=3)
-
-
-@pytest.fixture(scope="module")
-def integrator_force_test(data_path):
-    """Create a minimal model designed for testings force calculation."""
-    mesh_file = data_path/"force_test.vtk"
-    integrator = Euler(dt=1)
-    model = Model(mesh_file, integrator, horizon=1.01, critical_stretch=0.05,
-                  bond_stiffness=18.0 * 0.05 / (np.pi * 1.01**4)
-                  )
-    return integrator
-
-
-class TestForce():
-    """Test force calculation."""
-
-    def test_initial_force(self, integrator_force_test):
-        """Ensure initial forces are zero."""
-        integrator = integrator_force_test
-        force_bc_scale = 1.0
-
-        f = integrator._bond_force(force_bc_scale)
-
-        assert np.all(f == 0)
-
-    def test_force(self, integrator_force_test):
-        """Ensure forces are in the correct direction using a minimal model."""
-        integrator = integrator_force_test
-        force_bc_scale = 1.0
-        model = model_force_test
-        nlist, n_neigh = model.initial_connectivity
-
-        # Nodes 0 and 1 are connected along the x axis, 1 and 2 along the y
-        # axis. There are no other connections.
-        assert n_neigh[0] == 1
-        assert n_neigh[1] == 2
-        assert n_neigh[2] == 1
-        assert 1 in nlist[0]
-        assert 0 in nlist[1]
-        assert 2 in nlist[1]
-        assert 1 in nlist[2]
-
-        # Displace nodes 1 and 2 in the positive x direction and y in the
-        # positive y direction
-        u = np.array([
-            [0.0, 0.0, 0.0],
-            [0.05, 0.0, 0.0],
-            [0.05, 0.05, 0.0]
-            ])
-
-        # Simulate the model for one time step
-        u, damage, connectivity, force, *_ = model.simulate(
-            nlist=nlist, n_neigh=n_neigh,
-            bond_stiffness=18.0 * 0.05 / (np.pi * 1.01**4),
-            critical_stretch=0.05, plus_cs=None, u=u, ud=None, force, damage, regimes)
-        # Calculate force
-        # This is lifted from the Model.simulate method
-        f = integrator._bond_force(u, nlist, n_neigh)
-
-        # Ensure force array is correct
-        force_value = 0.00229417
-        expected_force = np.array([
-            [force_value, 0., 0.],
-            [-force_value, force_value, 0.],
-            [0., -force_value, 0.]
-            ])
-        assert np.allclose(f, expected_force)
-
-        # Ensure force is restorative,
-        #   - Node 1 pulls node 0 in the positive x direction
-        #   - Node 0 pulls node 1 in the negative x direction
-        assert f[0, 0] > 0
-        assert f[1, 0] < 0
-        #   - Node 2 pulls node 1 in the positive y direction
-        #   - Node 1 pulls node 2 in the negative y direction
-        assert f[1, 1] > 0
-        assert f[2, 1] < 0
-
-        # Node 0 has no component of force in the y or z dimensions
-        assert np.all(f[0, 1:] == 0)
-        # Node 1 has no component of force in the z dimension
-        assert f[1, 2] == 0
-        # Node 2 has no component of force in the x or z dimensions
-        assert np.all(f[2, [0, 2]] == 0)
 
 
 class TestBoundaryConditions:
@@ -365,13 +282,13 @@ class TestBoundaryConditions:
 
     @pytest.fixture(
         scope="module",
-        params=[Euler, pytest.param(EulerOpenCL, marks=context_available)])
+        params=[Euler, pytest.param(EulerCL, marks=context_available)])
     def test_invalid_boundary_function(self, data_path, request):
         mesh_file = data_path / "example_mesh.vtk"
         euler = request.param(dt=1e-3)
         invalid_boundary_function = [None, None, None]
         with pytest.raises(TypeError) as exception:
-            model = Model(
+            Model(
                 mesh_file, integrator=euler, horizon=0.1,
                 critical_stretch=0.05,
                 bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
@@ -381,7 +298,7 @@ class TestBoundaryConditions:
 
     @pytest.fixture(
         scope="module",
-        params=[Euler, pytest.param(EulerOpenCL, marks=context_available)])
+        params=[Euler, pytest.param(EulerCL, marks=context_available)])
     def test_invalid_boundary_function2(self, data_path, request):
         mesh_file = data_path / "example_mesh.vtk"
         euler = request.param(dt=1e-3)
@@ -391,7 +308,7 @@ class TestBoundaryConditions:
             return 1
 
         with pytest.raises(TypeError) as exception:
-            model = Model(
+            Model(
                 mesh_file, integrator=euler, horizon=0.1,
                 critical_stretch=0.05,
                 bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
@@ -401,7 +318,7 @@ class TestBoundaryConditions:
 
     @pytest.fixture(
         scope="module",
-        params=[Euler, pytest.param(EulerOpenCL, marks=context_available)])
+        params=[Euler, pytest.param(EulerCL, marks=context_available)])
     def test_invalid_boundary_function3(self, data_path, request):
         mesh_file = data_path / "example_mesh.vtk"
         euler = request.param(dt=1e-3)
@@ -411,7 +328,7 @@ class TestBoundaryConditions:
             return [None]
 
         with pytest.raises(TypeError) as exception:
-            model = Model(
+            Model(
                 mesh_file, integrator=euler, horizon=0.1,
                 critical_stretch=0.05,
                 bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
@@ -421,7 +338,7 @@ class TestBoundaryConditions:
 
     @pytest.fixture(
         scope="module",
-        params=[Euler, pytest.param(EulerOpenCL, marks=context_available)])
+        params=[Euler, pytest.param(EulerCL, marks=context_available)])
     def test_no_boundary_function(self, data_path, request):
         """Ensure passing no boundary function works correctly."""
         mesh_file = data_path / "example_mesh.vtk"
@@ -436,7 +353,7 @@ class TestBoundaryConditions:
             bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
             is_displacement_boundary=is_displacement_boundary)
 
-        u, damage, connectivity = model.simulate(
+        u, damage, connectivity, *_ = model.simulate(
             steps=2,
             max_displacement_rate=0.000005/2
             )
@@ -446,7 +363,7 @@ class TestBoundaryConditions:
             critical_stretch=0.05,
             bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
 
-        expected_u, expected_damage, expected_connectivity = model.simulate(
+        expected_u, expected_damage, expected_connectivity, *_ = model.simulate(
             steps=2,
             max_displacement_rate=0.000005/2
             )
@@ -458,7 +375,7 @@ class TestBoundaryConditions:
 
 
 class TestIntegrator:
-    """ Tests for the simulate method.
+    """ Tests for the integrator.
 
     Further tests of integrator are in test_integrator.py
     """
@@ -468,7 +385,7 @@ class TestIntegrator:
         mesh_file = data_path / "example_mesh.vtk"
         invalid_integrator = None
         with pytest.raises(InvalidIntegrator):
-            model = Model(
+            Model(
                 mesh_file, integrator=invalid_integrator, horizon=0.1,
                 critical_stretch=0.05,
                 bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4))
@@ -493,42 +410,113 @@ class TestSimulate:
             basic_models_2d.simulate(10, connectivity=(1, 2, 3))
             assert "connectivity must be of size 2" in exception.value
 
-    def test_stateless(self, simple_model, simple_boundary_function):
+    def test_stateless(self, cython_model):
         """Ensure the simulate method does not affect the state of Models."""
-        model = simple_model
+        model = cython_model
+        steps = 2
+        u, damage, connectivity, *_ = model.simulate(
+            steps=steps,
+            displacement_bc_magnitudes=np.array([0, (0.00001 / 2)]))
 
-        u, damage, connectivity = model.simulate(
-            steps=2,
-            max_displacement_rate=0.000005/2)
-
-        expected_u, expected_damage, expected_connectivity = model.simulate(
-            steps=2,
-            max_displacement_rate=0.000005/2)
+        (expected_u,
+         expected_damage,
+         expected_connectivity,
+         *_) = model.simulate(
+            steps=steps,
+            displacement_bc_magnitudes=np.array([0, (0.00001 / 2)]))
 
         assert np.all(u == expected_u)
         assert np.all(damage == expected_damage)
         assert np.all(connectivity[0] == expected_connectivity[0])
         assert np.all(connectivity[1] == expected_connectivity[1])
 
-    def test_restart(self, simple_model, simple_boundary_function):
-        """Ensure simulation restarting gives consistent results."""
-        model = simple_model
+    @pytest.fixture(scope="module")
+    def simulate_force_test(self, data_path):
+        """Create a minimal model designed for testings force calculation."""
+        mesh_file = data_path/"force_test.vtk"
+        integrator = Euler(dt=1)
+        model = Model(mesh_file, integrator, horizon=1.01,
+                      critical_stretch=0.05,
+                      bond_stiffness=18.0 * 0.05 / (np.pi * 1.01**4)
+                      )
+        return model
 
-        u, damage, connectivity = model.simulate(
+    def test_force(self, simulate_force_test):
+        """Ensure forces are in the correct direction using a minimal model."""
+        model = simulate_force_test
+        nlist, n_neigh = model.initial_connectivity
+
+        # Nodes 0 and 1 are connected along the x axis, 1 and 2 along the y
+        # axis. There are no other connections.
+        assert n_neigh[0] == 1
+        assert n_neigh[1] == 2
+        assert n_neigh[2] == 1
+        assert 1 in nlist[0]
+        assert 0 in nlist[1]
+        assert 2 in nlist[1]
+        assert 1 in nlist[2]
+
+        # Displace nodes 1 and 2 in the positive x direction and y in the
+        # positive y direction
+        u = np.array([
+            [0.0, 0.0, 0.0],
+            [0.05, 0.0, 0.0],
+            [0.05, 0.05, 0.0]
+            ])
+
+        # Simulate the model for one time step
+        u, damage, connectivity, force, *_ = model.simulate(
+            steps=1, u=u)
+
+        # Ensure force array is correct
+        force_value = 0.00229417
+        expected_force = np.array([
+            [force_value, 0., 0.],
+            [-force_value, force_value, 0.],
+            [0., -force_value, 0.]
+            ])
+        assert np.allclose(force, expected_force)
+
+        # Ensure force is restorative,
+        #   - Node 1 pulls node 0 in the positive x direction
+        #   - Node 0 pulls node 1 in the negative x direction
+        assert force[0, 0] > 0
+        assert force[1, 0] < 0
+        #   - Node 2 pulls node 1 in the positive y direction
+        #   - Node 1 pulls node 2 in the negative y direction
+        assert force[1, 1] > 0
+        assert force[2, 1] < 0
+
+        # Node 0 has no component of force in the y or z dimensions
+        assert np.all(force[0, 1:] == 0)
+        # Node 1 has no component of force in the z dimension
+        assert force[1, 2] == 0
+        # Node 2 has no component of force in the x or z dimensions
+        assert np.all(force[2, [0, 2]] == 0)
+
+    def test_restart(self, cython_model):
+        """Ensure simulation restarting gives consistent results."""
+        model = cython_model
+        displacement_bc_magnitudes = np.linspace(0, (0.00001 * 99 / 2), 100)
+
+        u, damage, connectivity, *_ = model.simulate(
             steps=1,
-            max_displacement_rate=0.000005/2
+            displacement_bc_magnitudes=displacement_bc_magnitudes
             )
-        u, damage, connectivity = model.simulate(
+        u, damage, connectivity, *_ = model.simulate(
             steps=1,
-            max_displacement_rate=0.000005/2,
+            displacement_bc_magnitudes=displacement_bc_magnitudes,
             u=u,
             connectivity=connectivity,
             first_step=2
             )
 
-        expected_u, expected_damage, expected_connectivity = model.simulate(
+        (expected_u,
+         expected_damage,
+         expected_connectivity,
+         *_) = model.simulate(
             steps=2,
-            max_displacement_rate=0.000005/2
+            displacement_bc_magnitudes=displacement_bc_magnitudes
             )
 
         assert np.all(u == expected_u)
@@ -536,13 +524,13 @@ class TestSimulate:
         assert np.all(connectivity[0] == expected_connectivity[0])
         assert np.all(connectivity[1] == expected_connectivity[1])
 
-    def test_write(self, simple_model, simple_boundary_function, tmp_path):
+    def test_write(self, cython_model, tmp_path):
         """Ensure that the mesh file written by simulate is correct."""
-        model = simple_model
+        model = cython_model
 
-        u, damage, connectivity = model.simulate(
+        u, damage, connectivity, *_ = model.simulate(
             steps=1,
-            max_displacement_rate=0.000005/2,
+            displacement_bc_magnitudes=np.array([0]),
             write=1,
             write_path=tmp_path
             )

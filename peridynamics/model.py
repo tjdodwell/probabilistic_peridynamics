@@ -923,7 +923,7 @@ class Model(object):
          tip_velocity_data,
          tip_force_data,
          write_path) = self._simulate_initialise(
-             steps, regimes, u, ud, displacement_bc_magnitudes,
+             steps, first_step, regimes, u, ud, displacement_bc_magnitudes,
              force_bc_magnitudes, connectivity, bond_stiffness,
              critical_stretch, write_path)
 
@@ -985,11 +985,11 @@ class Model(object):
          n_neigh) = self.integrator.write(
              u, ud, force, damage, nlist, n_neigh)
 
-        return (u, damage, (nlist, n_neigh), ud, damage_sum_data,
+        return (u, damage, (nlist, n_neigh), force, ud, damage_sum_data,
                 tip_displacement_data, tip_velocity_data, tip_force_data)
 
     def _simulate_initialise(
-            self, steps, regimes, u, ud,
+            self, steps, first_step, regimes, u, ud,
             displacement_bc_magnitudes, force_bc_magnitudes, connectivity,
             bond_stiffness, critical_stretch, write_path):
         """
@@ -1048,14 +1048,15 @@ class Model(object):
         damage = np.empty(self.nnodes, dtype=np.float64)
         # Create boundary condition magnitudes if none is provided
         if displacement_bc_magnitudes is None:
-            displacement_bc_magnitudes = np.zeros(steps, dtype=np.float64)
+            displacement_bc_magnitudes = np.zeros(
+                first_step + steps - 1, dtype=np.float64)
         elif type(displacement_bc_magnitudes) == np.ndarray:
-            if np.shape(displacement_bc_magnitudes) != (steps,):
-                raise ValueError("displacement_bc_magnitudes shape is wrong "
-                                 " and must be (steps, ), (expected {}, got "
-                                 "{})".format(
-                                     (steps, ),
-                                     np.shape(displacement_bc_magnitudes)))
+            if len(displacement_bc_magnitudes) < steps:
+                raise ValueError("displacement_bc_magnitudes length must be "
+                                 "equal to or greater than (first_step + steps"
+                                 " - 1), (expected {}, got {})".format(
+                                     first_step + steps - 1,
+                                     len(displacement_bc_magnitudes)))
             displacement_bc_magnitudes = displacement_bc_magnitudes.astype(
                 np.float64)
         else:
@@ -1064,14 +1065,15 @@ class Model(object):
                                 np.ndarray,
                                 type(displacement_bc_magnitudes)))
         if force_bc_magnitudes is None:
-            force_bc_magnitudes = np.zeros(steps, dtype=np.float64)
+            force_bc_magnitudes = np.zeros(
+                first_step + steps - 1, dtype=np.float64)
         elif type(force_bc_magnitudes) == np.ndarray:
-            if np.shape(force_bc_magnitudes) != (steps,):
-                raise ValueError("force_bc_magnitudes shape is wrong "
-                                 " and must be (steps, ), (expected {}, got "
-                                 "{})".format(
-                                     (steps, ),
-                                     np.shape(force_bc_magnitudes)))
+            if len(force_bc_magnitudes) < steps:
+                raise ValueError("force_bc_magnitudes length must be "
+                                 "equal to or greater than (first_step + steps"
+                                 " - 1), (expected {}, got {})".format(
+                                     first_step + steps - 1,
+                                     len(force_bc_magnitudes)))
             force_bc_magnitudes = force_bc_magnitudes.astype(
                 np.float64)
         else:

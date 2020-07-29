@@ -253,17 +253,15 @@ class Euler(Integrator):
         """Conduct one iteration of the integrator."""
         # Calculate the force due to bonds on each node
         self.force = self._bond_force(
-            force_bc_scale, self.coords, self.u, self.nlist, self.n_neigh,
-            self.volume, self.bond_stiffness, self.force_bc_values,
-            self.force_bc_types)
+            force_bc_scale, self.u, self.nlist, self.n_neigh)
 
         # Conduct one integration step
-        self._update_displacement(self.u, self.bc_values, self.bc_types,
-                                  self.force, displacement_bc_scale, self.dt)
+        self._update_displacement(
+            self.u, self.force, displacement_bc_scale)
 
         # Update neighbour list
-        self._break_bonds(self.coords, self.u, self.nlist, self.n_neigh,
-                          self.critical_stretch)
+        self._break_bonds(
+            self.u, self.nlist, self.n_neigh)
 
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
@@ -321,37 +319,35 @@ class Euler(Integrator):
     def _build_special(self):
         """Build programs that are special to the Euler integrator."""
 
-    def _update_displacement(self, u, bc_values, bc_types, force,
-                             displacement_bc_scale, dt):
+    def _update_displacement(self, u, force, displacement_bc_scale):
         update_displacement(
-            u, bc_values, bc_types, force, displacement_bc_scale, dt)
+            u, self.bc_values, self.bc_types, force, displacement_bc_scale,
+            self.dt)
 
-    def _break_bonds(self, coords, u, nlist, n_neigh,
-                     critical_stretch):
+    def _break_bonds(self, u, nlist, n_neigh):
         """Break bonds which have exceeded the critical strain."""
-        break_bonds(coords+u, coords, nlist, n_neigh,
-                    critical_stretch)
+        break_bonds(self.coords+u, self.coords, nlist, n_neigh,
+                    self.critical_stretch)
 
-    def _damage(self, n_neigh, family):
+    def _damage(self, n_neigh):
         """Calculate bond damage."""
-        return damage(n_neigh, family)
+        return damage(n_neigh, self.family)
 
-    def _bond_force(self, force_bc_scale, coords, u, nlist, n_neigh,
-                    volume, bond_stiffness, force_bc_values, force_bc_types):
+    def _bond_force(self, force_bc_scale, u, nlist, n_neigh):
         """Calculate the force due to bonds acting on each node."""
         force = bond_force(
-            coords+u, coords, nlist, n_neigh,
-            volume, bond_stiffness, force_bc_values,
-            force_bc_types, force_bc_scale)
+            self.coords+u, self.coords, nlist, n_neigh,
+            self.volume, self.bond_stiffness, self.force_bc_values,
+            self.force_bc_types, force_bc_scale)
         return force
 
     def write(self, damage, u, ud, force, nlist, n_neigh):
         """Return the state variable arrays."""
-        damage = self._damage(self.n_neigh, self.family)
+        damage = self._damage(self.n_neigh)
         return (self.u, self.ud, self.force, damage, self.nlist, self.n_neigh)
 
 
-class EulerOpenCL(Integrator):
+class EulerCL(Integrator):
     r"""
     Euler integrator for OpenCL.
 

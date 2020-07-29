@@ -5,7 +5,7 @@ from io import StringIO
 import numpy as np
 import pathlib
 from peridynamics import Model
-from peridynamics.integrators import Euler, EulerOpenCL
+from peridynamics.integrators import Euler, EulerCL
 from peridynamics.utilities import read_array as read_model
 from peridynamics.utilities import calc_boundary_conditions_magnitudes
 from pstats import SortKey, Stats
@@ -127,7 +127,7 @@ def main():
         profile.enable()
 
     if args.opencl:
-        integrator = EulerOpenCL(dt=2.5e-13)
+        integrator = EulerCL(dt=2.5e-13)
     else:
         integrator = Euler(dt=2.5e-13)
 
