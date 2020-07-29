@@ -328,7 +328,7 @@ class Model(object):
                           "simulation time.")
             if connectivity is None:
                 # Create the neighbourlist for the cython implementation
-                self.max_neighbours = np.intc(self.family.max())
+                self.max_neighbours = self.family.max()
                 nlist, n_neigh = create_neighbour_list_cython(
                     self.coords, horizon, self.max_neighbours
                     )
@@ -363,14 +363,13 @@ class Model(object):
 
         else:
             if connectivity is None:
-                if integrator.context is not None:
-                    # Create the neighbourlist for the OpenCL implementation
-                    self.max_neighbours = np.intc(
-                                1 << (int(self.family.max() - 1)).bit_length()
-                            )
-                    nlist, n_neigh = create_neighbour_list_cl(
-                        self.coords, horizon, self.max_neighbours
+                # Create the neighbourlist for the OpenCL implementation
+                self.max_neighbours = np.intc(
+                            1 << (int(self.family.max() - 1)).bit_length()
                         )
+                nlist, n_neigh = create_neighbour_list_cl(
+                    self.coords, horizon, self.max_neighbours
+                    )
                 if write_path is not None:
                     write_array(self.write_path, "nlist", nlist)
                     write_array(self.write_path, "n_neigh", n_neigh)
@@ -957,12 +956,13 @@ class Model(object):
                             if self.tip_types[i][j] == 1:
                                 tmp += 1
                                 tip_displacement += u[i][j]
-                                tip_velocity += ud[i][j]
                                 tip_force += force[i][j]
+                                tip_velocity += ud[i][j]
                     if tmp != 0:
                         tip_displacement /= tmp
                         tip_velocity /= tmp
                     else:
+                        tip_force = None
                         tip_displacement = None
                         tip_velocity = None
 
@@ -977,6 +977,13 @@ class Model(object):
                     elif damage_sum > 0.7*self.nnodes:
                         warnings.warn('Warning: over 7% of bonds have broken!\
                                       peridynamics simulation continuing')
+        (u,
+         ud,
+         force,
+         damage,
+         nlist,
+         n_neigh) = self.integrator.write(
+             u, ud, force, damage, nlist, n_neigh)
 
         return (u, damage, (nlist, n_neigh), ud, damage_sum_data,
                 tip_displacement_data, tip_velocity_data, tip_force_data)

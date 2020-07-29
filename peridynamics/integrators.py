@@ -149,8 +149,8 @@ class Integrator(ABC):
         self._build_special()
 
     def set_buffers(
-            self, nlist, bond_stiffness, critical_stretch, plus_cs, u, ud,
-            force, damage, regimes):
+            self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs, u,
+            ud, force, damage, regimes):
         """
         Initialise the OpenCL buffers.
 
@@ -178,6 +178,8 @@ class Integrator(ABC):
         # Write only
         self.damage_d = cl.Buffer(
             self.context, mf.WRITE_ONLY, damage.nbytes)
+        self.n_neigh_d = cl.Buffer(
+            self.context, mf.WRITE_ONLY, n_neigh.nbytes)
 
         self._set_special_buffers()
 
@@ -250,17 +252,22 @@ class Euler(Integrator):
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """Conduct one iteration of the integrator."""
         # Calculate the force due to bonds on each node
-        self.force = self._bond_force(force_bc_scale)
+        self.force = self._bond_force(
+            force_bc_scale, self.coords, self.u, self.nlist, self.n_neigh,
+            self.volume, self.bond_stiffness, self.force_bc_values,
+            self.force_bc_types)
 
         # Conduct one integration step
-        self._update_displacement(self.force, displacement_bc_scale)
+        self._update_displacement(self.u, self.bc_values, self.bc_types,
+                                  self.force, displacement_bc_scale, self.dt)
 
         # Update neighbour list
-        self._break_bonds()
+        self._break_bonds(self.coords, self.u, self.nlist, self.n_neigh,
+                          self.critical_stretch)
 
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
-            u, force, damage, regimes):
+            u, ud, force, damage, regimes):
         """
         Initiate arrays that are dependent on simulation parameters.
 
@@ -272,12 +279,13 @@ class Euler(Integrator):
         self.bond_stiffness = bond_stiffness
         self.critical_stretch = critical_stretch
         self.u = u
+        self.ud = ud
         self.force = force
 
     def build(
             self, nnodes, degrees_freedom, max_neighbours, nregimes, coords,
             volume, family, bc_types, bc_values, force_bc_types,
-            force_bc_values):
+            force_bc_values, stiffness_corrections, material_types):
         """
         Initiate integrator arrays.
 
@@ -294,6 +302,18 @@ class Euler(Integrator):
         self.bc_values = bc_values
         self.force_bc_types = force_bc_types
         self.force_bc_values = force_bc_values
+        if (stiffness_corrections is not None):
+            raise ValueError("stiffness_corrections are not supported by this "
+                             "integrator (expected {}, got {}) please use "
+                             "EulerOpenCL".format(
+                                 type(None),
+                                 type(stiffness_corrections)))
+        if (material_types is not None):
+            raise ValueError("material_types are not supported by this "
+                             "integrator (expected {}, got {}) please use "
+                             "EulerOpenCL".format(
+                                 type(None),
+                                 type(material_types)))
 
     def _set_special_buffers(self):
         """Set buffers programs that are special to the Euler integrator."""
@@ -301,32 +321,34 @@ class Euler(Integrator):
     def _build_special(self):
         """Build programs that are special to the Euler integrator."""
 
-    def _update_displacement(self, force, displacement_bc_scale):
+    def _update_displacement(self, u, bc_values, bc_types, force,
+                             displacement_bc_scale, dt):
         update_displacement(
-            self.u, self.bc_values, self.bc_types, force,
-            displacement_bc_scale, self.dt)
+            u, bc_values, bc_types, force, displacement_bc_scale, dt)
 
-    def _break_bonds(self):
+    def _break_bonds(self, coords, u, nlist, n_neigh,
+                     critical_stretch):
         """Break bonds which have exceeded the critical strain."""
-        break_bonds(self.coords+self.u, self.coords, self.nlist, self.n_neigh,
-                    self.critical_stretch)
+        break_bonds(coords+u, coords, nlist, n_neigh,
+                    critical_stretch)
 
-    def _damage(self):
+    def _damage(self, n_neigh, family):
         """Calculate bond damage."""
-        return damage(self.n_neigh, self.family)
+        return damage(n_neigh, family)
 
-    def _bond_force(self, force_bc_scale):
+    def _bond_force(self, force_bc_scale, coords, u, nlist, n_neigh,
+                    volume, bond_stiffness, force_bc_values, force_bc_types):
         """Calculate the force due to bonds acting on each node."""
         force = bond_force(
-            self.coords+self.u, self.coords, self.nlist, self.n_neigh,
-            self.volume, self.bond_stiffness, self.force_bc_values,
-            self.force_bc_types, force_bc_scale)
+            coords+u, coords, nlist, n_neigh,
+            volume, bond_stiffness, force_bc_values,
+            force_bc_types, force_bc_scale)
         return force
 
-    def write(self, damage, u, force, nlist, n_neigh):
+    def write(self, damage, u, ud, force, nlist, n_neigh):
         """Return the state variable arrays."""
-        damage = self._damage()
-        return (damage, self.u, self.force, self.nlist, self.n_neigh)
+        damage = self._damage(self.n_neigh, self.family)
+        return (self.u, self.ud, self.force, damage, self.nlist, self.n_neigh)
 
 
 class EulerOpenCL(Integrator):
@@ -358,7 +380,7 @@ class EulerOpenCL(Integrator):
             displacement_bc_scale, self.dt)
         self._bond_force(
             self.u_d, self.force_d, self.r0_d, self.vols_d, self.nlist_d,
-            self.n_neigh_d, self.force_bc_types_d, self.force_bc_values_d,
+            self.force_bc_types_d, self.force_bc_values_d,
             self.local_mem_x, self.local_mem_y, self.local_mem_z,
             force_bc_scale, self.bond_stiffness, self.critical_stretch)
 
