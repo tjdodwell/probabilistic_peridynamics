@@ -38,6 +38,7 @@ setup(
         'numpy',
         'pyopencl',
         'scipy',
-        'tqdm'
+        'tqdm',
+        'h5py'
         ]
     )
