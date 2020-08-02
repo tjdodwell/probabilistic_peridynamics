@@ -3,7 +3,6 @@ from ..cl import get_context, pad
 from ..cl.utilities import DOUBLE_FP_SUPPORT
 import numpy as np
 import pyopencl as cl
-import pytest
 
 
 def test_get_context():

@@ -15,7 +15,6 @@ import pytest
     params=[Euler, pytest.param(EulerCL, marks=context_available)])
 def basic_models_2d(data_path, request, simple_displacement_boundary):
     """Create a basic 2D model object."""
-
     mesh_file = data_path / "example_mesh.vtk"
     euler = request.param(dt=1e-3)
     model = Model(mesh_file, integrator=euler, horizon=0.1,
@@ -394,7 +393,7 @@ def test_family_error(data_path, integrator):
 
 
 class TestMaterialTypes:
-    """Test _set_material_types"""
+    """Test _set_material_types."""
 
     @pytest.mark.parametrize(
         "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
@@ -505,7 +504,7 @@ class TestMaterialTypes:
 
 
 class TestStiffnessCorrections:
-    """Test _set_stiffness_corrections()"""
+    """Test _set_stiffness_corrections."""
 
     def test_value_stiffness_correction(self, data_path):
         """Test exception when precise stiffness correction value is wrong."""
@@ -614,6 +613,7 @@ class TestStiffnessCorrections:
             actual_stiffness_corrections)
 
     def test_none_stiffness_corrections(self, data_path):
+        """Test no stiffness corrections case."""
         integrator = Euler(1)
         mesh_file = data_path / "example_mesh_3d.vtk"
         model = Model(mesh_file, integrator, horizon=0.1,
@@ -626,11 +626,10 @@ class TestStiffnessCorrections:
 
 
 class TestDamageModel:
-    """Test _set_damage_model()"""
+    """Test _set_damage_model."""
 
     def test_plus_cs_list(self, basic_models_2d):
-        """ Test for damage model parameters as lists."""
-        # Bond stiffness array
+        """Test for damage model parameters as lists."""
         bond_stiffness = [[1.0, -1.0, -0.5], [1.0, 0.0, 0.0]]
         critical_stretch = [[1.0, 1.5, 2.5], [1.0, 1000.0, 1001.0]]
 
@@ -657,8 +656,7 @@ class TestDamageModel:
         assert np.all(plus_cs_actual == plus_cs_expected)
 
     def test_plus_cs_array(self, basic_models_2d):
-        """ Test for damage model parameters as arrays."""
-        # Bond stiffness array
+        """Test for damage model parameters as arrays."""
         bond_stiffness = np.array([[1.0, -1.0, -0.5], [1.0, 0.0, 0.0]])
         critical_stretch = np.array([[1.0, 1.5, 2.5], [1.0, 1000.0, 1001.0]])
 
@@ -685,8 +683,7 @@ class TestDamageModel:
         assert np.all(plus_cs_actual == plus_cs_expected)
 
     def test_plus_cs_float_array(self, basic_models_2d):
-        """ Test for damage model parameters as float array."""
-        # Bond stiffness array
+        """Test for damage model parameters as float array."""
         bond_stiffness = np.array(1.0)
         critical_stretch = np.array(1.0)
 
@@ -712,8 +709,7 @@ class TestDamageModel:
         assert np.all(plus_cs_actual == plus_cs_expected)
 
     def test_plus_cs_one_material(self, basic_models_2d):
-        """ Test for damage model parameters as float array."""
-        # Bond stiffness array
+        """Test for damage model parameters as float array."""
         bond_stiffness = np.array([1.0, -1.0, -0.5])
         critical_stretch = np.array([1.0, 2.0, 3.0])
 
@@ -739,8 +735,7 @@ class TestDamageModel:
         assert np.all(plus_cs_actual == plus_cs_expected)
 
     def test_plus_cs_one_regime(self, basic_models_2d):
-        """ Test for damage model parameters as float array."""
-        # Bond stiffness array
+        """Test for damage model parameters as float array."""
         bond_stiffness = np.array([[1.0], [2.0], [1.0]])
         critical_stretch = np.array([[1.0], [1.0], [1.0]])
 
@@ -767,7 +762,6 @@ class TestDamageModel:
 
     def test_plus_cs_negative_array(self, basic_models_2d):
         """Test for damage model parameters with negative critical stretch."""
-        # Bond stiffness array
         bond_stiffness = np.array([[1.0, 1.0, -0.5], [1.0, 0.0, 0.0]])
         critical_stretch = np.array([[-1.0, 1.0, 2.5], [1.0, 1000.0, 1001.0]])
         model = basic_models_2d
@@ -778,7 +772,6 @@ class TestDamageModel:
 
     def test_plus_cs_negative_float(self, basic_models_2d):
         """Test for damage model parameters with negative critical stretch."""
-        # Bond stiffness array
         bond_stiffness = 1.0
         critical_stretch = -1.0
         model = basic_models_2d
@@ -790,7 +783,6 @@ class TestDamageModel:
 
     def test_plus_cs_different_type(self, basic_models_2d):
         """Test for different types."""
-        # Bond stiffness array
         bond_stiffness = 1.0
         critical_stretch = None
         model = basic_models_2d
@@ -801,7 +793,6 @@ class TestDamageModel:
 
     def test_plus_cs_type(self, basic_models_2d):
         """Test for incorrect type."""
-        # Bond stiffness array
         bond_stiffness = None
         critical_stretch = None
         model = basic_models_2d
@@ -812,7 +803,6 @@ class TestDamageModel:
 
     def test_plus_cs_shape(self, basic_models_2d):
         """Test for damage model parameters with negative critical stretch."""
-        # Bond stiffness array
         bond_stiffness = np.array([[1.0, -1.0, -0.5], [1.0, 0.0, 0.0]])
         critical_stretch = np.array([[1.0, 2.0], [1.0, 2.0]])
         model = basic_models_2d
@@ -826,6 +816,7 @@ class TestBoundaryConditions:
     """Tests for the _set_boundary_conditions method."""
 
     def test_invalid_boundary_function(self, data_path, request):
+        """Test for exception for an invalid boundary function."""
         mesh_file = data_path / "example_mesh.vtk"
         euler = Euler(dt=1e-3)
         invalid_boundary_function = [None, None, None]
@@ -839,6 +830,7 @@ class TestBoundaryConditions:
                    in exception.value)
 
     def test_invalid_boundary_function2(self, data_path, request):
+        """Test for exception for an invalid boundary function."""
         mesh_file = data_path / "example_mesh.vtk"
         euler = Euler(dt=1e-3)
 
@@ -856,6 +848,7 @@ class TestBoundaryConditions:
                    + " a *list*." in exception.value)
 
     def test_invalid_boundary_function3(self, data_path, request):
+        """Test for exception for an invalid boundary function."""
         mesh_file = data_path / "example_mesh.vtk"
         euler = Euler(dt=1e-3)
 
@@ -873,7 +866,7 @@ class TestBoundaryConditions:
                    + " of length *3* of floats or None" in exception.value)
 
     def test_no_boundary_function(self, data_path, request):
-        """Ensure passing no boundary function works correctly."""
+        """Ensure no boundary function works correctly."""
         mesh_file = data_path / "example_mesh.vtk"
         euler = Euler(dt=1e-3)
 
@@ -911,7 +904,8 @@ class TestBoundaryConditions:
 
 
 class TestIntegrator:
-    """ Tests for the integrator.
+    """
+    Tests for the integrator.
 
     Further tests of integrator are in test_integrator.py
     """

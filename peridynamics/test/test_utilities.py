@@ -8,6 +8,7 @@ import os
 
 
 def test_read_and_write_array(data_path):
+    """Test reading and writing an array."""
     rw_path = data_path/"test_rw_array.h5"
     expected_array = np.empty((2113, 256))
     write_array(rw_path, "name", expected_array)
@@ -20,6 +21,7 @@ def test_read_and_write_array(data_path):
 
 
 def test_read_bad_file(data_path):
+    """Test reading a file that doesn't exist."""
     read_path = data_path/"no_file_here.h5"
     with pytest.warns(UserWarning) as warning:
         read_array(read_path, "name")
@@ -44,7 +46,7 @@ def test_calc_midpoint_gradient():
 
 
 def test_calc_build_time():
-    """ Test calculation of the build-up time steps."""
+    """Test calculation of the build-up time steps."""
     steps = 1000
     expected_build_displacement = 0.0025
     expected_velocity = 0.0
