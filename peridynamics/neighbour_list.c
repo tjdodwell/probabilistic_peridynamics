@@ -1804,6 +1804,7 @@ static const char __pyx_k_shape[] = "shape";
 static const char __pyx_k_start[] = "start";
 static const char __pyx_k_zeros[] = "zeros";
 static const char __pyx_k_encode[] = "encode";
+static const char __pyx_k_family[] = "family";
 static const char __pyx_k_format[] = "format";
 static const char __pyx_k_icrack[] = "icrack";
 static const char __pyx_k_import[] = "__import__";
@@ -1921,6 +1922,7 @@ static PyObject *__pyx_n_s_dtype_is_object;
 static PyObject *__pyx_n_s_encode;
 static PyObject *__pyx_n_s_enumerate;
 static PyObject *__pyx_n_s_error;
+static PyObject *__pyx_n_s_family;
 static PyObject *__pyx_n_s_flags;
 static PyObject *__pyx_n_s_format;
 static PyObject *__pyx_n_s_fortran;
@@ -1997,7 +1999,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_set_family(CYTHON_UNUS
 static PyObject *__pyx_pf_12peridynamics_14neighbour_list_2create_neighbour_list_cython(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_r, double __pyx_v_horizon, int __pyx_v_size); /* proto */
 static PyObject *__pyx_pf_12peridynamics_14neighbour_list_4create_neighbour_list_cl(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_r, double __pyx_v_horizon, int __pyx_v_size); /* proto */
 static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack_cython(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_crack, __Pyx_memviewslice __pyx_v_nlist, __Pyx_memviewslice __pyx_v_n_neigh); /* proto */
-static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_crack, __Pyx_memviewslice __pyx_v_nlist, __Pyx_memviewslice __pyx_v_n_neigh); /* proto */
+static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_crack, __Pyx_memviewslice __pyx_v_nlist, __Pyx_memviewslice __pyx_v_n_neigh, __Pyx_memviewslice __pyx_v_family); /* proto */
 static int __pyx_array___pyx_pf_15View_dot_MemoryView_5array___cinit__(struct __pyx_array_obj *__pyx_v_self, PyObject *__pyx_v_shape, Py_ssize_t __pyx_v_itemsize, PyObject *__pyx_v_format, PyObject *__pyx_v_mode, int __pyx_v_allocate_buffer); /* proto */
 static int __pyx_array___pyx_pf_15View_dot_MemoryView_5array_2__getbuffer__(struct __pyx_array_obj *__pyx_v_self, Py_buffer *__pyx_v_info, int __pyx_v_flags); /* proto */
 static void __pyx_array___pyx_pf_15View_dot_MemoryView_5array_4__dealloc__(struct __pyx_array_obj *__pyx_v_self); /* proto */
@@ -3963,19 +3965,20 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_6create_crack_cython(C
 /* "peridynamics/neighbour_list.pyx":146
  * 
  * 
- * def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):             # <<<<<<<<<<<<<<
+ * def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh,             # <<<<<<<<<<<<<<
+ *                     int[:] family):
  *     """
- *     Create a crack by removing selected pairs from the neighbour list.
  */
 
 /* Python wrapper */
 static PyObject *__pyx_pw_12peridynamics_14neighbour_list_9create_crack_cl(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static char __pyx_doc_12peridynamics_14neighbour_list_8create_crack_cl[] = "\n    Create a crack by removing selected pairs from the neighbour list.\n\n    :arg crack: An array giving the pairs between which to create the crack.\n        Each row of this array should be the index of two nodes.\n    :type crack: :class:`numpy.ndarray`\n    :arg nlist: The neighbour list\n    :type nlist: :class:`numpy.ndarray`\n    :arg n_neigh: The number of neighbours for each node.\n    :type n_neigh: :class:`numpy.ndarray`\n    ";
+static char __pyx_doc_12peridynamics_14neighbour_list_8create_crack_cl[] = "\n    Create a crack by removing selected pairs from the neighbour list.\n\n    :arg crack: An array giving the pairs between which to create the crack.\n        Each row of this array should be the index of two nodes.\n    :type crack: :class:`numpy.ndarray`\n    :arg nlist: The neighbour list\n    :type nlist: :class:`numpy.ndarray`\n    :arg n_neigh: The number of neighbours for each node.\n    :type n_neigh: :class:`numpy.ndarray`\n    :arg family: The initial number of neighbours for each node.\n    :type family: :class:`numpy.ndarray`\n    ";
 static PyMethodDef __pyx_mdef_12peridynamics_14neighbour_list_9create_crack_cl = {"create_crack_cl", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_12peridynamics_14neighbour_list_9create_crack_cl, METH_VARARGS|METH_KEYWORDS, __pyx_doc_12peridynamics_14neighbour_list_8create_crack_cl};
 static PyObject *__pyx_pw_12peridynamics_14neighbour_list_9create_crack_cl(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   __Pyx_memviewslice __pyx_v_crack = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_nlist = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_n_neigh = { 0, 0, { 0 }, { 0 }, { 0 } };
+  __Pyx_memviewslice __pyx_v_family = { 0, 0, { 0 }, { 0 }, { 0 } };
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
@@ -3983,12 +3986,14 @@ static PyObject *__pyx_pw_12peridynamics_14neighbour_list_9create_crack_cl(PyObj
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("create_crack_cl (wrapper)", 0);
   {
-    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_crack,&__pyx_n_s_nlist,&__pyx_n_s_n_neigh,0};
-    PyObject* values[3] = {0,0,0};
+    static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_crack,&__pyx_n_s_nlist,&__pyx_n_s_n_neigh,&__pyx_n_s_family,0};
+    PyObject* values[4] = {0,0,0,0};
     if (unlikely(__pyx_kwds)) {
       Py_ssize_t kw_args;
       const Py_ssize_t pos_args = PyTuple_GET_SIZE(__pyx_args);
       switch (pos_args) {
+        case  4: values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
+        CYTHON_FALLTHROUGH;
         case  3: values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
         CYTHON_FALLTHROUGH;
         case  2: values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
@@ -4007,45 +4012,53 @@ static PyObject *__pyx_pw_12peridynamics_14neighbour_list_9create_crack_cl(PyObj
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_nlist)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("create_crack_cl", 1, 3, 3, 1); __PYX_ERR(0, 146, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("create_crack_cl", 1, 4, 4, 1); __PYX_ERR(0, 146, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_n_neigh)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("create_crack_cl", 1, 3, 3, 2); __PYX_ERR(0, 146, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("create_crack_cl", 1, 4, 4, 2); __PYX_ERR(0, 146, __pyx_L3_error)
+        }
+        CYTHON_FALLTHROUGH;
+        case  3:
+        if (likely((values[3] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_family)) != 0)) kw_args--;
+        else {
+          __Pyx_RaiseArgtupleInvalid("create_crack_cl", 1, 4, 4, 3); __PYX_ERR(0, 146, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "create_crack_cl") < 0)) __PYX_ERR(0, 146, __pyx_L3_error)
       }
-    } else if (PyTuple_GET_SIZE(__pyx_args) != 3) {
+    } else if (PyTuple_GET_SIZE(__pyx_args) != 4) {
       goto __pyx_L5_argtuple_error;
     } else {
       values[0] = PyTuple_GET_ITEM(__pyx_args, 0);
       values[1] = PyTuple_GET_ITEM(__pyx_args, 1);
       values[2] = PyTuple_GET_ITEM(__pyx_args, 2);
+      values[3] = PyTuple_GET_ITEM(__pyx_args, 3);
     }
     __pyx_v_crack = __Pyx_PyObject_to_MemoryviewSlice_dsds_int(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_crack.memview)) __PYX_ERR(0, 146, __pyx_L3_error)
     __pyx_v_nlist = __Pyx_PyObject_to_MemoryviewSlice_dsds_int(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_nlist.memview)) __PYX_ERR(0, 146, __pyx_L3_error)
     __pyx_v_n_neigh = __Pyx_PyObject_to_MemoryviewSlice_ds_int(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_n_neigh.memview)) __PYX_ERR(0, 146, __pyx_L3_error)
+    __pyx_v_family = __Pyx_PyObject_to_MemoryviewSlice_ds_int(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_family.memview)) __PYX_ERR(0, 147, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("create_crack_cl", 1, 3, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 146, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("create_crack_cl", 1, 4, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 146, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("peridynamics.neighbour_list.create_crack_cl", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(__pyx_self, __pyx_v_crack, __pyx_v_nlist, __pyx_v_n_neigh);
+  __pyx_r = __pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(__pyx_self, __pyx_v_crack, __pyx_v_nlist, __pyx_v_n_neigh, __pyx_v_family);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_crack, __Pyx_memviewslice __pyx_v_nlist, __Pyx_memviewslice __pyx_v_n_neigh) {
+static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHON_UNUSED PyObject *__pyx_self, __Pyx_memviewslice __pyx_v_crack, __Pyx_memviewslice __pyx_v_nlist, __Pyx_memviewslice __pyx_v_n_neigh, __Pyx_memviewslice __pyx_v_family) {
   int __pyx_v_n;
   int __pyx_v_icrack;
   int __pyx_v_i;
@@ -4073,8 +4086,8 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("create_crack_cl", 0);
 
-  /* "peridynamics/neighbour_list.pyx":158
- *     :type n_neigh: :class:`numpy.ndarray`
+  /* "peridynamics/neighbour_list.pyx":161
+ *     :type family: :class:`numpy.ndarray`
  *     """
  *     cdef int n = crack.shape[0]             # <<<<<<<<<<<<<<
  * 
@@ -4082,7 +4095,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
  */
   __pyx_v_n = (__pyx_v_crack.shape[0]);
 
-  /* "peridynamics/neighbour_list.pyx":162
+  /* "peridynamics/neighbour_list.pyx":165
  *     cdef int icrack, i, j, neigh
  * 
  *     for icrack in range(n):             # <<<<<<<<<<<<<<
@@ -4094,7 +4107,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_icrack = __pyx_t_3;
 
-    /* "peridynamics/neighbour_list.pyx":163
+    /* "peridynamics/neighbour_list.pyx":166
  * 
  *     for icrack in range(n):
  *         i = crack[icrack][0]             # <<<<<<<<<<<<<<
@@ -4114,11 +4127,11 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
     } else if (unlikely(__pyx_t_5 >= __pyx_v_crack.shape[1])) __pyx_t_6 = 1;
     if (unlikely(__pyx_t_6 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_6);
-      __PYX_ERR(0, 163, __pyx_L1_error)
+      __PYX_ERR(0, 166, __pyx_L1_error)
     }
     __pyx_v_i = (*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_crack.data + __pyx_t_4 * __pyx_v_crack.strides[0]) ) + __pyx_t_5 * __pyx_v_crack.strides[1]) )));
 
-    /* "peridynamics/neighbour_list.pyx":164
+    /* "peridynamics/neighbour_list.pyx":167
  *     for icrack in range(n):
  *         i = crack[icrack][0]
  *         j = crack[icrack][1]             # <<<<<<<<<<<<<<
@@ -4138,35 +4151,35 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
     } else if (unlikely(__pyx_t_4 >= __pyx_v_crack.shape[1])) __pyx_t_6 = 1;
     if (unlikely(__pyx_t_6 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_6);
-      __PYX_ERR(0, 164, __pyx_L1_error)
+      __PYX_ERR(0, 167, __pyx_L1_error)
     }
     __pyx_v_j = (*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_crack.data + __pyx_t_5 * __pyx_v_crack.strides[0]) ) + __pyx_t_4 * __pyx_v_crack.strides[1]) )));
 
-    /* "peridynamics/neighbour_list.pyx":167
+    /* "peridynamics/neighbour_list.pyx":170
  * 
  *         # Iterate through i's neighbour list until j is found
- *         for neigh in range(n_neigh[i]):             # <<<<<<<<<<<<<<
+ *         for neigh in range(family[i]):             # <<<<<<<<<<<<<<
  *             if nlist[i][neigh] == j:
  *                 # Remove this neighbour by replacing it with -1, then reducing
  */
     __pyx_t_4 = __pyx_v_i;
     __pyx_t_6 = -1;
     if (__pyx_t_4 < 0) {
-      __pyx_t_4 += __pyx_v_n_neigh.shape[0];
+      __pyx_t_4 += __pyx_v_family.shape[0];
       if (unlikely(__pyx_t_4 < 0)) __pyx_t_6 = 0;
-    } else if (unlikely(__pyx_t_4 >= __pyx_v_n_neigh.shape[0])) __pyx_t_6 = 0;
+    } else if (unlikely(__pyx_t_4 >= __pyx_v_family.shape[0])) __pyx_t_6 = 0;
     if (unlikely(__pyx_t_6 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_6);
-      __PYX_ERR(0, 167, __pyx_L1_error)
+      __PYX_ERR(0, 170, __pyx_L1_error)
     }
-    __pyx_t_6 = (*((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_4 * __pyx_v_n_neigh.strides[0]) )));
+    __pyx_t_6 = (*((int *) ( /* dim=0 */ (__pyx_v_family.data + __pyx_t_4 * __pyx_v_family.strides[0]) )));
     __pyx_t_7 = __pyx_t_6;
     for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
       __pyx_v_neigh = __pyx_t_8;
 
-      /* "peridynamics/neighbour_list.pyx":168
+      /* "peridynamics/neighbour_list.pyx":171
  *         # Iterate through i's neighbour list until j is found
- *         for neigh in range(n_neigh[i]):
+ *         for neigh in range(family[i]):
  *             if nlist[i][neigh] == j:             # <<<<<<<<<<<<<<
  *                 # Remove this neighbour by replacing it with -1, then reducing
  *                 # the number of neighbours by 1
@@ -4184,12 +4197,12 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
       } else if (unlikely(__pyx_t_5 >= __pyx_v_nlist.shape[1])) __pyx_t_9 = 1;
       if (unlikely(__pyx_t_9 != -1)) {
         __Pyx_RaiseBufferIndexError(__pyx_t_9);
-        __PYX_ERR(0, 168, __pyx_L1_error)
+        __PYX_ERR(0, 171, __pyx_L1_error)
       }
       __pyx_t_10 = (((*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nlist.data + __pyx_t_4 * __pyx_v_nlist.strides[0]) ) + __pyx_t_5 * __pyx_v_nlist.strides[1]) ))) == __pyx_v_j) != 0);
       if (__pyx_t_10) {
 
-        /* "peridynamics/neighbour_list.pyx":171
+        /* "peridynamics/neighbour_list.pyx":174
  *                 # Remove this neighbour by replacing it with -1, then reducing
  *                 # the number of neighbours by 1
  *                 nlist[i, neigh] = -1             # <<<<<<<<<<<<<<
@@ -4209,11 +4222,11 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
         } else if (unlikely(__pyx_t_4 >= __pyx_v_nlist.shape[1])) __pyx_t_9 = 1;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 171, __pyx_L1_error)
+          __PYX_ERR(0, 174, __pyx_L1_error)
         }
         *((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nlist.data + __pyx_t_5 * __pyx_v_nlist.strides[0]) ) + __pyx_t_4 * __pyx_v_nlist.strides[1]) )) = -1;
 
-        /* "peridynamics/neighbour_list.pyx":172
+        /* "peridynamics/neighbour_list.pyx":175
  *                 # the number of neighbours by 1
  *                 nlist[i, neigh] = -1
  *                 n_neigh[i] = n_neigh[i] - 1             # <<<<<<<<<<<<<<
@@ -4228,7 +4241,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
         } else if (unlikely(__pyx_t_11 >= __pyx_v_n_neigh.shape[0])) __pyx_t_9 = 0;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 172, __pyx_L1_error)
+          __PYX_ERR(0, 175, __pyx_L1_error)
         }
         __pyx_t_12 = __pyx_v_i;
         __pyx_t_9 = -1;
@@ -4238,11 +4251,11 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
         } else if (unlikely(__pyx_t_12 >= __pyx_v_n_neigh.shape[0])) __pyx_t_9 = 0;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 172, __pyx_L1_error)
+          __PYX_ERR(0, 175, __pyx_L1_error)
         }
         *((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_12 * __pyx_v_n_neigh.strides[0]) )) = ((*((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_11 * __pyx_v_n_neigh.strides[0]) ))) - 1);
 
-        /* "peridynamics/neighbour_list.pyx":173
+        /* "peridynamics/neighbour_list.pyx":176
  *                 nlist[i, neigh] = -1
  *                 n_neigh[i] = n_neigh[i] - 1
  *                 break             # <<<<<<<<<<<<<<
@@ -4251,9 +4264,9 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
  */
         goto __pyx_L6_break;
 
-        /* "peridynamics/neighbour_list.pyx":168
+        /* "peridynamics/neighbour_list.pyx":171
  *         # Iterate through i's neighbour list until j is found
- *         for neigh in range(n_neigh[i]):
+ *         for neigh in range(family[i]):
  *             if nlist[i][neigh] == j:             # <<<<<<<<<<<<<<
  *                 # Remove this neighbour by replacing it with -1, then reducing
  *                 # the number of neighbours by 1
@@ -4262,31 +4275,31 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
     }
     __pyx_L6_break:;
 
-    /* "peridynamics/neighbour_list.pyx":176
+    /* "peridynamics/neighbour_list.pyx":179
  * 
  *         # Iterate through j's neighbour list until i is found
- *         for neigh in range(n_neigh[j]):             # <<<<<<<<<<<<<<
+ *         for neigh in range(family[j]):             # <<<<<<<<<<<<<<
  *             if nlist[j][neigh] == i:
  *                 # Remove this neighbour by replacing it with -1, then reducing
  */
     __pyx_t_11 = __pyx_v_j;
     __pyx_t_6 = -1;
     if (__pyx_t_11 < 0) {
-      __pyx_t_11 += __pyx_v_n_neigh.shape[0];
+      __pyx_t_11 += __pyx_v_family.shape[0];
       if (unlikely(__pyx_t_11 < 0)) __pyx_t_6 = 0;
-    } else if (unlikely(__pyx_t_11 >= __pyx_v_n_neigh.shape[0])) __pyx_t_6 = 0;
+    } else if (unlikely(__pyx_t_11 >= __pyx_v_family.shape[0])) __pyx_t_6 = 0;
     if (unlikely(__pyx_t_6 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_6);
-      __PYX_ERR(0, 176, __pyx_L1_error)
+      __PYX_ERR(0, 179, __pyx_L1_error)
     }
-    __pyx_t_6 = (*((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_11 * __pyx_v_n_neigh.strides[0]) )));
+    __pyx_t_6 = (*((int *) ( /* dim=0 */ (__pyx_v_family.data + __pyx_t_11 * __pyx_v_family.strides[0]) )));
     __pyx_t_7 = __pyx_t_6;
     for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
       __pyx_v_neigh = __pyx_t_8;
 
-      /* "peridynamics/neighbour_list.pyx":177
+      /* "peridynamics/neighbour_list.pyx":180
  *         # Iterate through j's neighbour list until i is found
- *         for neigh in range(n_neigh[j]):
+ *         for neigh in range(family[j]):
  *             if nlist[j][neigh] == i:             # <<<<<<<<<<<<<<
  *                 # Remove this neighbour by replacing it with -1, then reducing
  *                 # the number of neighbours by 1
@@ -4304,12 +4317,12 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
       } else if (unlikely(__pyx_t_13 >= __pyx_v_nlist.shape[1])) __pyx_t_9 = 1;
       if (unlikely(__pyx_t_9 != -1)) {
         __Pyx_RaiseBufferIndexError(__pyx_t_9);
-        __PYX_ERR(0, 177, __pyx_L1_error)
+        __PYX_ERR(0, 180, __pyx_L1_error)
       }
       __pyx_t_10 = (((*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nlist.data + __pyx_t_11 * __pyx_v_nlist.strides[0]) ) + __pyx_t_13 * __pyx_v_nlist.strides[1]) ))) == __pyx_v_i) != 0);
       if (__pyx_t_10) {
 
-        /* "peridynamics/neighbour_list.pyx":180
+        /* "peridynamics/neighbour_list.pyx":183
  *                 # Remove this neighbour by replacing it with -1, then reducing
  *                 # the number of neighbours by 1
  *                 nlist[j, neigh] = -1             # <<<<<<<<<<<<<<
@@ -4329,11 +4342,11 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
         } else if (unlikely(__pyx_t_11 >= __pyx_v_nlist.shape[1])) __pyx_t_9 = 1;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 180, __pyx_L1_error)
+          __PYX_ERR(0, 183, __pyx_L1_error)
         }
         *((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_nlist.data + __pyx_t_13 * __pyx_v_nlist.strides[0]) ) + __pyx_t_11 * __pyx_v_nlist.strides[1]) )) = -1;
 
-        /* "peridynamics/neighbour_list.pyx":181
+        /* "peridynamics/neighbour_list.pyx":184
  *                 # the number of neighbours by 1
  *                 nlist[j, neigh] = -1
  *                 n_neigh[j] = n_neigh[j] - 1             # <<<<<<<<<<<<<<
@@ -4347,7 +4360,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
         } else if (unlikely(__pyx_t_14 >= __pyx_v_n_neigh.shape[0])) __pyx_t_9 = 0;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 181, __pyx_L1_error)
+          __PYX_ERR(0, 184, __pyx_L1_error)
         }
         __pyx_t_15 = __pyx_v_j;
         __pyx_t_9 = -1;
@@ -4357,20 +4370,20 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
         } else if (unlikely(__pyx_t_15 >= __pyx_v_n_neigh.shape[0])) __pyx_t_9 = 0;
         if (unlikely(__pyx_t_9 != -1)) {
           __Pyx_RaiseBufferIndexError(__pyx_t_9);
-          __PYX_ERR(0, 181, __pyx_L1_error)
+          __PYX_ERR(0, 184, __pyx_L1_error)
         }
         *((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_15 * __pyx_v_n_neigh.strides[0]) )) = ((*((int *) ( /* dim=0 */ (__pyx_v_n_neigh.data + __pyx_t_14 * __pyx_v_n_neigh.strides[0]) ))) - 1);
 
-        /* "peridynamics/neighbour_list.pyx":182
+        /* "peridynamics/neighbour_list.pyx":185
  *                 nlist[j, neigh] = -1
  *                 n_neigh[j] = n_neigh[j] - 1
  *                 break             # <<<<<<<<<<<<<<
  */
         goto __pyx_L9_break;
 
-        /* "peridynamics/neighbour_list.pyx":177
+        /* "peridynamics/neighbour_list.pyx":180
  *         # Iterate through j's neighbour list until i is found
- *         for neigh in range(n_neigh[j]):
+ *         for neigh in range(family[j]):
  *             if nlist[j][neigh] == i:             # <<<<<<<<<<<<<<
  *                 # Remove this neighbour by replacing it with -1, then reducing
  *                 # the number of neighbours by 1
@@ -4383,9 +4396,9 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
   /* "peridynamics/neighbour_list.pyx":146
  * 
  * 
- * def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):             # <<<<<<<<<<<<<<
+ * def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh,             # <<<<<<<<<<<<<<
+ *                     int[:] family):
  *     """
- *     Create a crack by removing selected pairs from the neighbour list.
  */
 
   /* function exit code */
@@ -4398,6 +4411,7 @@ static PyObject *__pyx_pf_12peridynamics_14neighbour_list_8create_crack_cl(CYTHO
   __PYX_XDEC_MEMVIEW(&__pyx_v_crack, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_v_nlist, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_v_n_neigh, 1);
+  __PYX_XDEC_MEMVIEW(&__pyx_v_family, 1);
   __Pyx_XGIVEREF(__pyx_r);
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
@@ -18224,6 +18238,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_encode, __pyx_k_encode, sizeof(__pyx_k_encode), 0, 0, 1, 1},
   {&__pyx_n_s_enumerate, __pyx_k_enumerate, sizeof(__pyx_k_enumerate), 0, 0, 1, 1},
   {&__pyx_n_s_error, __pyx_k_error, sizeof(__pyx_k_error), 0, 0, 1, 1},
+  {&__pyx_n_s_family, __pyx_k_family, sizeof(__pyx_k_family), 0, 0, 1, 1},
   {&__pyx_n_s_flags, __pyx_k_flags, sizeof(__pyx_k_flags), 0, 0, 1, 1},
   {&__pyx_n_s_format, __pyx_k_format, sizeof(__pyx_k_format), 0, 0, 1, 1},
   {&__pyx_n_s_fortran, __pyx_k_fortran, sizeof(__pyx_k_fortran), 0, 0, 1, 1},
@@ -18559,14 +18574,14 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   /* "peridynamics/neighbour_list.pyx":146
  * 
  * 
- * def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):             # <<<<<<<<<<<<<<
+ * def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh,             # <<<<<<<<<<<<<<
+ *                     int[:] family):
  *     """
- *     Create a crack by removing selected pairs from the neighbour list.
  */
-  __pyx_tuple__27 = PyTuple_Pack(8, __pyx_n_s_crack, __pyx_n_s_nlist, __pyx_n_s_n_neigh, __pyx_n_s_n, __pyx_n_s_icrack, __pyx_n_s_i, __pyx_n_s_j, __pyx_n_s_neigh); if (unlikely(!__pyx_tuple__27)) __PYX_ERR(0, 146, __pyx_L1_error)
+  __pyx_tuple__27 = PyTuple_Pack(9, __pyx_n_s_crack, __pyx_n_s_nlist, __pyx_n_s_n_neigh, __pyx_n_s_family, __pyx_n_s_n, __pyx_n_s_icrack, __pyx_n_s_i, __pyx_n_s_j, __pyx_n_s_neigh); if (unlikely(!__pyx_tuple__27)) __PYX_ERR(0, 146, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__27);
   __Pyx_GIVEREF(__pyx_tuple__27);
-  __pyx_codeobj__28 = (PyObject*)__Pyx_PyCode_New(3, 0, 8, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__27, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_peridynamics_neighbour_list_pyx, __pyx_n_s_create_crack_cl, 146, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__28)) __PYX_ERR(0, 146, __pyx_L1_error)
+  __pyx_codeobj__28 = (PyObject*)__Pyx_PyCode_New(4, 0, 9, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__27, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_peridynamics_neighbour_list_pyx, __pyx_n_s_create_crack_cl, 146, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__28)) __PYX_ERR(0, 146, __pyx_L1_error)
 
   /* "View.MemoryView":286
  *         return self.name
@@ -19053,9 +19068,9 @@ if (!__Pyx_RefNanny) {
   /* "peridynamics/neighbour_list.pyx":146
  * 
  * 
- * def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):             # <<<<<<<<<<<<<<
+ * def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh,             # <<<<<<<<<<<<<<
+ *                     int[:] family):
  *     """
- *     Create a crack by removing selected pairs from the neighbour list.
  */
   __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_12peridynamics_14neighbour_list_9create_crack_cl, NULL, __pyx_n_s_peridynamics_neighbour_list); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 146, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);

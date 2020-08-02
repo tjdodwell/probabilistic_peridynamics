@@ -30,8 +30,12 @@ def simple_displacement_boundary():
         # Particle does live on boundary
         if x[0] < 1.5 * 0.1:
             bnd[0] = -1
+            bnd[1] = 0
+            bnd[2] = 0
         elif x[0] > 1.0 - 1.5 * 0.1:
             bnd[0] = 1
+            bnd[1] = 0
+            bnd[2] = 0
         return bnd
     return is_boundary
 

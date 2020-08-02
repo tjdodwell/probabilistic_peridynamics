@@ -83,16 +83,17 @@ def bond_force(double[:, :] r, double[:, :] r0, int[:, :] nlist,
 
                 # Add force to particle i, using Newton's third law subtract
                 # force from j
+                # Scale the force by the node volume of the child particle
                 for dim in range(3):
-                    force_view[i, dim] = force_view[i, dim] + f[dim]
-                    force_view[j, dim] = force_view[j, dim] - f[dim]
+                    force_view[i, dim] = (force_view[i, dim]
+                                          + f[dim] * volume[j])
+                    force_view[j, dim] = (force_view[j, dim]
+                                          - f[dim] * volume[i])
 
-        # Scale force by node volume and apply boundary conditions
+        # Apply boundary conditions
         for dim in range(3):
-            if(force_bc_types[i, dim] == 0):
-                force_view[i, dim] = force_view[i, dim] * volume[i]
-            else:
-                force_view[i, dim] = force_view[i, dim] * volume[i] + (
+            if(force_bc_types[i, dim] != 0):
+                force_view[i, dim] = force_view[i, dim] + (
                     force_bc_scale * force_bc_values[i, dim])
 
     return force

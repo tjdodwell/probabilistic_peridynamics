@@ -34,6 +34,7 @@ def program(context):
 class TestUpdateDisplacement:
     """Test the displacement update."""
 
+    @context_available
     def test_update_displacement(self, context, queue, program):
         """Test basic displacement update."""
         u = np.zeros(3)
@@ -69,6 +70,7 @@ class TestUpdateDisplacement:
         cl.enqueue_copy(queue, u, u_d)
         assert np.all(u == force)
 
+    @context_available
     def test_update_displacement2(self, context, queue, program):
         """Test displacement update."""
         u = np.zeros(3)
@@ -105,6 +107,7 @@ class TestUpdateDisplacement:
 
         assert np.all(u == 2.0*force)
 
+    @context_available
     def test_update_displacement3(self, context, queue, program):
         """Test displacement update with displacement boundary conditions."""
         u = np.zeros(3)
@@ -142,6 +145,7 @@ class TestUpdateDisplacement:
         u_expected = np.array([0, 0, 6.0])
         assert np.all(u == u_expected)
 
+    @context_available
     def test_update_displacement4(self, context, queue, program):
         """Test displacement update with displacement B.C. scale."""
         u = np.zeros(3)

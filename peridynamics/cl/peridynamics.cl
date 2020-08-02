@@ -65,21 +65,25 @@ __kernel void
 		const double y = sqrt(xi_eta_x * xi_eta_x + xi_eta_y * xi_eta_y + xi_eta_z * xi_eta_z);
 		const double s = (y -  xi)/ xi;
 
-		const double cx = xi_eta_x / y;
-		const double cy = xi_eta_y / y;
-		const double cz = xi_eta_z / y;
+        // Check for state of bonds here, and break it if necessary
+		if (s < critical_stretch) {
+            const double cx = xi_eta_x / y;
+		    const double cy = xi_eta_y / y;
+		    const double cz = xi_eta_z / y;
 
-		const double f = s * bond_stiffness * vols[node_id_j];
-
-		// Copy bond forces into local memory
-		local_cache_x[local_id] = f * cx;
-		local_cache_y[local_id] = f * cy;
-		local_cache_z[local_id] = f * cz;
-
-		// Check for state of bonds here, and break it if necessary
-		if (s >= critical_stretch) {
-			nlist[global_id] = -1;  // Break the bond
+		    const double f = s * bond_stiffness * vols[node_id_j];
+            // Copy bond forces into local memory
+		    local_cache_x[local_id] = f * cx;
+		    local_cache_y[local_id] = f * cy;
+		    local_cache_z[local_id] = f * cz;
 		}
+        else {
+            // bond is broken
+			nlist[global_id] = -1;  // Break the bond
+            local_cache_x[local_id] = 0.00;
+            local_cache_y[local_id] = 0.00;
+            local_cache_z[local_id] = 0.00;
+        }
     }
     // bond is broken
     else {
@@ -105,7 +109,7 @@ __kernel void
         //Get the reduced forces
         // node_no == node_id_i
         int node_no = global_id/local_size;
-        // Update accelerations in each direction
+        // Update forces in each direction
         force[3 * node_no + 0] = (fc_types[3 * node_no + 0] == 0 ? local_cache_x[0] : (local_cache_x[0] + fc_scale * fc_values[3 * node_no + 0]));
         force[3 * node_no + 1] = (fc_types[3 * node_no + 1] == 0 ? local_cache_y[0] : (local_cache_y[0] + fc_scale * fc_values[3 * node_no + 1]));
         force[3 * node_no + 2] = (fc_types[3 * node_no + 2] == 0 ? local_cache_z[0] : (local_cache_z[0] + fc_scale * fc_values[3 * node_no + 2]));

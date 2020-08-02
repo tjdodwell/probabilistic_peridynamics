@@ -54,6 +54,8 @@ class Integrator(ABC):
         # Print out device info
         output_device_info(self.context.devices[0])
 
+        self.queue = cl.CommandQueue(self.context)
+
     @abstractmethod
     def __call__(self):
         """
@@ -79,7 +81,7 @@ class Integrator(ABC):
         """
 
     def build(
-            self, nnodes, degrees_freedom, max_neighbours, nregimes, coords,
+            self, nnodes, degrees_freedom, max_neighbours, coords,
             volume, family, bc_types, bc_values, force_bc_types,
             force_bc_values, stiffness_corrections, material_types):
         """
@@ -91,7 +93,6 @@ class Integrator(ABC):
         self.nnodes = nnodes
         self.degrees_freedom = degrees_freedom
         self.max_neighbours = max_neighbours
-        self.nregimes = nregimes
 
         kernel_source = open(
             pathlib.Path(__file__).parent.absolute() /
@@ -100,14 +101,23 @@ class Integrator(ABC):
         # Build kernels
         self.program = cl.Program(
             self.context, kernel_source).build()
-        self.queue = cl.CommandQueue(self.context)
 
         # Set bond_force program
         if ((stiffness_corrections is None) and (material_types is None)):
             self.bond_force_kernel = self.program.bond_force
-        else:
-            raise ValueError("stiffness_corrections and material_types "
-                             "are not yet supported.")
+        if (stiffness_corrections is not None):
+            raise ValueError("stiffness_corrections are not supported by this "
+                             "integrator (expected {}, got {}), please use "
+                             "EulerOpenCL instead".format(
+                                 type(None),
+                                 type(stiffness_corrections)))
+        if (material_types is not None):
+            raise ValueError("material_types are not supported by this "
+                             "integrator (expected {}, got {}), please use "
+                             "EulerOpenCL instead".format(
+                                 type(None),
+                                 type(material_types)))
+
         self.damage_kernel = self.program.damage
 
         # Build OpenCL data structures that are independent of
@@ -150,7 +160,7 @@ class Integrator(ABC):
 
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs, u,
-            ud, force, damage, regimes):
+            ud, force, damage, regimes, nregimes, nmaterials):
         """
         Initialise the OpenCL buffers.
 
@@ -160,6 +170,8 @@ class Integrator(ABC):
         self.bond_stiffness = bond_stiffness
         self.critical_stretch = critical_stretch
         self.regimes = regimes
+        self.nregimes = nregimes
+        self.nmaterials = nmaterials
 
         # Build OpenCL data structures that are dependent on
         # :class: Model.simulation parameters
@@ -183,14 +195,14 @@ class Integrator(ABC):
 
         self._set_special_buffers()
 
-    def _damage(self, n_list_d, family_d, n_neigh_d, damage_d, local_mem):
+    def _damage(self, nlist_d, family_d, n_neigh_d, damage_d, local_mem):
         """Calculate bond damage."""
         queue = self.queue
 
         # Call kernel
         self.damage_kernel(
             queue, (self.nnodes * self.max_neighbours,),
-            (self.max_neighbours,), n_list_d, family_d, n_neigh_d, damage_d,
+            (self.max_neighbours,), nlist_d, family_d, n_neigh_d, damage_d,
             local_mem)
         queue.finish()
 
@@ -251,6 +263,10 @@ class Euler(Integrator):
 
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """Conduct one iteration of the integrator."""
+        # Update neighbour list
+        self._break_bonds(
+            self.u, self.nlist, self.n_neigh)
+
         # Calculate the force due to bonds on each node
         self.force = self._bond_force(
             force_bc_scale, self.u, self.nlist, self.n_neigh)
@@ -259,19 +275,23 @@ class Euler(Integrator):
         self._update_displacement(
             self.u, self.force, displacement_bc_scale)
 
-        # Update neighbour list
-        self._break_bonds(
-            self.u, self.nlist, self.n_neigh)
-
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
-            u, ud, force, damage, regimes):
+            u, ud, force, damage, regimes, nregimes, nmaterials):
         """
         Initiate arrays that are dependent on simulation parameters.
 
         Since :class:`Euler` uses cython in place of OpenCL, there are no
         buffers to be set, just :class:`numpy.ndarray` arrays.
         """
+        if nregimes != 1:
+            raise ValueError("n-linear damage model's are not supported by "
+                             "this integrator. Please supply just one "
+                             "bond_stiffness")
+        if nmaterials != 1:
+            raise ValueError("n-material composite models are not supported by"
+                             " this integrator. Please supply just one "
+                             "material type and bond_stiffness")
         self.nlist = nlist
         self.n_neigh = n_neigh
         self.bond_stiffness = bond_stiffness
@@ -281,7 +301,7 @@ class Euler(Integrator):
         self.force = force
 
     def build(
-            self, nnodes, degrees_freedom, max_neighbours, nregimes, coords,
+            self, nnodes, degrees_freedom, max_neighbours, coords,
             volume, family, bc_types, bc_values, force_bc_types,
             force_bc_values, stiffness_corrections, material_types):
         """
@@ -300,18 +320,18 @@ class Euler(Integrator):
         self.bc_values = bc_values
         self.force_bc_types = force_bc_types
         self.force_bc_values = force_bc_values
-        if (stiffness_corrections is not None):
-            raise ValueError("stiffness_corrections are not supported by this "
-                             "integrator (expected {}, got {}) please use "
-                             "EulerOpenCL".format(
-                                 type(None),
-                                 type(stiffness_corrections)))
         if (material_types is not None):
             raise ValueError("material_types are not supported by this "
-                             "integrator (expected {}, got {}) please use "
-                             "EulerOpenCL".format(
+                             "integrator (expected {}, got {}), please use "
+                             "EulerOpenCL instead".format(
                                  type(None),
                                  type(material_types)))
+        if (stiffness_corrections is not None):
+            raise ValueError("stiffness_corrections are not supported by this "
+                             "integrator (expected {}, got {}), please use "
+                             "EulerOpenCL instead".format(
+                                 type(None),
+                                 type(stiffness_corrections)))
 
     def _set_special_buffers(self):
         """Set buffers programs that are special to the Euler integrator."""
@@ -371,14 +391,15 @@ class EulerCL(Integrator):
 
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """Conduct one iteration of the integrator."""
-        self._update_displacement(
-            self.force_d, self.u_d, self.bc_types_d, self.bc_values_d,
-            displacement_bc_scale, self.dt)
         self._bond_force(
             self.u_d, self.force_d, self.r0_d, self.vols_d, self.nlist_d,
             self.force_bc_types_d, self.force_bc_values_d,
             self.local_mem_x, self.local_mem_y, self.local_mem_z,
             force_bc_scale, self.bond_stiffness, self.critical_stretch)
+
+        self._update_displacement(
+            self.force_d, self.u_d, self.bc_types_d, self.bc_values_d,
+            displacement_bc_scale, self.dt)
 
     def _build_special(self):
         """Build OpenCL kernels special to the Euler integrator."""

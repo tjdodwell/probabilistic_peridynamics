@@ -143,7 +143,8 @@ def create_crack_cython(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):
                 break
 
 
-def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):
+def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh,
+                    int[:] family):
     """
     Create a crack by removing selected pairs from the neighbour list.
 
@@ -154,6 +155,8 @@ def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):
     :type nlist: :class:`numpy.ndarray`
     :arg n_neigh: The number of neighbours for each node.
     :type n_neigh: :class:`numpy.ndarray`
+    :arg family: The initial number of neighbours for each node.
+    :type family: :class:`numpy.ndarray`
     """
     cdef int n = crack.shape[0]
 
@@ -164,7 +167,7 @@ def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):
         j = crack[icrack][1]
 
         # Iterate through i's neighbour list until j is found
-        for neigh in range(n_neigh[i]):
+        for neigh in range(family[i]):
             if nlist[i][neigh] == j:
                 # Remove this neighbour by replacing it with -1, then reducing
                 # the number of neighbours by 1
@@ -173,7 +176,7 @@ def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):
                 break
 
         # Iterate through j's neighbour list until i is found
-        for neigh in range(n_neigh[j]):
+        for neigh in range(family[j]):
             if nlist[j][neigh] == i:
                 # Remove this neighbour by replacing it with -1, then reducing
                 # the number of neighbours by 1

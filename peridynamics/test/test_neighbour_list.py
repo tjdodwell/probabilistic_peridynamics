@@ -145,7 +145,7 @@ class TestNeigbourList():
         assert np.all(n_neigh == n_neigh_expected)
 
         crack = np.array([(0, 2), (1, 3)], dtype=np.int32)
-        create_crack_cl(crack, nl, n_neigh)
+        create_crack_cl(crack, nl, n_neigh, n_neigh)
 
         nl_expected = np.array([
             [1, -1, 4, -1],
