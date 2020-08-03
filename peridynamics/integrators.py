@@ -447,6 +447,88 @@ class EulerCL(Integrator):
         return u_d
 
 
+class EulerCromerCL(Integrator):
+    r"""
+    Euler Cromer integrator for OpenCL.
+
+    The Euler method is a first-order numerical integration method. The
+    integration is given by,
+
+    .. math::
+        udd(t) = (f(t) - \eta ud(t)) / \rho
+        ud(t + \delta t) = ud(t) + \delta t udd(t)
+        u(t + \delta t) = u(t) + \delta t ud(t + \delta t)
+
+    where :math:`u(t)` is the displacement at time :math:`t`, :math:`ud(t)` is
+    the velocity at time :math:`t`, :math:`udd(t)` is the acceleration at time
+    :math:`t`, :math:`f(t)` is the force at time :math:`t`, :math:`\delta t`
+    is the time step,:math:`\eta` is the damping and :math:`\rho` is the
+    density.
+    """
+
+    def __init__(self, damping, *args, **kwargs):
+        """
+        Create an :class:`Euler` integrator object.
+
+        :arg float damping: The damping constant with units [kg/(m^3 s)]
+
+        :returns: A :class:`Euler` object
+        """
+        super().__init__(*args, **kwargs)
+
+    def __call__(self, displacement_bc_scale, force_bc_scale):
+        """Conduct one iteration of the integrator."""
+        self._bond_force(
+            self.u_d, self.force_d, self.r0_d, self.vols_d, self.nlist_d,
+            self.force_bc_types_d, self.force_bc_values_d,
+            self.local_mem_x, self.local_mem_y, self.local_mem_z,
+            force_bc_scale, self.bond_stiffness, self.critical_stretch)
+
+        self._update_displacement(
+            self.force_d, self.u_d, self.ud_d, self.bc_types_d,
+            self.bc_values_d, displacement_bc_scale, self.dt)
+
+    def _build_special(self):
+        """Build OpenCL kernels special to the Euler integrator."""
+        if (self.densities is None):
+            raise ValueError(
+                "densities must be supplied when using EulerCromerCL "
+                "integrator (got {}). This integrator is dynamic "
+                " and requires the density or is_density argument to be "
+                "supplied to :class:Model, alternatively please use a static "
+                " integrator, such as EulerCL.".format(type(self.densities)))
+        else:
+            self.densities_d = cl.Buffer(
+                self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                hostbuf=self.densities)
+
+        kernel_source = open(
+            pathlib.Path(__file__).parent.absolute() /
+            "cl/euler_cromer.cl").read()
+
+        # Build kernels
+        self.euler_cromer = cl.Program(
+            self.context, kernel_source).build()
+        self.update_displacement_kernel = self.euler_cromer.update_displacement
+
+    def _set_special_buffers(self):
+        """Set buffers special to the Euler integrator."""
+
+    def _update_displacement(
+            self, force_d, u_d, ud_d, bc_types_d, bc_values_d, densities_d,
+            displacement_bc_scale, damping, dt):
+        """Update displacements."""
+        queue = self.queue
+        # Call kernel
+        self.update_displacement_kernel(
+                self.queue, (self.degrees_freedom * self.nnodes,), None,
+                force_d, u_d, ud_d, bc_types_d, bc_values_d, densities_d,
+                np.float64(displacement_bc_scale), np.float64(dt),
+                np.float64(damping))
+        queue.finish()
+        return u_d
+
+
 class ContextError(Exception):
     """No suitable context was found by :func:`get_context`."""
 

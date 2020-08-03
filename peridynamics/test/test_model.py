@@ -4,7 +4,7 @@ from ..model import (Model, DimensionalityError, FamilyError,
                      initial_crack_helper, InvalidIntegrator)
 from pyopencl import mem_flags as mf
 import pyopencl as cl
-from ..integrators import Euler, EulerCL
+from ..integrators import Euler, EulerCL, EulerCromerCL
 import meshio
 import numpy as np
 import pytest
@@ -602,6 +602,38 @@ class TestDensities:
                   is_density=density_function)
             assert(str("densities are not supported by this ")
                    in exception.value)
+
+    def test_density_support_euler_cromer_cl(self, data_path):
+        """Test _set_bond_types support for the EulerCromerCL integrator."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = EulerCromerCL(dt=1e-3, damping=1.0)
+        expected_densities = np.load(
+            data_path / "expected_densities.npy")
+
+        def density_function(x):
+            if x[0] == 0.0:
+                return 1.0
+            else:
+                return 2.0
+        model = Model(mesh_file, integrator=integrator, horizon=0.1,
+                      critical_stretch=1.0,
+                      bond_stiffness=1.0,
+                      is_density=density_function)
+        actual_densities = model.densities
+
+        assert np.all(actual_densities == expected_densities)
+
+    def test_density_support_euler_cromer_cl2(self, data_path):
+        """Test _set_bond_types support for the EulerCromerCL integrator."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = EulerCromerCL(dt=1e-3, damping=1.0)
+
+        with pytest.raises(ValueError) as exception:
+            Model(mesh_file, integrator=integrator, horizon=0.1,
+                  critical_stretch=1.0,
+                  bond_stiffness=1.0)
+            assert (str("densities must be supplied when using EulerCromerCL")
+                    in exception.value)
 
 
 class TestStiffnessCorrections:

@@ -2,23 +2,30 @@
 
 __kernel void
 	update_displacement(
-    	__global double const* force,
-    	__global double* u,
-		__global int const* bc_types,
+        __global double const* force,
+        __global double* u,
+        __global double* ud,
+        __global int const* bc_types,
 		__global double const* bc_values,
-		double bc_scale,
-        double dt
+        __global double const* densities,
+        double bc_scale,
+        double dt,
+        double damping
 	){
-    /* Calculate the displacement of each node using an Euler
-     * integrator.
+    /* Calculate the dispalcement and velocity of each node using an
+     * Euler Cromer integrator.
      *
      * force - An (n,3) array of the forces of each node.
      * u - An (n,3) array of the current displacements of each node.
-     * BC_types - An (n,3) array of the boundary condition types...
-     * a value of 0 denotes an unconstrained node.
+     * ud - An (n,3) array of the current velocities of each node.
      * bc_values - An (n,3) array of the boundary condition values applied to the nodes.
-     * bc_scale - The scalar value applied to the displacement BCs. */
+     * densties - An (n,3) array of the density values of the nodes.
+     * bc_scale - The scalar value applied to the displacement BCs.
+     * dt - The time step in [s].
+     * damping - The damping constant in [kg/(m^3 s)] */
 	const int i = get_global_id(0);
 
-	u[i] = (bc_types[i] == 0 ? (u[i] + dt * force[i]) : (bc_scale * bc_values[i]));
+    double udd = (force[i] - damping * ud[i]) / densities[i];
+    ud[i] += udd * dt;
+    u[i] = (bc_types[i] == 0 ? (u[i] + dt * ud[i]) : (bc_scale * bc_values[i]));
 }
