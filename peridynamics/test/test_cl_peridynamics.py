@@ -32,8 +32,8 @@ def program(context):
     return cl.Program(context, kernel_source).build()
 
 
-class TestForce():
-    """Test force calculation."""
+class TestBondForce():
+    """Test force calculation for the simple bond_force kernel."""
 
     @context_available
     def test_initial_force(self, context, queue, program):
@@ -123,7 +123,7 @@ class TestForce():
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
 
-        # Displace particles, but do not update neighbour list
+        # Displace particles
         u = np.array([
             [0.0, 0.0, 0.0],
             [0.05, 0.0, 0.0],
@@ -293,3 +293,172 @@ class TestForce():
         assert np.all(nlist == nlist_expected)
         assert np.all(n_neigh == n_neigh_expected)
         assert np.allclose(damage, damage_expected)
+
+
+class TestBondForce2():
+    """Test force calculation with stiffness corrections."""
+
+    @context_available
+    def test_force(self, context, queue, program):
+        """Ensure forces are in the correct direction using a minimal model."""
+        r0 = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            ], dtype=np.float64)
+        horizon = 1.01
+        nnodes = 3
+        elastic_modulus = 0.05
+        bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
+        critical_stretch = 1000.0
+        max_neigh = 4
+        volume = np.full(nnodes, 0.16666667, dtype=np.float64)
+        nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
+        force_bc_scale = 1.0
+        force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
+        force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
+        stiffness_corrections = np.ones((nnodes, max_neigh), dtype=np.float64)
+
+        # Displace particles
+        u = np.array([
+            [0.0, 0.0, 0.0],
+            [0.05, 0.0, 0.0],
+            [0.05, 0.05, 0.0]
+            ], dtype=np.float64)
+
+        force_value = 0.00229417
+        force_expected = np.array([
+            [force_value, 0., 0.],
+            [-force_value, force_value, 0.],
+            [0., -force_value, 0.]
+            ])
+        force_actual = np.empty_like(force_expected)
+
+        # Create buffers
+        # Read and write
+        nlist_d = cl.Buffer(
+            context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+            hostbuf=nlist)
+        local_mem_x = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        local_mem_y = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        local_mem_z = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        # Read only
+        u_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                        hostbuf=u)
+        r0_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=r0)
+        vols_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=volume)
+        force_bc_types_d = cl.Buffer(
+           context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+           hostbuf=force_bc_types)
+        force_bc_values_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=force_bc_values)
+        stiffness_corrections_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=stiffness_corrections)
+        # Write only
+        force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
+
+        # Call kernel
+        bond_force = program.bond_force2
+        bond_force(
+            queue, (nnodes * max_neigh,),
+            (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
+            force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
+            local_mem_x, local_mem_y, local_mem_z, np.float64(force_bc_scale),
+            np.float64(bond_stiffness), np.float64(critical_stretch))
+
+        cl.enqueue_copy(queue, force_actual, force_d)
+
+        assert np.allclose(force_actual, force_expected)
+
+    @context_available
+    def test_stiffness_correction(self, context, queue, program):
+        """Ensure application of stiffness correction factors."""
+        r0 = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            ], dtype=np.float64)
+        horizon = 1.01
+        nnodes = 3
+        elastic_modulus = 0.05
+        bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
+        critical_stretch = 1000.0
+        max_neigh = 4
+        volume = np.full(nnodes, 0.16666667, dtype=np.float64)
+        nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
+        force_bc_scale = 1.0
+        force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
+        force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
+        stiffness_corrections = np.array(
+            [[4.0, 1.0, 1.0, 1.0],
+             [4.0, 2.0, 1.0, 1.0],
+             [2.0, 1.0, 1.0, 1.0]], dtype=np.float64)
+
+        # Displace particles
+        u = np.array([
+            [0.0, 0.0, 0.0],
+            [0.05, 0.0, 0.0],
+            [0.05, 0.05, 0.0]
+            ], dtype=np.float64)
+
+        force_value = 0.00229417
+        force_expected = np.array([
+            [4.0*force_value, 0., 0.],
+            [-4.0*force_value, 2.0*force_value, 0.],
+            [0., -2.0*force_value, 0.]
+            ])
+        force_actual = np.empty_like(force_expected)
+
+        # Create buffers
+        # Read and write
+        nlist_d = cl.Buffer(
+            context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+            hostbuf=nlist)
+        local_mem_x = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        local_mem_y = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        local_mem_z = cl.LocalMemory(
+            np.dtype(np.float64).itemsize * max_neigh)
+        # Read only
+        u_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                        hostbuf=u)
+        r0_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=r0)
+        vols_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=volume)
+        force_bc_types_d = cl.Buffer(
+           context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+           hostbuf=force_bc_types)
+        force_bc_values_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=force_bc_values)
+        stiffness_corrections_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=stiffness_corrections)
+        # Write only
+        force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
+
+        # Call kernel
+        bond_force = program.bond_force2
+        bond_force(
+            queue, (nnodes * max_neigh,),
+            (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
+            force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
+            local_mem_x, local_mem_y, local_mem_z, np.float64(force_bc_scale),
+            np.float64(bond_stiffness), np.float64(critical_stretch))
+
+        cl.enqueue_copy(queue, force_actual, force_d)
+
+        assert np.allclose(force_actual, force_expected)

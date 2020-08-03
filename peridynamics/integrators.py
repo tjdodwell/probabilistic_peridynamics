@@ -106,12 +106,9 @@ class Integrator(ABC):
         # Set bond_force program
         if ((stiffness_corrections is None) and (bond_types is None)):
             self.bond_force_kernel = self.program.bond_force
-        if (stiffness_corrections is not None):
-            raise ValueError("stiffness_corrections are not supported by this "
-                             "integrator yet (expected {}, got {})".format(
-                                 type(None),
-                                 type(stiffness_corrections)))
-        if (bond_types is not None):
+        elif ((stiffness_corrections is not None) and (bond_types is None)):
+            self.bond_force_kernel = self.program.bond_force2
+        elif (bond_types is not None):
             raise ValueError("bond_types are not supported by this "
                              "integrator yet (expected {}, got {})".format(
                                  type(None),
