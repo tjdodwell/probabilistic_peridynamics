@@ -19,7 +19,7 @@ __kernel void
 	) {
     /* Calculate the force due to bonds on each node and update node velocities.
      *
-     * This bond_force function is for the simple case of no stiffness corrections, and no bond types.
+     * This bond_force function is for the simple case of no stiffness corrections and no bond types.
      *
      * u - An (n,3) array of the current displacements of the particles.
      * force - An (n,3) array of the current forces on the particles.
@@ -137,7 +137,7 @@ __kernel void
 	) {
     /* Calculate the force due to bonds on each node and update node velocities.
      *
-     * This bond_force function is for the simple case of no stiffness corrections, and no bond types.
+     * This bond_force function is for the case of stiffness corrections and no bond types.
      *
      * u - An (n,3) array of the current displacements of the particles.
      * force - An (n,3) array of the current forces on the particles.

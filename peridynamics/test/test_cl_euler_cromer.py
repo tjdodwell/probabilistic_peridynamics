@@ -41,9 +41,9 @@ class TestUpdateDisplacement:
         ud = np.zeros(3)
         densities = np.ones(3)
         nnodes = 1
-        force = np.array([1.0, 2.0, 3.0])
-        bc_types = np.array([0, 0, 0])
-        bc_values = np.array([0, 0, 0])
+        force = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+        bc_types = np.array([0, 0, 0], dtype=np.intc)
+        bc_values = np.array([0, 0, 0], dtype=np.float64)
         displacement_bc_scale = 0
         dt = 1
         damping = 1
@@ -91,9 +91,9 @@ class TestUpdateDisplacement:
         ud = np.zeros(3)
         densities = np.ones(3)
         nnodes = 1
-        force = np.array([1.0, 2.0, 3.0])
-        bc_types = np.array([0, 0, 0])
-        bc_values = np.array([0, 0, 0])
+        force = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+        bc_types = np.array([0, 0, 0], dtype=np.intc)
+        bc_values = np.array([0, 0, 0], dtype=np.float64)
         displacement_bc_scale = 0
         dt = 2.0
         damping = 1.0
@@ -136,14 +136,14 @@ class TestUpdateDisplacement:
 
     @context_available
     def test_update_displacement3(self, context, queue, program):
-        """Test displacement update with displacement boundary conditions,."""
-        u = np.zeros(3)
-        ud = np.array([1.0, 1.0, 1.0])
-        densities = np.array([1.0, 1.0, 1.0])
+        """Test displacement update with displacement boundary conditions."""
+        u = np.zeros(3, dtype=np.float64)
+        ud = np.array([1.0, 1.0, 1.0], dtype=np.float64)
+        densities = np.array([1.0, 1.0, 1.0], dtype=np.float64)
         nnodes = 1
-        force = np.array([1.0, 2.0, 3.0])
-        bc_types = np.array([1, 1, 0])
-        bc_values = np.array([0.0, 0.0, 0.0])
+        force = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+        bc_types = np.array([1, 1, 0], dtype=np.intc)
+        bc_values = np.array([0.0, 0.0, 0.0], dtype=np.float64)
         displacement_bc_scale = 1.0
         dt = 2.0
         damping = 2.0
@@ -193,9 +193,9 @@ class TestUpdateDisplacement:
         ud = np.zeros(3)
         densties = np.ones(3)
         nnodes = 1
-        force = np.array([1.0, 2.0, 3.0])
-        bc_types = np.array([1, 1, 0])
-        bc_values = np.array([2.0, 2.0, 0.0])
+        force = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+        bc_types = np.array([1, 1, 0], dtype=np.intc)
+        bc_values = np.array([2.0, 2.0, 0.0], dtype=np.float64)
         displacement_bc_scale = 0.5
         dt = 2.0
         damping = 1.0

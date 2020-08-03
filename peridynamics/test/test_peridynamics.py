@@ -172,7 +172,7 @@ class TestUpdateDisplacement:
         bc_types = np.array([
             [1, 1, 0],
             [1, 1, 0],
-            [1, 1, 0]])
+            [1, 1, 0]], dtype=np.int32)
         bc_values = np.zeros((nnodes, 3))
         bc_scale = 1.0
         dt = 2.0
@@ -191,7 +191,7 @@ class TestUpdateDisplacement:
                       [1.0, 2.0, 3.0]])
         bc_types = np.array([[1, 1, 0],
                              [1, 1, 0],
-                             [1, 1, 0]])
+                             [1, 1, 0]], dtype=np.int32)
         bc_values = np.array([[2.0, 2.0, 0.0],
                               [2.0, 2.0, 0.0],
                               [2.0, 2.0, 0.0]])

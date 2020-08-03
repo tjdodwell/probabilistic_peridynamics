@@ -39,9 +39,9 @@ class TestUpdateDisplacement:
         """Test basic displacement update."""
         u = np.zeros(3)
         nnodes = 1
-        force = np.array([1.0, 2.0, 3.0])
-        bc_types = np.array([0, 0, 0])
-        bc_values = np.array([0, 0, 0])
+        force = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+        bc_types = np.array([0, 0, 0], dtype=np.intc)
+        bc_values = np.array([0, 0, 0], dtype=np.float64)
         displacement_bc_scale = 0
         dt = 1
 
@@ -77,9 +77,9 @@ class TestUpdateDisplacement:
         """Test displacement update."""
         u = np.zeros(3)
         nnodes = 1
-        force = np.array([1.0, 2.0, 3.0])
-        bc_types = np.array([0, 0, 0])
-        bc_values = np.array([0, 0, 0])
+        force = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+        bc_types = np.array([0, 0, 0], dtype=np.intc)
+        bc_values = np.array([0, 0, 0], dtype=np.float64)
         displacement_bc_scale = 0
         dt = 2.0
 
@@ -115,9 +115,9 @@ class TestUpdateDisplacement:
         """Test displacement update with displacement boundary conditions."""
         u = np.zeros(3)
         nnodes = 1
-        force = np.array([1.0, 2.0, 3.0])
-        bc_types = np.array([1, 1, 0])
-        bc_values = np.array([0.0, 0.0, 0.0])
+        force = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+        bc_types = np.array([1, 1, 0], dtype=np.intc)
+        bc_values = np.array([0.0, 0.0, 0.0], dtype=np.float64)
         displacement_bc_scale = 1.0
         dt = 2.0
 
@@ -146,7 +146,7 @@ class TestUpdateDisplacement:
             np.float64(displacement_bc_scale), np.float64(dt))
         cl.enqueue_copy(queue, u, u_d)
 
-        u_expected = np.array([0, 0, 6.0])
+        u_expected = np.array([0.0, 0.0, 6.0])
 
         assert np.all(u == u_expected)
 
@@ -155,9 +155,9 @@ class TestUpdateDisplacement:
         """Test displacement update with displacement B.C. scale."""
         u = np.zeros(3)
         nnodes = 1
-        force = np.array([1.0, 2.0, 3.0])
-        bc_types = np.array([1, 1, 0])
-        bc_values = np.array([2.0, 2.0, 0.0])
+        force = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+        bc_types = np.array([1, 1, 0], dtype=np.intc)
+        bc_values = np.array([2.0, 2.0, 0.0], dtype=np.float64)
         displacement_bc_scale = 0.5
         dt = 2.0
 
