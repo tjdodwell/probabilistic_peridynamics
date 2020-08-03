@@ -392,55 +392,55 @@ def test_family_error(data_path, integrator):
               dimensions=3)
 
 
-class TestMaterialTypes:
-    """Test _set_material_types."""
+class TestBondTypes:
+    """Test _set_bond_types."""
 
     @pytest.mark.parametrize(
         "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
-    def test_invalid_material_type_function(
+    def test_invalid_bond_type_function(
             self, data_path, request, integrator):
-        """Test invalid _set_material_types function."""
+        """Test exception for invalid is_bond_type function."""
         mesh_file = data_path / "example_mesh.vtk"
         integrator = integrator(dt=1e-3)
-        invalid_material_type_function = 1
+        invalid_bond_type_function = 1
         with pytest.raises(TypeError) as exception:
             Model(
                 mesh_file, integrator=integrator, horizon=0.1,
                 critical_stretch=[[1.0], [2.0]],
                 bond_stiffness=[[1.0], [2.0]],
-                is_material_type=invalid_material_type_function)
-            assert(str("is_material_type must be a *function*.")
+                is_bond_type=invalid_bond_type_function)
+            assert(str("is_bond_type must be a *function*.")
                    in exception.value)
 
     @pytest.mark.parametrize(
         "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
-    def test_invalid_material_type_function2(
+    def test_invalid_bond_type_function2(
             self, data_path, request, integrator):
-        """Test invalid _set_material_types function."""
+        """Test expection for invalid is_bond_type function."""
         mesh_file = data_path / "example_mesh.vtk"
         integrator = integrator(dt=1e-3)
 
-        def invalid_material_type_function(x, y):
+        def invalid_bond_type_function(x, y):
             return 1.0
         with pytest.raises(TypeError) as exception:
             Model(
                 mesh_file, integrator=integrator, horizon=0.1,
                 critical_stretch=[[1.0], [2.0]],
                 bond_stiffness=[[1.0], [2.0]],
-                is_material_type=invalid_material_type_function)
+                is_bond_type=invalid_bond_type_function)
             assert(str(
-                "is_material_type must be a function that returns an *int*")
+                "is_bond_type must be a function that returns an *int*")
                    in exception.value)
 
     @pytest.mark.parametrize(
         "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
-    def test_invalid_material_type_function3(
+    def test_invalid_bond_type_function3(
             self, data_path, request, integrator):
-        """Test invalid _set_material_types function."""
+        """Test expection for invalid is_bond_type function."""
         mesh_file = data_path / "example_mesh.vtk"
         integrator = integrator(dt=1e-3)
 
-        def invalid_material_type_function(x, y):
+        def invalid_bond_type_function(x, y):
             if x[0] == 0.0:
                 return 0
             elif x[0] == 1.0:
@@ -452,55 +452,156 @@ class TestMaterialTypes:
                 mesh_file, integrator=integrator, horizon=0.1,
                 critical_stretch=[[0.05], [0.05]],
                 bond_stiffness=[[1.0], [2.0]],
-                is_material_type=invalid_material_type_function)
-            assert(str("number of material types must be equal to the")
+                is_bond_type=invalid_bond_type_function)
+            assert(str("number of bond types must be equal to the")
                    in exception.value)
 
-    def test_material_type_support(self, data_path, request):
-        """Test _set_material_types support for the Euler integrator."""
+    def test_bond_type_support(self, data_path):
+        """Test _set_bond_types support for the Euler integrator."""
         mesh_file = data_path / "example_mesh.vtk"
         integrator = Euler(dt=1e-3)
-        expected_material_types = np.load(
-            data_path/"expected_material_types.npy")
 
-        def material_type_function(x, y):
+        def bond_type_function(x, y):
             if x[0] == 0.0:
                 return 0
             else:
                 return 1
         with pytest.raises(ValueError) as exception:
-            model = Model(mesh_file, integrator=integrator, horizon=0.1,
-                          critical_stretch=[[0.05], [0.05]],
-                          bond_stiffness=[[1.0], [2.0]],
-                          is_material_type=material_type_function)
-            actual_material_types = model.material_types
-            assert(str("material_types are not supported by this")
+            Model(mesh_file, integrator=integrator, horizon=0.1,
+                  critical_stretch=[[0.05], [0.05]],
+                  bond_stiffness=[[1.0], [2.0]],
+                  is_bond_type=bond_type_function)
+            assert(str("bond_types are not supported by this")
                    in exception.value)
-            assert(
-                np.allclose(actual_material_types == expected_material_types))
 
-    def test_material_type_support_cl(self, data_path, request):
-        """Test _set_material_types support for the EulerCL integrator."""
+    def test_bond_type_support_cl(self, data_path):
+        """Test _set_bond_types support for the EulerCL integrator."""
         mesh_file = data_path / "example_mesh.vtk"
         integrator = EulerCL(dt=1e-3)
-        expected_material_types = np.load(
-            data_path/"expected_material_types_cl.npy")
 
-        def material_type_function(x, y):
+        def bond_type_function(x, y):
             if x[0] == 0.0:
                 return 0
             else:
                 return 1
         with pytest.raises(ValueError) as exception:
-            model = Model(mesh_file, integrator=integrator, horizon=0.1,
-                          critical_stretch=[[0.05], [0.05]],
-                          bond_stiffness=[[1.0], [2.0]],
-                          is_material_type=material_type_function)
-            actual_material_types = model.material_types
-            assert(str("material_types are not supported by this")
+            Model(mesh_file, integrator=integrator, horizon=0.1,
+                  critical_stretch=[[0.05], [0.05]],
+                  bond_stiffness=[[1.0], [2.0]],
+                  is_bond_type=bond_type_function)
+            assert(str("bond_types are not supported by this")
                    in exception.value)
-            assert(
-                np.allclose(actual_material_types == expected_material_types))
+
+
+class TestDensities:
+    """Test _set_densities."""
+
+    @pytest.mark.parametrize(
+        "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
+    def test_invalid_density_type_function(
+            self, data_path, request, integrator):
+        """Test expection for invalid is_density function."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = integrator(dt=1e-3)
+        invalid_density_function = 1
+        with pytest.raises(TypeError) as exception:
+            Model(
+                mesh_file, integrator=integrator, horizon=0.1,
+                critical_stretch=1.0,
+                bond_stiffness=1.0,
+                is_density=invalid_density_function)
+            assert(str("is_density must be a *function*.")
+                   in exception.value)
+
+    @pytest.mark.parametrize(
+        "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
+    def test_invalid_density_function2(
+            self, data_path, request, integrator):
+        """Test invalid _set_bond_types function."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = integrator(dt=1e-3)
+
+        def invalid_density_function(x):
+            return 1
+        with pytest.raises(TypeError) as exception:
+            Model(
+                mesh_file, integrator=integrator, horizon=0.1,
+                critical_stretch=1.0,
+                bond_stiffness=1.0,
+                is_density=invalid_density_function)
+            assert(str(
+                "is_density must be a function that returns a *float*")
+                   in exception.value)
+
+    @pytest.mark.parametrize(
+        "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
+    def test_invalid_density(
+            self, data_path, request, integrator):
+        """Test invalid density."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = integrator(dt=1e-3)
+        density = 1.0
+        with pytest.raises(TypeError) as exception:
+            Model(
+                mesh_file, integrator=integrator, horizon=0.1,
+                critical_stretch=[[0.05], [0.05]],
+                bond_stiffness=[[1.0], [2.0]],
+                density=density)
+            assert(str("density type is wrong, and must be an array of")
+                   in exception.value)
+
+    @pytest.mark.parametrize(
+        "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
+    def test_invalid_density2(
+            self, data_path, request, integrator):
+        """Test invalid density shape."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = integrator(dt=1e-3)
+        density = np.ones(2)
+        with pytest.raises(ValueError) as exception:
+            Model(
+                mesh_file, integrator=integrator, horizon=0.1,
+                critical_stretch=[[0.05], [0.05]],
+                bond_stiffness=[[1.0], [2.0]],
+                density=density)
+            assert(str("densty shape is wrong, and must be")
+                   in exception.value)
+
+    def test_density_support_euler(self, data_path):
+        """Test _set_bond_types support for the Euler integrator."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = Euler(dt=1e-3)
+
+        def density_function(x):
+            if x[0] == 0.0:
+                return 1.0
+            else:
+                return 2.0
+        with pytest.raises(ValueError) as exception:
+            Model(mesh_file, integrator=integrator, horizon=0.1,
+                  critical_stretch=1.0,
+                  bond_stiffness=1.0,
+                  is_density=density_function)
+            assert(str("densities are not supported by this ")
+                   in exception.value)
+
+    def test_density_support_euler_cl(self, data_path):
+        """Test _set_bond_types support for the EulerCL integrator."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = EulerCL(dt=1e-3)
+
+        def density_function(x):
+            if x[0] == 0.0:
+                return 1.0
+            else:
+                return 2.0
+        with pytest.raises(ValueError) as exception:
+            Model(mesh_file, integrator=integrator, horizon=0.1,
+                  critical_stretch=1.0,
+                  bond_stiffness=1.0,
+                  is_density=density_function)
+            assert(str("densities are not supported by this ")
+                   in exception.value)
 
 
 class TestStiffnessCorrections:
@@ -639,20 +740,20 @@ class TestDamageModel:
         plus_cs_expected = np.array([[0.0, 2.0, 1.25],
                                      [0.0, 1.0, 1.0]])
         nregimes_expected = np.intc(3)
-        nmaterials_expected = np.intc(2)
+        nbond_types_expected = np.intc(2)
 
         model = basic_models_2d
         (bond_stiffness_actual,
          critical_stretch_actual,
          plus_cs_actual,
-         nmaterials_actual,
+         nbond_types_actual,
          nregimes_actual) = model._set_damage_model(bond_stiffness,
                                                     critical_stretch)
 
         assert np.all(bond_stiffness_actual == bond_stiffness_expected)
         assert np.all(critical_stretch_actual == critical_stretch_expected)
         assert nregimes_actual == nregimes_expected
-        assert nmaterials_actual == nmaterials_expected
+        assert nbond_types_actual == nbond_types_expected
         assert np.all(plus_cs_actual == plus_cs_expected)
 
     def test_plus_cs_array(self, basic_models_2d):
@@ -666,20 +767,20 @@ class TestDamageModel:
         plus_cs_expected = np.array([[0.0, 2.0, 1.25],
                                      [0.0, 1.0, 1.0]])
         nregimes_expected = np.intc(3)
-        nmaterials_expected = np.intc(2)
+        nbond_types_expected = np.intc(2)
 
         model = basic_models_2d
         (bond_stiffness_actual,
          critical_stretch_actual,
          plus_cs_actual,
-         nmaterials_actual,
+         nbond_types_actual,
          nregimes_actual) = model._set_damage_model(bond_stiffness,
                                                     critical_stretch)
 
         assert np.all(bond_stiffness_actual == bond_stiffness_expected)
         assert np.all(critical_stretch_actual == critical_stretch_expected)
         assert nregimes_actual == nregimes_expected
-        assert nmaterials_actual == nmaterials_expected
+        assert nbond_types_actual == nbond_types_expected
         assert np.all(plus_cs_actual == plus_cs_expected)
 
     def test_plus_cs_float_array(self, basic_models_2d):
@@ -692,23 +793,23 @@ class TestDamageModel:
             critical_stretch, dtype=np.float64)
         plus_cs_expected = None
         nregimes_expected = np.intc(1)
-        nmaterials_expected = np.intc(1)
+        nbond_types_expected = np.intc(1)
 
         model = basic_models_2d
         (bond_stiffness_actual,
          critical_stretch_actual,
          plus_cs_actual,
-         nmaterials_actual,
+         nbond_types_actual,
          nregimes_actual) = model._set_damage_model(bond_stiffness,
                                                     critical_stretch)
 
         assert np.all(bond_stiffness_actual == bond_stiffness_expected)
         assert np.all(critical_stretch_actual == critical_stretch_expected)
         assert nregimes_actual == nregimes_expected
-        assert nmaterials_actual == nmaterials_expected
+        assert nbond_types_actual == nbond_types_expected
         assert np.all(plus_cs_actual == plus_cs_expected)
 
-    def test_plus_cs_one_material(self, basic_models_2d):
+    def test_plus_cs_one_bond(self, basic_models_2d):
         """Test for damage model parameters as float array."""
         bond_stiffness = np.array([1.0, -1.0, -0.5])
         critical_stretch = np.array([1.0, 2.0, 3.0])
@@ -718,20 +819,20 @@ class TestDamageModel:
             critical_stretch, dtype=np.float64)
         plus_cs_expected = np.array([0.0, 2.0, 1.0], dtype=np.float64)
         nregimes_expected = np.intc(3)
-        nmaterials_expected = np.intc(1)
+        nbond_types_expected = np.intc(1)
 
         model = basic_models_2d
         (bond_stiffness_actual,
          critical_stretch_actual,
          plus_cs_actual,
-         nmaterials_actual,
+         nbond_types_actual,
          nregimes_actual) = model._set_damage_model(bond_stiffness,
                                                     critical_stretch)
 
         assert np.all(bond_stiffness_actual == bond_stiffness_expected)
         assert np.all(critical_stretch_actual == critical_stretch_expected)
         assert nregimes_actual == nregimes_expected
-        assert nmaterials_actual == nmaterials_expected
+        assert nbond_types_actual == nbond_types_expected
         assert np.all(plus_cs_actual == plus_cs_expected)
 
     def test_plus_cs_one_regime(self, basic_models_2d):
@@ -744,20 +845,20 @@ class TestDamageModel:
             critical_stretch, dtype=np.float64)
         plus_cs_expected = None
         nregimes_expected = np.intc(1)
-        nmaterials_expected = np.intc(3)
+        nbond_types_expected = np.intc(3)
 
         model = basic_models_2d
         (bond_stiffness_actual,
          critical_stretch_actual,
          plus_cs_actual,
-         nmaterials_actual,
+         nbond_types_actual,
          nregimes_actual) = model._set_damage_model(bond_stiffness,
                                                     critical_stretch)
 
         assert np.all(bond_stiffness_actual == bond_stiffness_expected)
         assert np.all(critical_stretch_actual == critical_stretch_expected)
         assert nregimes_actual == nregimes_expected
-        assert nmaterials_actual == nmaterials_expected
+        assert nbond_types_actual == nbond_types_expected
         assert np.all(plus_cs_actual == plus_cs_expected)
 
     def test_plus_cs_negative_array(self, basic_models_2d):

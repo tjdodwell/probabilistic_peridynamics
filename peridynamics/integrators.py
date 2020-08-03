@@ -83,7 +83,7 @@ class Integrator(ABC):
     def build(
             self, nnodes, degrees_freedom, max_neighbours, coords,
             volume, family, bc_types, bc_values, force_bc_types,
-            force_bc_values, stiffness_corrections, material_types):
+            force_bc_values, stiffness_corrections, bond_types, densities):
         """
         Build OpenCL programs.
 
@@ -93,6 +93,7 @@ class Integrator(ABC):
         self.nnodes = nnodes
         self.degrees_freedom = degrees_freedom
         self.max_neighbours = max_neighbours
+        self.densities = densities
 
         kernel_source = open(
             pathlib.Path(__file__).parent.absolute() /
@@ -103,20 +104,18 @@ class Integrator(ABC):
             self.context, kernel_source).build()
 
         # Set bond_force program
-        if ((stiffness_corrections is None) and (material_types is None)):
+        if ((stiffness_corrections is None) and (bond_types is None)):
             self.bond_force_kernel = self.program.bond_force
         if (stiffness_corrections is not None):
             raise ValueError("stiffness_corrections are not supported by this "
-                             "integrator (expected {}, got {}), please use "
-                             "EulerOpenCL instead".format(
+                             "integrator yet (expected {}, got {})".format(
                                  type(None),
                                  type(stiffness_corrections)))
-        if (material_types is not None):
-            raise ValueError("material_types are not supported by this "
-                             "integrator (expected {}, got {}), please use "
-                             "EulerOpenCL instead".format(
+        if (bond_types is not None):
+            raise ValueError("bond_types are not supported by this "
+                             "integrator yet (expected {}, got {})".format(
                                  type(None),
-                                 type(material_types)))
+                                 type(bond_types)))
 
         self.damage_kernel = self.program.damage
 
@@ -160,7 +159,7 @@ class Integrator(ABC):
 
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs, u,
-            ud, force, damage, regimes, nregimes, nmaterials):
+            ud, force, damage, regimes, nregimes, nbond_types):
         """
         Initialise the OpenCL buffers.
 
@@ -171,7 +170,7 @@ class Integrator(ABC):
         self.critical_stretch = critical_stretch
         self.regimes = regimes
         self.nregimes = nregimes
-        self.nmaterials = nmaterials
+        self.nbond_types = nbond_types
 
         # Build OpenCL data structures that are dependent on
         # :class: Model.simulation parameters
@@ -277,7 +276,7 @@ class Euler(Integrator):
 
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
-            u, ud, force, damage, regimes, nregimes, nmaterials):
+            u, ud, force, damage, regimes, nregimes, nbond_types):
         """
         Initiate arrays that are dependent on simulation parameters.
 
@@ -288,7 +287,7 @@ class Euler(Integrator):
             raise ValueError("n-linear damage model's are not supported by "
                              "this integrator. Please supply just one "
                              "bond_stiffness")
-        if nmaterials != 1:
+        if nbond_types != 1:
             raise ValueError("n-material composite models are not supported by"
                              " this integrator. Please supply just one "
                              "material type and bond_stiffness")
@@ -303,7 +302,7 @@ class Euler(Integrator):
     def build(
             self, nnodes, degrees_freedom, max_neighbours, coords,
             volume, family, bc_types, bc_values, force_bc_types,
-            force_bc_values, stiffness_corrections, material_types):
+            force_bc_values, stiffness_corrections, bond_types, densities):
         """
         Initiate integrator arrays.
 
@@ -320,18 +319,27 @@ class Euler(Integrator):
         self.bc_values = bc_values
         self.force_bc_types = force_bc_types
         self.force_bc_values = force_bc_values
-        if (material_types is not None):
-            raise ValueError("material_types are not supported by this "
+        if (bond_types is not None):
+            raise ValueError("bond_types are not supported by this "
                              "integrator (expected {}, got {}), please use "
                              "EulerOpenCL instead".format(
                                  type(None),
-                                 type(material_types)))
+                                 type(bond_types)))
         if (stiffness_corrections is not None):
             raise ValueError("stiffness_corrections are not supported by this "
                              "integrator (expected {}, got {}), please use "
                              "EulerOpenCL instead".format(
                                  type(None),
                                  type(stiffness_corrections)))
+        if (densities is not None):
+            raise ValueError("densities are not supported by this "
+                             "integrator (expected {}, got {}). This "
+                             " integrator neglects inertial effects. Do not "
+                             "supply a density or is_density argument or, "
+                             "alternatively please use a dynamic integrator, "
+                             "such as EulerCromerCL instead.".format(
+                                 type(None),
+                                 type(densities)))
 
     def _set_special_buffers(self):
         """Set buffers programs that are special to the Euler integrator."""
@@ -406,6 +414,16 @@ class EulerCL(Integrator):
         kernel_source = open(
             pathlib.Path(__file__).parent.absolute() /
             "cl/euler.cl").read()
+
+        if (self.densities is not None):
+            raise ValueError("densities are not supported by this "
+                             "integrator (expected {}, got {}). This "
+                             " integrator neglects inertial effects. Do not "
+                             "supply a density or is_density argument or, "
+                             "alternatively please use a dynamic integrator, "
+                             "such as EulerCromerCL instead.".format(
+                                 type(None),
+                                 type(self.densities)))
 
         # Build kernels
         self.euler = cl.Program(

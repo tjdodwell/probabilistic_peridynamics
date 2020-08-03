@@ -108,11 +108,11 @@ def main():
     bulk_modulus = youngs_modulus / (3 * (1 - 2 * poisson_ratio))
     bond_stiffness = (18.00 * bulk_modulus) / (np.pi * np.power(horizon, 4))
 
-    # Try reading connectivity, material_types and stiffness_correction files
+    # Try reading connectivity, bond_types and stiffness_correction files
     volume = read_model(write_path_model, "volume")
     family = read_model(write_path_model, "family")
     nlist = read_model(write_path_model, "nlist")
-    material_types = read_model(write_path_model, "material_types")
+    bond_types = read_model(write_path_model, "bond_types")
     n_neigh = read_model(write_path_model, "n_neigh")
     stiffness_corrections = read_model(
       write_path_model, "stiffness_corrections")
@@ -136,7 +136,7 @@ def main():
         critical_stretch=critical_stretch, bond_stiffness=bond_stiffness,
         dimensions=3, family=family,
         volume=volume, connectivity=connectivity,
-        material_types=material_types,
+        bond_types=bond_types,
         stiffness_corrections=stiffness_corrections,
         is_displacement_boundary=is_displacement_boundary,
         is_forces_boundary=is_forces_boundary,

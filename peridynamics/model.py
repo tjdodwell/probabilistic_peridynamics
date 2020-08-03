@@ -24,7 +24,7 @@ class Model(object):
 
     This class allows users to define a composite, non-linear peridynamics
     system from parameters and a set of initial conditions
-    (coordinates, connectivity and optionally material_types and
+    (coordinates, connectivity and optionally bond_types and
      stiffness_corrections). For this an
     :class:`peridynamics.integrators.Integrator` is required, and optionally
     functions implementing the boundarys.
@@ -107,11 +107,13 @@ class Model(object):
     """
 
     def __init__(self, mesh_file, integrator, horizon, critical_stretch,
-                 bond_stiffness, transfinite=0, volume_total=None,
-                 write_path=None, connectivity=None, family=None, volume=None,
-                 initial_crack=[], dimensions=2, is_material_type=None,
+                 bond_stiffness, transfinite=0,
+                 volume_total=None, write_path=None, connectivity=None,
+                 family=None, volume=None, initial_crack=[], dimensions=2,
+                 is_density=None, is_bond_type=None,
                  is_displacement_boundary=None, is_forces_boundary=None,
-                 is_tip=None, material_types=None, stiffness_corrections=None,
+                 is_tip=None, density=None, bond_types=None,
+                 stiffness_corrections=None,
                  precise_stiffness_correction=None):
         """
         Create a :class:`ModelCLBen` object.
@@ -124,13 +126,13 @@ class Model(object):
         :arg float horizon: The horizon radius. Nodes within `horizon` of
             another interact with that node and are said to be within its
             neighbourhood.
-        :arg critical_stretch: An (n_regimes, n_materials) array of critical
-            stretch values, each corresponding to a material and a regime,
+        :arg critical_stretch: An (nregimes, nbond_types) array of critical
+            stretch values, each corresponding to a bond type and a regime,
             or a float value of the critical stretch of the Peridynamic
             bond-based prototype microelastic brittle (PMB) model.
         :type critical_stretch: :class:`numpy.ndarray` or float
-        :arg bond_stiffness: An (n_regimes, n_materials) array of bond
-            stiffness values, each corresponding to a material and a regime,
+        :arg bond_stiffness: An (nregimes, nbond_types) array of bond
+            stiffness values, each corresponding to a bond type and a regime,
             or a float value of the bond stiffness the Peridynamic bond-based
             prototype microelastic brittle (PMB) model.
         :type bond_stiffness: :class:`numpy.ndarray` or float
@@ -141,7 +143,7 @@ class Model(object):
         :arg float volume_total: Total volume of the mesh. Must be provided if
             transfinite mode (transfinite=1) is used.
         :arg write_path: The path where the model arrays, (volume, family,
-            connectivity, stiffness_corrections, material_types) should be
+            connectivity, stiffness_corrections, bond_types) should be
             written to file to avoid overhead.
         :type write_path: path-like or str
         :arg connectivity: The initial connectivity for the model. A tuple
@@ -168,10 +170,12 @@ class Model(object):
         :type initial_crack: list(tuple(int, int)) or function
         :arg int dimensions: The dimensionality of the model. The
             default is 2.
-        :arg is_material_type: A function that returns an integer value (a
-            flag) of the material type of a bond, given two node coordinates
-            as input.
-        :type is_material_type: function
+        :arg is_density: A function that returns a float of the material
+            density, given a node coordinate as input.
+        :type is_density: function
+        :arg is_bond_type: A function that returns an integer value (a
+            flag) of the bond_type, given two node coordinates as input.
+        :type is_bond_type: function
         :arg is_displacement_boundary: A function to determine if a node is on
             the boundary for a displacement boundary condition, and if it is,
             which direction and magnitude the boundary conditions are applied
@@ -201,10 +205,13 @@ class Model(object):
             the `tip` to be measured, a value of 1 if is is on the `tip` and
             to be measured.
         :type is_tip: function
-        :arg material_types: The bond material_types for the model.
-            If `None` the material_types at the time of construction of the
+        :arg density: An (nnodes, ) array of node density values, each
+            corresponding to a material
+        :type density: :class:`numpy.ndarray`
+        :arg bond_types: The bond_types for the model.
+            If `None` the bond_types at the time of construction of the
             :class:`Model` object will be used. Default `None`.
-        :type material_types: :class:`numpy.ndarray`
+        :type bond_types: :class:`numpy.ndarray`
         :arg stiffness_corrections: The stiffness_corrections for
             the model. If `None` the stiffness_corrections at the time
             of construction of the :class:`Model` object will be used. Default
@@ -397,37 +404,42 @@ class Model(object):
                             ", got {})".format(
                                     np.ndarray, type(stiffness_corrections)))
 
-        # Create dummy is_material_type function is none is provided
-        if is_material_type is None:
-            def is_material_type(x, y):
+        # Create dummy is_bond_type function is none is provided
+        if is_bond_type is None:
+            def is_bond_type(x, y):
                 return 0
 
         # Set damage model
         (self.bond_stiffness,
          self.critical_stretch,
          self.plus_cs,
-         self.nmaterials,
+         self.nbond_types,
          self.nregimes) = self._set_damage_model(
              bond_stiffness, critical_stretch)
 
-        if material_types is None:
-            # Material types needed for composites only
-            if self.nmaterials != 1:
-                # Calculate material types and write to file
-                material_types = self._set_material_types(
-                    self.initial_connectivity, is_material_type,
-                    self.nmaterials, self.write_path)
-        elif type(material_types) == np.ndarray:
-            if np.shape(material_types) != (self.nnodes, self.max_neighbours):
-                raise ValueError("material_types shape is wrong, "
+        if bond_types is None:
+            # Bond types needed for composites only
+            if self.nbond_types != 1:
+                # Calculate bond types and write to file
+                bond_types = self._set_bond_types(
+                    self.initial_connectivity, is_bond_type,
+                    self.nbond_types, self.write_path)
+
+        elif type(bond_types) == np.ndarray:
+            if np.shape(bond_types) != (self.nnodes, self.max_neighbours):
+                raise ValueError("bond_types shape is wrong, "
                                  "and must be (nnodes, max_neighbours) "
                                  "(expected {}, got {})".format(
                                      (self.nnodes, self.max_neighbours),
-                                     np.shape(material_types)))
+                                     np.shape(bond_types)))
         else:
-            raise TypeError("material_types type is wrong (expected {}"
+            raise TypeError("bond_types type is wrong (expected {}"
                             ", got {})".format(
-                                    np.ndarray, type(material_types)))
+                                    np.ndarray, type(bond_types)))
+
+        # Set densities of the model
+        self.densities = self._set_densities(
+            density, is_density, self.write_path)
 
         # Create dummy boundary conditions functions if none is provided
         if is_forces_boundary is None:
@@ -459,7 +471,7 @@ class Model(object):
             self.nnodes, self.degrees_freedom, self.max_neighbours,
             self.coords, self.volume, self.family, bc_types, bc_values,
             force_bc_types, force_bc_values, stiffness_corrections,
-            material_types)
+            bond_types, self.densities)
 
     def _read_mesh(self, filename):
         """
@@ -582,13 +594,62 @@ class Model(object):
         sum_total_volume = np.float64(sum_total_volume)
         return (volume, sum_total_volume)
 
-    def _set_material_types(self, connectivity, is_material_type, nmaterials,
-                            write_path):
+    def _set_densities(self, density, is_density, write_path):
         """
-        Build material_types array.
+        Build densities array.
 
-        Builds a (`nnodes`, `max_neighbours`) array of material types for each
-        bond for each node.
+        :arg density: An (nnodes, ) array of node density values, each
+            corresponding to a material, or a float value of the density
+            if nmaterials=1.
+        :type density: :class:`numpy.ndarray`
+        :arg is_density: A function that returns a float of the material
+            density, given a node coordinate as input.
+        :type is_density: function
+        :arg write_path: The path where the vtk files should be written.
+        :type write_path: path-like or str
+
+        :returns: A (nnodes, degrees_freedom) array of nodal densities, or
+            None if no is_density function or density array is supplied.
+        :rtype: :class:`numpy.ndarray` or None
+        """
+        if density is None:
+            if is_density is None:
+                densities = None
+            else:
+                if not callable(is_density):
+                    raise TypeError(
+                        "is_density must be a *function*.")
+                elif type(is_density(self.coords[0])) is not float:
+                    raise TypeError(
+                        "is_density must be a function that returns a *float* "
+                        "(expected {}, got {})".format(
+                            float, type(
+                                is_density(self.coords[0]))))
+                density = np.ones(self.nnodes)
+                for i in range(self.nnodes):
+                    density[i] = is_density(self.coords[i])
+                if write_path is not None:
+                    write_array(write_path, "density", density)
+                densities = np.transpose(
+                    np.tile(density, (self.degrees_freedom, 1))).astype(
+                        np.float64)
+        elif type(density) == np.ndarray:
+            if np.shape(density) != (self.nnodes,):
+                raise ValueError("densty shape is wrong, and must be "
+                                 "(nnodes,) (expected {}, got {})".format(
+                                     (self.nnodes,), np.shape(density)))
+            densities = np.transpose(
+                np.tile(density, (self.degrees_freedom, 1))).astype(np.float64)
+        else:
+            raise TypeError("density type is wrong, and must be an array of"
+                            " shape (nnodes,) (expected {}, got {})".format(
+                                np.ndarray, type(density)))
+        return densities
+
+    def _set_bond_types(self, connectivity, is_bond_type, nbond_types,
+                        write_path):
+        """
+        Build bond_types array.
 
         :arg connectivity: The initial connectivity for the simulation. A tuple
             of a neighbour list and the number of neighbours for each node. If
@@ -596,46 +657,45 @@ class Model(object):
             :class:`Model` object will be used. Default `None`.
         :type connectivity: tuple(:class:`numpy.ndarray`,
             :class:`numpy.ndarray`)
-        :arg is_material_type: A function that returns an integer value (a
-            flag) of the material type of a bond, given two node coordinates
-            as input.
-        :type is_material_type: function
-        :arg int nmaterials: The expected number of materials of the damage
-            model.
+        :arg is_bond_type: A function that returns an integer value (a
+            flag) of the bond type, given two node coordinates as input.
+        :type is_bond_type: function
+        :arg int nbond_types: The expected number of damage models, one
+            for each type of bond.
         :arg write_path: The path where the vtk files should be written.
         :type write_path: path-like or str
 
-        :returns: A (`nnodes`, `max_neighbours`) array of the material type
-            of each bond for each node, which are used
-            to index into the bond_stiffness and critical_stretch arrays.
+        :returns: A (`nnodes`, `max_neighbours`) array of the bond types,
+            which are used to index into the bond_stiffness and
+            critical_stretch arrays.
         :rtype: :class:`numpy.ndarray`
         """
-        if not callable(is_material_type):
+        if not callable(is_bond_type):
             raise TypeError(
-                "is_material_type must be a *function*.")
-        if type(is_material_type(self.coords[0], self.coords[1])) is not int:
+                "is_bond_type must be a *function*.")
+        if type(is_bond_type(self.coords[0], self.coords[1])) is not int:
             raise TypeError(
-                "is_material_type must be a function that returns an *int* "
+                "is_bond_type must be a function that returns an *int* "
                 "(expected {}, got {})".format(
                     int, type(
-                        is_material_type(self.coords[0], self.coords[1]))))
+                        is_bond_type(self.coords[0], self.coords[1]))))
         nlist, n_neigh = connectivity
-        material_types = np.zeros(
+        bond_types = np.zeros(
             (self.nnodes, self.max_neighbours))
         for i in range(self.nnodes):
             for neigh in range(n_neigh[i]):
                 j = nlist[i][neigh]
-                material_types[i][neigh] = is_material_type(
+                bond_types[i][neigh] = is_bond_type(
                     self.coords[i, :], self.coords[j, :])
-        material_types = material_types.astype(np.intc)
-        if np.any(material_types > (nmaterials-1)):
-            raise ValueError("number of material types must be equal to the"
+        bond_types = bond_types.astype(np.intc)
+        if np.any(bond_types > (nbond_types-1)):
+            raise ValueError("number of bond types must be equal to the"
                              " number of bond_stiffness values (expected {}, "
                              "got {})".format(
-                                 nmaterials, np.max(material_types)))
+                                 nbond_types, np.max(bond_types)))
         if write_path is not None:
-            write_array(write_path, "material_types", material_types)
-        return material_types
+            write_array(write_path, "bond_types", bond_types)
+        return bond_types
 
     def _set_stiffness_corrections(
             self, horizon, connectivity, precise_stiffness_correction,
@@ -723,26 +783,26 @@ class Model(object):
         Calculate the parameters for the damage models.
 
         Calculates the `+ c`s (c.f. `y = mx + c`) for the n-linear
-        damage models for each material, where n is nregimes, e.g. linear,
+        damage models for each bond type, where n is nregimes, e.g. linear,
         bi-linear, tri-linear, etc. from the bond_stiffness and
         critical_stretch values provided.
 
-        :arg bond_stiffness: An (nregimes, nmaterials) array of bond
-            stiffness values, each corresponding to a material and a regime.
+        :arg bond_stiffness: An (nregimes, nbond_types) array of bond
+            stiffness values, each corresponding to a bond type and a regime.
         :type bond_stiffness: list or :class:`numpy.ndarray`
-        :arg critical_stretch: An (n_regimes, nmaterials) array of critical
-            stretch values, each corresponding to a material and a regime.
+        :arg critical_stretch: An (n_regimes, nbond_types) array of critical
+            stretch values, each corresponding to a bond type and a regime.
         :type critical_stretch: list or :class:`numpy.ndarray`
         :arg int n_regimes:
 
         :returns: A tuple of the damage model:
             bond_stiffness, a float or array of the bond stiffness(es);
             critcal_stretch, a float or array of the critical stretch(es);
-            nmaterials, the number of materials in the model;
+            nbond_types, the number of bond types (damage models) in the model;
             nregimes, the number of `regimes` in the damage model. e.g.
                 linear has n_regimes = 1, bi-linear has n_regimes = 2, etc;
-            plus_cs, an (`nregimes`, `nmaterials`) array of the `+cs` for each
-                linear part of the bond damage models for each material. Takes
+            plus_cs, an (`nregimes`, `nbond_types`) array of the `+cs` for each
+                linear part of the bond damage models for each bond type. Takes
                 a value of None if the PMB (Prototype Micro-elastic Brittle)
                 model is used, i.e. n_regimes = 1.
         :rtype: tuple(:class:`numpy.ndarray` or :class:`numpy.float64`,
@@ -768,26 +828,26 @@ class Model(object):
             else:
                 if np.shape(bond_stiffness) == (1,):
                     nregimes = 1
-                    nmaterials = 1
+                    nbond_types = 1
                     bond_stiffness = np.float64(bond_stiffness[0])
                     critical_stretch = np.float64(critical_stretch[0])
                     plus_cs = None
                 elif np.shape(bond_stiffness) == ():
                     nregimes = 1
-                    nmaterials = 1
+                    nbond_types = 1
                     bond_stiffness = np.float64(bond_stiffness)
                     critical_stretch = np.array(critical_stretch)
                     plus_cs = None
                 elif np.shape(bond_stiffness[0]) == (1,):
                     nregimes = 1
-                    nmaterials = np.shape(bond_stiffness)[0]
+                    nbond_types = np.shape(bond_stiffness)[0]
                     bond_stiffness = np.array(
                         bond_stiffness, dtype=np.float64)
                     critical_stretch = np.array(
                         critical_stretch, dtype=np.float64)
                     plus_cs = None
                 elif np.shape(bond_stiffness[0]) == ():
-                    nmaterials = 1
+                    nbond_types = 1
                     nregimes = np.shape(bond_stiffness)[0]
                     bond_stiffness = np.array(
                         bond_stiffness, dtype=np.float64)
@@ -810,13 +870,13 @@ class Model(object):
                     plus_cs = plus_cs.astype(np.float64)
                 else:
                     nregimes = np.shape(bond_stiffness)[1]
-                    nmaterials = np.shape(bond_stiffness)[0]
+                    nbond_types = np.shape(bond_stiffness)[0]
                     bond_stiffness = np.array(
                         bond_stiffness, dtype=np.float64)
                     critical_stretch = np.array(
                         critical_stretch, dtype=np.float64)
-                    plus_cs = np.zeros((nmaterials, nregimes))
-                    c_i = np.zeros(nmaterials)
+                    plus_cs = np.zeros((nbond_types, nregimes))
+                    c_i = np.zeros(nbond_types)
                     # The bond force density at 0 stretch is 0
                     plus_cs[:, 0] = c_i
                     c_prev = c_i
@@ -833,7 +893,7 @@ class Model(object):
         elif ((type(bond_stiffness) is float) or
               (type(bond_stiffness) is np.floating)):
             nregimes = 1
-            nmaterials = 1
+            nbond_types = 1
             bond_stiffness = np.float64(bond_stiffness)
             critical_stretch = np.float64(critical_stretch)
             plus_cs = None
@@ -845,11 +905,11 @@ class Model(object):
 
         # Convert to types that OpenCL can handle
         nregimes = np.intc(nregimes)
-        nmaterials = np.intc(nmaterials)
+        nbond_types = np.intc(nbond_types)
         if np.any(critical_stretch < 0):
             raise ValueError("critical_stretch values must not be < 0, "
                              "(got {})".format(critical_stretch))
-        return (bond_stiffness, critical_stretch, plus_cs, nmaterials,
+        return (bond_stiffness, critical_stretch, plus_cs, nbond_types,
                 nregimes)
 
     def _set_boundary_conditions(
@@ -973,13 +1033,13 @@ class Model(object):
             :class:`numpy.ndarray` of the regimes of the bonds
             of a neighbour list and the number of neighbours for each node.
         :type regimes: :class:`numpy.ndarray`
-        :arg critical_stretch: An (n_regimes, n_materials) array of critical
-            stretch values, each corresponding to a material and a regime,
+        :arg critical_stretch: An (nregimes, nbond_types) array of critical
+            stretch values, each corresponding to a bond type and a regime,
             or a float value of the critical stretch of the Peridynamic
             bond-based prototype microelastic brittle (PMB) model.
         :type critical_stretch: :class:`numpy.ndarray` or float
-        :arg bond_stiffness: An (n_regimes, n_materials) array of bond
-            stiffness values, each corresponding to a material and a regime,
+        :arg bond_stiffness: An (nregimes, nbond_types) array of bond
+            stiffness values, each corresponding to a bond type and a regime,
             or a float value of the bond stiffness the Peridynamic bond-based
             prototype microelastic brittle (PMB) model.
         :type bond_stiffness: :class:`numpy.ndarray` or float
@@ -1117,11 +1177,11 @@ class Model(object):
             :class:`Model` object will be used. Default `None`.
         :type connectivity: tuple(:class:`numpy.ndarray`,
             :class:`numpy.ndarray`)
-        :arg bond_stiffness: An (nregimes, nmaterials) array of bond
-            stiffness values, each corresponding to a material and a regime.
+        :arg bond_stiffness: An (nregimes, nbond_types) array of bond
+            stiffness values, each corresponding to a bond type and a regime.
         :type bond_stiffness: list or :class: `numpy.ndarray`
-        :arg critical_stretch: An (nregimes, nmaterials) array of critical
-            stretch values, each corresponding to a material and a regime.
+        :arg critical_stretch: An (nregimes, nbond_types) array of critical
+            stretch values, each corresponding to a bond type and a regime.
         :type critical_stretch: list or :class: `numpy.ndarray`
         :arg write_path: The path where the periodic mesh files should be
             written.
@@ -1218,13 +1278,13 @@ class Model(object):
             bond_stiffness = self.bond_stiffness
             critical_stretch = self.critical_stretch
             plus_cs = self.plus_cs
-            nmaterials = self.nmaterials
+            nbond_types = self.nbond_types
             nregimes = self.nregimes
         else:
             (bond_stiffness,
              critical_stretch,
              plus_cs,
-             nmaterials,
+             nbond_types,
              nregimes) = self._set_damage_model(
                  bond_stiffness, critical_stretch)
 
@@ -1244,7 +1304,7 @@ class Model(object):
         # Initialise the OpenCL buffers
         self.integrator.set_buffers(
             nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs, u, ud,
-            force, damage, regimes, nregimes, nmaterials)
+            force, damage, regimes, nregimes, nbond_types)
 
         return (u, ud, force, nlist, n_neigh, displacement_bc_magnitudes,
                 force_bc_magnitudes, damage,
