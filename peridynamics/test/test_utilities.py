@@ -4,12 +4,11 @@ from peridynamics.utilities import (read_array, write_array,
                                     _calc_midpoint_gradient,
                                     calc_build_time)
 import pytest
-import os
 
 
-def test_read_and_write_array(data_path):
+def test_read_and_write_array(tmpdir):
     """Test reading and writing an array."""
-    rw_path = data_path/"test_rw_array.h5"
+    rw_path = tmpdir/"test_rw_array.h5"
     expected_array = np.empty((2113, 256))
     write_array(rw_path, "name", expected_array)
     array = read_array(rw_path, "name")
@@ -17,7 +16,6 @@ def test_read_and_write_array(data_path):
     with pytest.warns(UserWarning) as warning:
         read_array(rw_path, "no_name")
         assert "array does not appear to exist" in str(warning[0].message)
-        os.remove(rw_path)
 
 
 def test_read_bad_file(data_path):
