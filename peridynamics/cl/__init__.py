@@ -5,7 +5,8 @@ import pathlib
 kernel_source_files = [
     pathlib.Path(__file__).parent.absolute()/source for source in [
         "peridynamics.cl",
-        "euler.cl"
+        "euler.cl",
+        "euler_cromer.cl"
         ]
     ]
 
