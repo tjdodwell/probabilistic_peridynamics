@@ -107,20 +107,6 @@ def is_displacement_boundary(x):
     return bnd
 
 
-def is_forces_boundary(x):
-    """
-    Return if the particle coordinate is a force boundary.
-
-    Marks types of body force on the particles
-    None is no boundary condition
-    -1 is force loaded in negative direction
-    1 is force loaded in positive direction
-    """
-    # Particle does not live on forces boundary
-    bnd = [None, None, None]
-    return bnd
-
-
 def main():
     """Conduct a peridynamics simulation."""
     parser = argparse.ArgumentParser()
@@ -208,7 +194,6 @@ def main():
             is_density=is_density,
             is_bond_type=is_bond_type,
             is_displacement_boundary=is_displacement_boundary,
-            is_forces_boundary=is_forces_boundary,
             is_tip=is_tip,
             density=density,
             bond_types=bond_types,
@@ -229,7 +214,6 @@ def main():
             is_density=is_density,
             is_bond_type=is_bond_type,
             is_displacement_boundary=is_displacement_boundary,
-            is_forces_boundary=is_forces_boundary,
             is_tip=is_tip,
             density=density,
             bond_types=bond_types,
