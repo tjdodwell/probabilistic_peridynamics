@@ -11,18 +11,18 @@ from peridynamics.utilities import calc_boundary_conditions_magnitudes
 from pstats import SortKey, Stats
 
 mesh_files = {
-    '1650beam792t.msh': '1650beam792t',
-    '1650beam2652t.msh': '1650beam2652t',
-    '1650beam3570t.msh': '1650beam3570t',
-    '1650beam4095t.msh': '1650beam4095t',
-    '1650beam6256t.msh': '1650beam6256t'}
+    '1650beam792.msh': '1650beam792',
+    '1650beam2652.msh': '1650beam2652',
+    '1650beam3570.msh': '1650beam3570',
+    '1650beam4095.msh': '1650beam4095',
+    '1650beam6256.msh': '1650beam6256'}
 
 dxs = {
-    '1650beam792t.msh': 0.075,
-    '1650beam2652t.msh': 0.0485,
-    '1650beam3570t.msh': 0.0485,
-    '1650beam4095t.msh': 0.0423,
-    '1650beam6256t.msh': 0.0359}
+    '1650beam792.msh': 0.075,
+    '1650beam2652.msh': 0.0485,
+    '1650beam3570.msh': 0.0485,
+    '1650beam4095.msh': 0.0423,
+    '1650beam6256.msh': 0.0359}
 
 
 def is_tip(x):
