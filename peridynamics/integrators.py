@@ -185,11 +185,9 @@ class Integrator(ABC):
             self.regimes = cl.Buffer(
                 self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                 hostbuf=regimes)
-            
-        
-        self.regimes = regimes
-        self.nregimes = nregimes
-        self.nbond_types = nbond_types
+
+        self.nregimes = np.float64(nregimes)
+        self.nbond_types = np.float64(nbond_types)
 
         # Build OpenCL data structures that are dependent on
         # :class: Model.simulation parameters

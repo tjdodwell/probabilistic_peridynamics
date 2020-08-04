@@ -10,12 +10,17 @@ __kernel void
 	__global int* nlist,
     __global int const* fc_types,
     __global double const* fc_values,
+    __global double const* stiffness_corrections,
+    __global int const* bond_types,
+    __global int regimes,
+    __global float const* plus_cs,
     __local double* local_cache_x,
     __local double* local_cache_y,
     __local double* local_cache_z,
-    double fc_scale,
     double bond_stiffness,
-    double critical_stretch
+    double critical_stretch,
+    double fc_scale,
+    int nregimes
 	) {
     /* Calculate the force due to bonds on each node and update node velocities.
      *
@@ -128,12 +133,16 @@ __kernel void
     __global int const* fc_types,
     __global double const* fc_values,
     __global double const* stiffness_corrections,
+    __global int const* bond_types,
+    __global int regimes,
+    __global float const* plus_cs,
     __local double* local_cache_x,
     __local double* local_cache_y,
     __local double* local_cache_z,
-    double fc_scale,
     double bond_stiffness,
-    double critical_stretch
+    double critical_stretch,
+    double fc_scale,
+    int nregimes
 	) {
     /* Calculate the force due to bonds on each node and update node velocities.
      *
