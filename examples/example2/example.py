@@ -15,24 +15,14 @@ mesh_files = {
     '1650beam2652t.msh': '1650beam2652t',
     '1650beam3570t.msh': '1650beam3570t',
     '1650beam4095t.msh': '1650beam4095t',
-    '1650beam6256t.msh': '1650beam6256t',
-    '1650beam15840t.msh': '1650beam15840t',
-    '1650beam32370t.msh': '1650beam32370t',
-    '1650beam74800t.msh': '1650beam74800t',
-    '1650beam144900t.msh': '1650beam144900t',
-    '1650beam247500t.msh': '1650beam247500t'}
+    '1650beam6256t.msh': '1650beam6256t'}
 
 dxs = {
     '1650beam792t.msh': 0.075,
     '1650beam2652t.msh': 0.0485,
     '1650beam3570t.msh': 0.0485,
     '1650beam4095t.msh': 0.0423,
-    '1650beam6256t.msh': 0.0359,
-    '1650beam15840t.msh': 0.025,
-    '1650beam32370t.msh': 0.020,
-    '1650beam74800t.msh': 0.015,
-    '1650beam144900t.msh': 0.012,
-    '1650beam247500t.msh': 0.010}
+    '1650beam6256t.msh': 0.0359}
 
 
 def is_tip(x):
@@ -112,10 +102,7 @@ def main():
     volume = read_model(write_path_model, "volume")
     family = read_model(write_path_model, "family")
     nlist = read_model(write_path_model, "nlist")
-    bond_types = read_model(write_path_model, "bond_types")
     n_neigh = read_model(write_path_model, "n_neigh")
-    stiffness_corrections = read_model(
-      write_path_model, "stiffness_corrections")
 
     if ((nlist is not None) and (n_neigh is not None)):
         connectivity = (nlist, n_neigh)
@@ -127,17 +114,15 @@ def main():
         profile.enable()
 
     if args.opencl:
-        integrator = EulerCL(dt=2.5e-13)
+        integrator = EulerCL(dt=1.1e-13)
     else:
-        integrator = Euler(dt=2.5e-13)
+        integrator = Euler(dt=1.1e-13)
 
     model = Model(
         mesh_file, integrator=integrator, horizon=horizon,
         critical_stretch=critical_stretch, bond_stiffness=bond_stiffness,
         dimensions=3, family=family,
         volume=volume, connectivity=connectivity,
-        bond_types=bond_types,
-        stiffness_corrections=stiffness_corrections,
         is_displacement_boundary=is_displacement_boundary,
         is_forces_boundary=is_forces_boundary,
         is_tip=is_tip,
@@ -145,10 +130,10 @@ def main():
 
     # Example function for calculating the boundary conditions magnitudes
     displacement_bc_array, *_ = calc_boundary_conditions_magnitudes(
-        steps=10000, max_displacement_rate=5e-8)
+        steps=20000, max_displacement_rate=2e-8)
 
     u, damage, *_ = model.simulate(
-        steps=10000,
+        steps=20000,
         displacement_bc_magnitudes=displacement_bc_array,
         write=1000,
         write_path=write_path_solutions

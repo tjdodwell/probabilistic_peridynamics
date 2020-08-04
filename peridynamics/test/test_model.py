@@ -875,7 +875,7 @@ class TestDamageModel:
         bond_stiffness_expected = np.array(bond_stiffness, dtype=np.float64)
         critical_stretch_expected = np.array(
             critical_stretch, dtype=np.float64)
-        plus_cs_expected = None
+        plus_cs_expected = np.array([[0.0], [0.0], [0.0]], dtype=np.float64)
         nregimes_expected = np.intc(1)
         nbond_types_expected = np.intc(3)
 

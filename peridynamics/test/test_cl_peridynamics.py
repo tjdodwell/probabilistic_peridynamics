@@ -50,6 +50,7 @@ class TestBondForce():
         nnodes = 5
         u = np.zeros((nnodes, 3), dtype=np.float64)
         volume = np.ones(nnodes, dtype=np.float64)
+        nregimes = 1
         bond_stiffness = 1.0
         critical_stretch = 1000.0
         max_neigh = 4
@@ -89,15 +90,30 @@ class TestBondForce():
             hostbuf=force_bc_values)
         # Write only
         force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
-
+        # Placeholder buffers
+        plus_cs = np.array([0], dtype=np.float64)
+        regimes = np.array([0], dtype=np.intc)
+        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                              hostbuf=plus_cs)
+        regimes_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                              hostbuf=regimes)
+        stiffness_corrections = np.array([0], dtype=np.float64)
+        bond_types = np.array([0], dtype=np.intc)
+        stiffness_corrections_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=stiffness_corrections)
+        bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                                 hostbuf=bond_types)
         # Call kernel
-        bond_force = program.bond_force
+        bond_force = program.bond_force1
         bond_force(
             queue, (nnodes * max_neigh,),
             (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
-            force_bc_types_d, force_bc_values_d, local_mem_x,
-            local_mem_y, local_mem_z, np.float64(force_bc_scale),
-            np.float64(bond_stiffness), np.float64(critical_stretch))
+            force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
+            bond_types_d, regimes_d, plus_cs_d, local_mem_x,
+            local_mem_y, local_mem_z, np.float64(bond_stiffness),
+            np.float64(critical_stretch), np.float64(force_bc_scale),
+            np.intc(nregimes))
 
         cl.enqueue_copy(queue, force_actual, force_d)
 
@@ -116,6 +132,7 @@ class TestBondForce():
         elastic_modulus = 0.05
         bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
         critical_stretch = 1000.0
+        nregimes = 1
         max_neigh = 4
         volume = np.full(nnodes, 0.16666667, dtype=np.float64)
         nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
@@ -166,15 +183,31 @@ class TestBondForce():
             hostbuf=force_bc_values)
         # Write only
         force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
+        # Placeholder buffers
+        plus_cs = np.array([0], dtype=np.float64)
+        regimes = np.array([0], dtype=np.intc)
+        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                              hostbuf=plus_cs)
+        regimes_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                              hostbuf=regimes)
+        stiffness_corrections = np.array([0], dtype=np.float64)
+        bond_types = np.array([0], dtype=np.intc)
+        stiffness_corrections_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=stiffness_corrections)
+        bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                                 hostbuf=bond_types)
 
         # Call kernel
-        bond_force = program.bond_force
+        bond_force = program.bond_force1
         bond_force(
             queue, (nnodes * max_neigh,),
             (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
-            force_bc_types_d, force_bc_values_d, local_mem_x,
-            local_mem_y, local_mem_z, np.float64(force_bc_scale),
-            np.float64(bond_stiffness), np.float64(critical_stretch))
+            force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
+            bond_types_d, regimes_d, plus_cs_d, local_mem_x,
+            local_mem_y, local_mem_z, np.float64(bond_stiffness),
+            np.float64(critical_stretch), np.float64(force_bc_scale),
+            np.intc(nregimes))
 
         cl.enqueue_copy(queue, force_actual, force_d)
 
@@ -195,6 +228,7 @@ class TestBondForce():
         max_neigh = 4
         elastic_modulus = 0.05
         bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
+        nregimes = 1
         volume = np.full(nnodes, 0.16666667, dtype=np.float64)
         family = set_family(r0, horizon)
         nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
@@ -261,15 +295,32 @@ class TestBondForce():
         # Write only
         force_d = cl.Buffer(context, mf.WRITE_ONLY, force.nbytes)
         damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
+        # Placeholder buffers
+        plus_cs = np.array([0], dtype=np.float64)
+        regimes = np.array([0], dtype=np.intc)
+        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                              hostbuf=plus_cs)
+        regimes_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                              hostbuf=regimes)
+        stiffness_corrections = np.array([0], dtype=np.float64)
+        bond_types = np.array([0], dtype=np.intc)
+        stiffness_corrections_d = cl.Buffer(
+            context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=stiffness_corrections)
+        bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                                 hostbuf=bond_types)
+
         # Call kernel
-        bond_force_kernel = program.bond_force
+        bond_force = program.bond_force1
         damage_kernel = program.damage
-        bond_force_kernel(
+        bond_force(
             queue, (nnodes * max_neigh,),
             (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
-            force_bc_types_d, force_bc_values_d, local_mem_x,
-            local_mem_y, local_mem_z, np.float64(force_bc_scale),
-            np.float64(bond_stiffness), np.float64(critical_stretch))
+            force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
+            bond_types_d, regimes_d, plus_cs_d, local_mem_x,
+            local_mem_y, local_mem_z, np.float64(bond_stiffness),
+            np.float64(critical_stretch), np.float64(force_bc_scale),
+            np.intc(nregimes))
         damage_kernel(
             queue, (nnodes * max_neigh,),
             (max_neigh,), nlist_d, family_d, n_neigh_d, damage_d,
@@ -311,6 +362,7 @@ class TestBondForce2():
         elastic_modulus = 0.05
         bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
         critical_stretch = 1000.0
+        nregimes = 1
         max_neigh = 4
         volume = np.full(nnodes, 0.16666667, dtype=np.float64)
         nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
@@ -365,6 +417,16 @@ class TestBondForce2():
             hostbuf=stiffness_corrections)
         # Write only
         force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
+        # Placeholder buffers
+        plus_cs = np.array([0], dtype=np.float64)
+        regimes = np.array([0], dtype=np.intc)
+        bond_types = np.array([0], dtype=np.intc)
+        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                              hostbuf=plus_cs)
+        regimes_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                              hostbuf=regimes)
+        bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                                 hostbuf=bond_types)
 
         # Call kernel
         bond_force = program.bond_force2
@@ -372,8 +434,10 @@ class TestBondForce2():
             queue, (nnodes * max_neigh,),
             (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
-            local_mem_x, local_mem_y, local_mem_z, np.float64(force_bc_scale),
-            np.float64(bond_stiffness), np.float64(critical_stretch))
+            bond_types_d, regimes_d, plus_cs_d, local_mem_x,
+            local_mem_y, local_mem_z, np.float64(bond_stiffness),
+            np.float64(critical_stretch), np.float64(force_bc_scale),
+            np.intc(nregimes))
 
         cl.enqueue_copy(queue, force_actual, force_d)
 
@@ -392,6 +456,7 @@ class TestBondForce2():
         elastic_modulus = 0.05
         bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
         critical_stretch = 1000.0
+        nregimes = 1
         max_neigh = 4
         volume = np.full(nnodes, 0.16666667, dtype=np.float64)
         nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
@@ -449,6 +514,16 @@ class TestBondForce2():
             hostbuf=stiffness_corrections)
         # Write only
         force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
+        # Placeholder buffers
+        plus_cs = np.array([0], dtype=np.float64)
+        regimes = np.array([0], dtype=np.intc)
+        bond_types = np.array([0], dtype=np.intc)
+        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                              hostbuf=plus_cs)
+        regimes_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                              hostbuf=regimes)
+        bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                                 hostbuf=bond_types)
 
         # Call kernel
         bond_force = program.bond_force2
@@ -456,8 +531,10 @@ class TestBondForce2():
             queue, (nnodes * max_neigh,),
             (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
-            local_mem_x, local_mem_y, local_mem_z, np.float64(force_bc_scale),
-            np.float64(bond_stiffness), np.float64(critical_stretch))
+            bond_types_d, regimes_d, plus_cs_d, local_mem_x,
+            local_mem_y, local_mem_z, np.float64(bond_stiffness),
+            np.float64(critical_stretch), np.float64(force_bc_scale),
+            np.intc(nregimes))
 
         cl.enqueue_copy(queue, force_actual, force_d)
 
