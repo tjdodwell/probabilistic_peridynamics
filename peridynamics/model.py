@@ -1287,6 +1287,13 @@ class Model(object):
              nbond_types,
              nregimes) = self._set_damage_model(
                  bond_stiffness, critical_stretch)
+            if nbond_types != self.nbond_types:
+                raise ValueError(
+                    "Number of bond types has unexpectedly changed from when "
+                    " the model was constructed. Please reinstantiate "
+                    ":class:`Model` with the new number of bond types "
+                    "(expected {}, got {}).".format(
+                        self.nbond_types, nbond_types))
 
         # If no write path was provided use the current directory, otherwise
         # ensure write_path is a Path object.

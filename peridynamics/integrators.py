@@ -105,9 +105,15 @@ class Integrator(ABC):
 
         # Set bond_force program
         if ((stiffness_corrections is None) and (bond_types is None)):
-            self.bond_force_kernel = self.program.bond_force
+            self.bond_force_kernel = self.program.bond_force1
+            self.stiffness_corrections_d = None
+            self.bond_types_d = None
         elif ((stiffness_corrections is not None) and (bond_types is None)):
             self.bond_force_kernel = self.program.bond_force2
+            self.stiffness_corrections_d = cl.Buffer(
+                self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                hostbuf=stiffness_corrections)
+            self.bond_types_d = None
         elif (bond_types is not None):
             raise ValueError("bond_types are not supported by this "
                              "integrator yet (expected {}, got {})".format(
@@ -163,8 +169,24 @@ class Integrator(ABC):
         Initialises just the buffers which are dependent on
         :class:`Model`.simulation parameters.
         """
-        self.bond_stiffness = bond_stiffness
-        self.critical_stretch = critical_stretch
+        if (nbond_types == 1) and (nregimes == 1):
+            self.bond_stiffness_d = np.float64(bond_stiffness)
+            self.critical_stretch = np.float64(critical_stretch)
+        else:
+            self.bond_stiffness_d = cl.Buffer(
+                self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                hostbuf=bond_stiffness)
+            self.critical_stretch_d = cl.Buffer(
+                self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                hostbuf=critical_stretch)
+        if nregimes == 1:
+            self.regimes_d = None
+        else:
+            self.regimes = cl.Buffer(
+                self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                hostbuf=regimes)
+            
+        
         self.regimes = regimes
         self.nregimes = nregimes
         self.nbond_types = nbond_types
@@ -204,17 +226,21 @@ class Integrator(ABC):
 
     def _bond_force(
             self, u_d, force_d, r0_d, vols_d, nlist_d,
-            force_bc_types_d, force_bc_values_d, local_mem_x, local_mem_y,
-            local_mem_z, force_bc_scale, bond_stiffness, critical_stretch):
+            force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
+            bond_types_d, regimes_d, plus_cs_d, local_mem_x, local_mem_y,
+            local_mem_z, bond_stiffness_d, critical_stretch_d, force_bc_scale,
+            nregimes):
         """Calculate the force due to bonds acting on each node."""
         queue = self.queue
         # Call kernel
         self.bond_force_kernel(
                 queue, (self.nnodes * self.max_neighbours,),
                 (self.max_neighbours,), u_d, force_d, r0_d, vols_d, nlist_d,
-                force_bc_types_d, force_bc_values_d, local_mem_x,
-                local_mem_y, local_mem_z, np.float64(force_bc_scale),
-                np.float64(bond_stiffness), np.float64(critical_stretch))
+                force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
+                bond_types_d, regimes_d, plus_cs_d, local_mem_x,
+                local_mem_y, local_mem_z, bond_stiffness_d,
+                critical_stretch_d, np.float64(force_bc_scale),
+                np.intc(nregimes))
         queue.finish()
 
     def write(self, u, ud, force, damage, nlist, n_neigh):

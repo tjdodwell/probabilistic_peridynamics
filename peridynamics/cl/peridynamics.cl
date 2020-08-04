@@ -2,7 +2,7 @@
 
 
 __kernel void
-	bond_force(
+	bond_force1(
     __global double const* u,
     __global double* force,
     __global double const* r0,
