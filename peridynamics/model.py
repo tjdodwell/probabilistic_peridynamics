@@ -498,7 +498,7 @@ class Model(object):
         self.integrator.build(
             self.nnodes, self.degrees_freedom, self.max_neighbours,
             self.coords, self.volume, self.family, bc_types, bc_values,
-            force_bc_types, force_bc_values, stiffness_corrections,
+            force_bc_types, force_bc_values, self.stiffness_corrections,
             self.bond_types, self.densities)
 
     def _read_mesh(self, filename):
