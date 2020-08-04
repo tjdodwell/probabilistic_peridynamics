@@ -377,8 +377,8 @@ class Euler(Integrator):
                              "integrator (expected {}, got {}). This "
                              " integrator neglects inertial effects. Do not "
                              "supply a density or is_density argument or, "
-                             "alternatively please use a dynamic integrator, "
-                             "such as EulerCromerCL instead.".format(
+                             "alternatively, please use a dynamic integrator, "
+                             "such as EulerCromerCL.".format(
                                  type(None),
                                  type(densities)))
 
@@ -463,8 +463,8 @@ class EulerCL(Integrator):
                              "integrator (expected {}, got {}). This "
                              " integrator neglects inertial effects. Do not "
                              "supply a density or is_density argument or, "
-                             "alternatively please use a dynamic integrator, "
-                             "such as EulerCromerCL instead.".format(
+                             "alternatively, use a dynamic integrator, "
+                             "such as EulerCromerCL.".format(
                                  type(None),
                                  type(self.densities)))
 
@@ -540,7 +540,7 @@ class EulerCromerCL(Integrator):
                 "densities must be supplied when using EulerCromerCL "
                 "integrator (got {}). This integrator is dynamic "
                 " and requires the density or is_density argument to be "
-                "supplied to :class:Model, alternatively please use a static "
+                "supplied to :class:Model, alternatively, use a static "
                 " integrator, such as EulerCL.".format(type(self.densities)))
         else:
             self.densities_d = cl.Buffer(
