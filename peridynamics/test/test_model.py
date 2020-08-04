@@ -474,6 +474,7 @@ class TestBondTypes:
             assert(str("bond_types are not supported by this")
                    in exception.value)
 
+    @context_available
     def test_bond_type_support_cl(self, data_path):
         """Test _set_bond_types support for the EulerCL integrator."""
         mesh_file = data_path / "example_mesh.vtk"
@@ -585,6 +586,7 @@ class TestDensities:
             assert(str("densities are not supported by this ")
                    in exception.value)
 
+    @context_available
     def test_density_support_euler_cl(self, data_path):
         """Test _set_bond_types support for the EulerCL integrator."""
         mesh_file = data_path / "example_mesh.vtk"
@@ -603,6 +605,7 @@ class TestDensities:
             assert(str("densities are not supported by this ")
                    in exception.value)
 
+    @context_available
     def test_density_support_euler_cromer_cl(self, data_path):
         """Test _set_bond_types support for the EulerCromerCL integrator."""
         mesh_file = data_path / "example_mesh.vtk"
@@ -623,6 +626,7 @@ class TestDensities:
 
         assert np.all(actual_densities == expected_densities)
 
+    @context_available
     def test_density_support_euler_cromer_cl2(self, data_path):
         """Test _set_bond_types support for the EulerCromerCL integrator."""
         mesh_file = data_path / "example_mesh.vtk"
