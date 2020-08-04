@@ -91,9 +91,9 @@ class TestBondForce():
         # Write only
         force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
         # Placeholder buffers
-        plus_cs = np.array([0,], dtype=np.float64)
+        plus_cs = np.array([0], dtype=np.float64)
         regimes = np.array([0], dtype=np.intc)
-        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR, 
+        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                               hostbuf=plus_cs)
         regimes_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                               hostbuf=regimes)
@@ -103,7 +103,7 @@ class TestBondForce():
             context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=stiffness_corrections)
         bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=bond_types)
+                                 hostbuf=bond_types)
         # Call kernel
         bond_force = program.bond_force1
         bond_force(
@@ -184,9 +184,9 @@ class TestBondForce():
         # Write only
         force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
         # Placeholder buffers
-        plus_cs = np.array([0,], dtype=np.float64)
+        plus_cs = np.array([0], dtype=np.float64)
         regimes = np.array([0], dtype=np.intc)
-        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR, 
+        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                               hostbuf=plus_cs)
         regimes_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                               hostbuf=regimes)
@@ -196,7 +196,7 @@ class TestBondForce():
             context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=stiffness_corrections)
         bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=bond_types)
+                                 hostbuf=bond_types)
 
         # Call kernel
         bond_force = program.bond_force1
@@ -296,9 +296,9 @@ class TestBondForce():
         force_d = cl.Buffer(context, mf.WRITE_ONLY, force.nbytes)
         damage_d = cl.Buffer(context, mf.WRITE_ONLY, damage.nbytes)
         # Placeholder buffers
-        plus_cs = np.array([0,], dtype=np.float64)
+        plus_cs = np.array([0], dtype=np.float64)
         regimes = np.array([0], dtype=np.intc)
-        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR, 
+        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                               hostbuf=plus_cs)
         regimes_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                               hostbuf=regimes)
@@ -308,7 +308,7 @@ class TestBondForce():
             context, mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=stiffness_corrections)
         bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=bond_types)
+                                 hostbuf=bond_types)
 
         # Call kernel
         bond_force = program.bond_force1
@@ -418,15 +418,15 @@ class TestBondForce2():
         # Write only
         force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
         # Placeholder buffers
-        plus_cs = np.array([0,], dtype=np.float64)
+        plus_cs = np.array([0], dtype=np.float64)
         regimes = np.array([0], dtype=np.intc)
         bond_types = np.array([0], dtype=np.intc)
-        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR, 
+        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                               hostbuf=plus_cs)
         regimes_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                               hostbuf=regimes)
         bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=bond_types)
+                                 hostbuf=bond_types)
 
         # Call kernel
         bond_force = program.bond_force2
@@ -515,15 +515,15 @@ class TestBondForce2():
         # Write only
         force_d = cl.Buffer(context, mf.WRITE_ONLY, force_expected.nbytes)
         # Placeholder buffers
-        plus_cs = np.array([0,], dtype=np.float64)
+        plus_cs = np.array([0], dtype=np.float64)
         regimes = np.array([0], dtype=np.intc)
         bond_types = np.array([0], dtype=np.intc)
-        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR, 
+        plus_cs_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                               hostbuf=plus_cs)
         regimes_d = cl.Buffer(context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                               hostbuf=regimes)
         bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=bond_types)
+                                 hostbuf=bond_types)
 
         # Call kernel
         bond_force = program.bond_force2

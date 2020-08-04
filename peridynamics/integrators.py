@@ -184,7 +184,7 @@ class Integrator(ABC):
             self.bond_stiffness_d = np.float64(bond_stiffness)
             self.critical_stretch_d = np.float64(critical_stretch)
             # Placeholder buffers
-            plus_cs = np.array([0,], dtype=np.float64)
+            plus_cs = np.array([0], dtype=np.float64)
             regimes = np.array([0], dtype=np.intc)
             self.plus_cs_d = cl.Buffer(
                 self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
