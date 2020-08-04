@@ -23,11 +23,10 @@ class Model(object):
     A peridynamics model.
 
     This class allows users to define a composite, non-linear peridynamics
-    system from parameters and a set of initial conditions
-    (coordinates, connectivity and optionally bond_types and
-     stiffness_corrections). For this an
-    :class:`peridynamics.integrators.Integrator` is required, and optionally
-    functions implementing the boundarys.
+    system from parameters and a set of initial conditions (coordinates,
+    connectivity and optionally bond_types and stiffness_corrections). For
+    this an :class:`peridynamics.integrators.Integrator` is required, and
+    optionally functions implementing the boundarys.
 
         >>> from peridynamics import Model
         >>> from peridynamics.integrators import Euler
@@ -103,7 +102,8 @@ class Model(object):
         >>> u, damage, *_ = model.simulate(
         >>>     steps=1000,
         >>>     max_displacement_rate=0.000005/2,
-        >>>     write=100)
+        >>>     write=100
+        >>>     )
     """
 
     def __init__(self, mesh_file, integrator, horizon, critical_stretch,
@@ -1104,9 +1104,10 @@ class Model(object):
             the tip displacements over the time-steps and a (steps, 3) array of
             the tip resultant force over the time-steps.
             the current value of ease_off
-        :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
-                      :class:`numpy.ndarray`,
-            tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`))
+        :rtype: tuple(
+            :class:`numpy.ndarray`, :class:`numpy.ndarray`,
+            :class:`numpy.ndarray`, tuple(:class:`numpy.ndarray`,
+            :class:`numpy.ndarray`))
         """
         (u,
          ud,
