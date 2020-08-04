@@ -446,7 +446,7 @@ class Model(object):
 
         if bond_types is None:
             # Calculate bond types and write to file
-            bond_types = self._set_bond_types(
+            self.bond_types = self._set_bond_types(
                 self.initial_connectivity, is_bond_type,
                 self.nbond_types, self.nregimes, self.write_path)
 
@@ -459,7 +459,7 @@ class Model(object):
                                      np.shape(bond_types)))
             warnings.warn(
                 "Reading bond_types from argument.")
-            bond_types = bond_types.astype(np.intc)
+            self.bond_types = bond_types.astype(np.intc)
         else:
             raise TypeError("bond_types type is wrong (expected {}"
                             ", got {})".format(
@@ -499,7 +499,7 @@ class Model(object):
             self.nnodes, self.degrees_freedom, self.max_neighbours,
             self.coords, self.volume, self.family, bc_types, bc_values,
             force_bc_types, force_bc_values, stiffness_corrections,
-            bond_types, self.densities)
+            self.bond_types, self.densities)
 
     def _read_mesh(self, filename):
         """
