@@ -106,14 +106,25 @@ class Integrator(ABC):
         # Set bond_force program
         if ((stiffness_corrections is None) and (bond_types is None)):
             self.bond_force_kernel = self.program.bond_force1
-            self.stiffness_corrections_d = None
-            self.bond_types_d = None
+            # Placeholder buffers
+            stiffness_corrections = np.array([0], dtype=np.float64)
+            bond_types = np.array([0], dtype=np.intc)
+            self.stiffness_corrections_d = cl.Buffer(
+                self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                hostbuf=stiffness_corrections)
+            self.bond_types_d = cl.Buffer(
+                self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                hostbuf=bond_types)
         elif ((stiffness_corrections is not None) and (bond_types is None)):
             self.bond_force_kernel = self.program.bond_force2
             self.stiffness_corrections_d = cl.Buffer(
                 self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                 hostbuf=stiffness_corrections)
-            self.bond_types_d = None
+            # Placeholder buffers
+            bond_types = np.array([0], dtype=np.intc)
+            self.bond_types_d = cl.Buffer(
+                self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                hostbuf=bond_types)
         elif (bond_types is not None):
             raise ValueError("bond_types are not supported by this "
                              "integrator yet (expected {}, got {})".format(
@@ -171,7 +182,16 @@ class Integrator(ABC):
         """
         if (nbond_types == 1) and (nregimes == 1):
             self.bond_stiffness_d = np.float64(bond_stiffness)
-            self.critical_stretch = np.float64(critical_stretch)
+            self.critical_stretch_d = np.float64(critical_stretch)
+            # Placeholder buffers
+            plus_cs = np.array([0,], dtype=np.float64)
+            regimes = np.array([0], dtype=np.intc)
+            self.plus_cs_d = cl.Buffer(
+                self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                hostbuf=plus_cs)
+            self.regimes_d = cl.Buffer(
+                self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                hostbuf=regimes)
         else:
             self.bond_stiffness_d = cl.Buffer(
                 self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
@@ -179,15 +199,15 @@ class Integrator(ABC):
             self.critical_stretch_d = cl.Buffer(
                 self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                 hostbuf=critical_stretch)
-        if nregimes == 1:
-            self.regimes_d = None
-        else:
-            self.regimes = cl.Buffer(
+            self.plus_cs_d = cl.Buffer(
+                self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+                hostbuf=plus_cs)
+            self.regimes_d = cl.Buffer(
                 self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
                 hostbuf=regimes)
 
-        self.nregimes = np.float64(nregimes)
-        self.nbond_types = np.float64(nbond_types)
+        self.nregimes = np.intc(nregimes)
+        self.nbond_types = np.intc(nbond_types)
 
         # Build OpenCL data structures that are dependent on
         # :class: Model.simulation parameters
@@ -423,8 +443,10 @@ class EulerCL(Integrator):
         self._bond_force(
             self.u_d, self.force_d, self.r0_d, self.vols_d, self.nlist_d,
             self.force_bc_types_d, self.force_bc_values_d,
-            self.local_mem_x, self.local_mem_y, self.local_mem_z,
-            force_bc_scale, self.bond_stiffness, self.critical_stretch)
+            self.stiffness_corrections_d, self.bond_types_d, self.regimes_d,
+            self.plus_cs_d, self.local_mem_x, self.local_mem_y,
+            self.local_mem_z, self.bond_stiffness_d, self.critical_stretch_d,
+            force_bc_scale, self.nregimes)
 
         self._update_displacement(
             self.force_d, self.u_d, self.bc_types_d, self.bc_values_d,
@@ -502,8 +524,10 @@ class EulerCromerCL(Integrator):
         self._bond_force(
             self.u_d, self.force_d, self.r0_d, self.vols_d, self.nlist_d,
             self.force_bc_types_d, self.force_bc_values_d,
-            self.local_mem_x, self.local_mem_y, self.local_mem_z,
-            force_bc_scale, self.bond_stiffness, self.critical_stretch)
+            self.stiffness_corrections_d, self.bond_types_d, self.regimes_d,
+            self.plus_cs_d, self.local_mem_x, self.local_mem_y,
+            self.local_mem_z, self.bond_stiffness_d, self.critical_stretch_d,
+            force_bc_scale, self.nregimes)
 
         self._update_displacement(
             self.force_d, self.u_d, self.ud_d, self.bc_types_d,

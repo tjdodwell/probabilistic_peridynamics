@@ -492,27 +492,6 @@ class TestBondTypes:
             assert(str("bond_types are not supported by this")
                    in exception.value)
 
-    def test_change_nbond_types(self, data_path):
-        """Test exception when nbond_types is changed between simulations."""
-        mesh_file = data_path / "example_mesh.vtk"
-        integrator = EulerCL(dt=1e-3)
-
-        def bond_type_function(x, y):
-            if x[0] == 0.0:
-                return 0
-            else:
-                return 1
-        model = Model(mesh_file, integrator=integrator, horizon=0.1,
-                      critical_stretch=[[0.05], [0.05]],
-                      bond_stiffness=[[1.0], [2.0]],
-                      is_bond_type=bond_type_function)
-        with pytest.raises(ValueError) as exception:
-            model.simulate(steps=2,
-                           bond_stiffness=[[1.0], [2.0], [3.0]],
-                           critical_stretch=[[0.05], [0.05], [0.05]])
-            assert(str("Number of bond types has unexpectedly changed")
-                   in exception.value)
-
 
 class TestDensities:
     """Test _set_densities."""
@@ -896,7 +875,7 @@ class TestDamageModel:
         bond_stiffness_expected = np.array(bond_stiffness, dtype=np.float64)
         critical_stretch_expected = np.array(
             critical_stretch, dtype=np.float64)
-        plus_cs_expected = None
+        plus_cs_expected = np.array([[0.0], [0.0], [0.0]], dtype=np.float64)
         nregimes_expected = np.intc(1)
         nbond_types_expected = np.intc(3)
 

@@ -262,6 +262,9 @@ class Model(object):
         # Calculate the volume for each node, if None is provided
         if volume is None:
             # Calculate the volume for each node
+            if self.nnodes > 70000:
+                warnings.warn(
+                        "Calculating volume... this may take a while.")
             self.volume, self.sum_total_volume = self._volume(
                 transfinite, volume_total)
             if write_path is not None:
@@ -272,6 +275,8 @@ class Model(object):
                                  "(nnodes, ) (expected {}, got {})".format(
                                      (self.nnodes, ),
                                      np.shape(volume)))
+            warnings.warn(
+                    "Reading volume from argument.")
             self.volume = volume.astype(np.float64)
         else:
             raise TypeError("volume type is wrong (expected {}, got "
@@ -282,6 +287,9 @@ class Model(object):
         # for each node, if None is provided
         if family is None:
             # Calculate family
+            if self.nnodes > 70000:
+                warnings.warn(
+                        "Calculating family... this may take a while.")
             self.family = set_family(self.coords, horizon)
             if write_path is not None:
                 write_array(write_path, "family", self.family)
@@ -291,7 +299,9 @@ class Model(object):
                                  "(nnodes, ) (expected {}, got {})".format(
                                      (self.nnodes, ),
                                      np.shape(family)))
-            self.family = family
+            warnings.warn(
+                    "Reading family from argument.")
+            self.family = family.astype(np.intc)
         else:
             raise TypeError("family type is wrong (expected {}, got "
                             "{})".format(type(family),
@@ -302,6 +312,9 @@ class Model(object):
         if integrator.context is None:
             if connectivity is None:
                 # Create the neighbourlist for the cython implementation
+                if self.nnodes > 70000:
+                    warnings.warn(
+                        "Calculating connectivity... this may take a while.")
                 self.max_neighbours = self.family.max()
                 nlist, n_neigh = create_neighbour_list_cython(
                     self.coords, horizon, self.max_neighbours
@@ -310,7 +323,11 @@ class Model(object):
                 if len(connectivity) != 2:
                     raise ValueError("connectivity size is wrong (expected 2,"
                                      " got {})".format(len(connectivity)))
+                warnings.warn(
+                    "Reading connectivity from argument.")
                 nlist, n_neigh = connectivity
+                nlist = nlist.astype(np.intc)
+                n_neigh = n_neigh.astype(np.intc)
                 self.max_neighbours = np.intc(
                             np.shape(nlist)[1]
                         )
@@ -338,6 +355,9 @@ class Model(object):
         else:
             if connectivity is None:
                 # Create the neighbourlist for the OpenCL implementation
+                if self.nnodes > 70000:
+                    warnings.warn(
+                        "Calculating connectivity... this may take a while.")
                 self.max_neighbours = np.intc(
                             1 << (int(self.family.max() - 1)).bit_length()
                         )
@@ -351,7 +371,11 @@ class Model(object):
                 if len(connectivity) != 2:
                     raise ValueError("connectivity size is wrong (expected 2, "
                                      " got {})".format(len(connectivity)))
+                warnings.warn(
+                    "Reading connectivity from argument.")
                 nlist, n_neigh = connectivity
+                nlist = nlist.astype(np.intc)
+                n_neigh = n_neigh.astype(np.intc)
                 self.max_neighbours = np.intc(
                             np.shape(nlist)[1]
                         )
@@ -398,7 +422,10 @@ class Model(object):
                                      (self.nnodes, self.max_neighbours),
                                      np.shape(stiffness_corrections)))
             else:
-                self.stiffness_corrections = stiffness_corrections
+                warnings.warn(
+                    "Reading stiffness_corrections from argument.")
+                self.stiffness_corrections = (
+                    stiffness_corrections.astype(np.float64))
         else:
             raise TypeError("stiffness_corrections type is wrong (expected {}"
                             ", got {})".format(
@@ -418,12 +445,10 @@ class Model(object):
              bond_stiffness, critical_stretch)
 
         if bond_types is None:
-            # Bond types needed for composites only
-            if self.nbond_types != 1:
-                # Calculate bond types and write to file
-                bond_types = self._set_bond_types(
-                    self.initial_connectivity, is_bond_type,
-                    self.nbond_types, self.write_path)
+            # Calculate bond types and write to file
+            bond_types = self._set_bond_types(
+                self.initial_connectivity, is_bond_type,
+                self.nbond_types, self.nregimes, self.write_path)
 
         elif type(bond_types) == np.ndarray:
             if np.shape(bond_types) != (self.nnodes, self.max_neighbours):
@@ -432,6 +457,9 @@ class Model(object):
                                  "(expected {}, got {})".format(
                                      (self.nnodes, self.max_neighbours),
                                      np.shape(bond_types)))
+            warnings.warn(
+                "Reading bond_types from argument.")
+            bond_types = bond_types.astype(np.intc)
         else:
             raise TypeError("bond_types type is wrong (expected {}"
                             ", got {})".format(
@@ -647,7 +675,7 @@ class Model(object):
         return densities
 
     def _set_bond_types(self, connectivity, is_bond_type, nbond_types,
-                        write_path):
+                        nregimes, write_path):
         """
         Build bond_types array.
 
@@ -662,6 +690,8 @@ class Model(object):
         :type is_bond_type: function
         :arg int nbond_types: The expected number of damage models, one
             for each type of bond.
+        :arg int nbond_types: The expected number of regimes in the damage
+            model.
         :arg write_path: The path where the vtk files should be written.
         :type write_path: path-like or str
 
@@ -670,31 +700,40 @@ class Model(object):
             critical_stretch arrays.
         :rtype: :class:`numpy.ndarray`
         """
-        if not callable(is_bond_type):
-            raise TypeError(
-                "is_bond_type must be a *function*.")
-        if type(is_bond_type(self.coords[0], self.coords[1])) is not int:
-            raise TypeError(
-                "is_bond_type must be a function that returns an *int* "
-                "(expected {}, got {})".format(
-                    int, type(
-                        is_bond_type(self.coords[0], self.coords[1]))))
-        nlist, n_neigh = connectivity
-        bond_types = np.zeros(
-            (self.nnodes, self.max_neighbours))
-        for i in range(self.nnodes):
-            for neigh in range(n_neigh[i]):
-                j = nlist[i][neigh]
-                bond_types[i][neigh] = is_bond_type(
-                    self.coords[i, :], self.coords[j, :])
-        bond_types = bond_types.astype(np.intc)
-        if np.any(bond_types > (nbond_types-1)):
-            raise ValueError("number of bond types must be equal to the"
-                             " number of bond_stiffness values (expected {}, "
-                             "got {})".format(
-                                 nbond_types, np.max(bond_types)))
-        if write_path is not None:
-            write_array(write_path, "bond_types", bond_types)
+        if nbond_types != 1:
+            if not callable(is_bond_type):
+                raise TypeError(
+                    "is_bond_type must be a *function*.")
+            if type(is_bond_type(self.coords[0], self.coords[1])) is not int:
+                raise TypeError(
+                    "is_bond_type must be a function that returns an *int* "
+                    "(expected {}, got {})".format(
+                        int, type(
+                            is_bond_type(self.coords[0], self.coords[1]))))
+            nlist, n_neigh = connectivity
+            bond_types = np.zeros(
+                (self.nnodes, self.max_neighbours))
+            for i in range(self.nnodes):
+                for neigh in range(n_neigh[i]):
+                    j = nlist[i][neigh]
+                    bond_types[i][neigh] = is_bond_type(
+                        self.coords[i, :], self.coords[j, :])
+            bond_types = bond_types.astype(np.intc)
+            if np.any(bond_types > (nbond_types-1)):
+                raise ValueError("number of bond types must be equal to the"
+                                 " number of bond_stiffness values (expected"
+                                 " {}, got {})".format(
+                                     nbond_types, np.max(bond_types)))
+            if write_path is not None:
+                write_array(write_path, "bond_types", bond_types)
+        elif nregimes != 1:
+            bond_types = np.zeros(
+                (self.nnodes, self.max_neighbours))
+            bond_types = bond_types.astype(np.intc)
+            if write_path is not None:
+                write_array(write_path, "bond_types", bond_types)
+        else:
+            bond_types = None
         return bond_types
 
     def _set_stiffness_corrections(
@@ -845,7 +884,8 @@ class Model(object):
                         bond_stiffness, dtype=np.float64)
                     critical_stretch = np.array(
                         critical_stretch, dtype=np.float64)
-                    plus_cs = None
+                    plus_cs = np.zeros(nbond_types)
+                    plus_cs = plus_cs.astype(np.float64)
                 elif np.shape(bond_stiffness[0]) == ():
                     nbond_types = 1
                     nregimes = np.shape(bond_stiffness)[0]
@@ -891,7 +931,7 @@ class Model(object):
                         c_prev = c_i
                     plus_cs = plus_cs.astype(np.float64)
         elif ((type(bond_stiffness) is float) or
-              (type(bond_stiffness) is np.floating)):
+              (type(bond_stiffness) is np.float64)):
             nregimes = 1
             nbond_types = 1
             bond_stiffness = np.float64(bond_stiffness)
@@ -1130,10 +1170,10 @@ class Model(object):
                     damage_sum = np.sum(damage)
                     damage_sum_data.append(damage_sum)
                     if damage_sum > 0.05*self.nnodes:
-                        warnings.warn('Warning: over 5% of bonds have broken!\
+                        warnings.warn('Over 5% of bonds have broken!\
                                       peridynamics simulation continuing')
                     elif damage_sum > 0.7*self.nnodes:
-                        warnings.warn('Warning: over 7% of bonds have broken!\
+                        warnings.warn('Over 7% of bonds have broken!\
                                       peridynamics simulation continuing')
         (u,
          ud,
@@ -1281,6 +1321,7 @@ class Model(object):
             nbond_types = self.nbond_types
             nregimes = self.nregimes
         else:
+            print('here')
             (bond_stiffness,
              critical_stretch,
              plus_cs,

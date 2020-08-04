@@ -12,7 +12,7 @@ __kernel void
     __global double const* fc_values,
     __global double const* stiffness_corrections,
     __global int const* bond_types,
-    __global int regimes,
+    __global int* regimes,
     __global float const* plus_cs,
     __local double* local_cache_x,
     __local double* local_cache_y,
@@ -32,18 +32,20 @@ __kernel void
      * nlist - An (n, local_size) array containing the neighbour lists,
      *     a value of -1 corresponds to a broken bond.
      * r0 - An (n,3) array of the coordinates of the nodes in the initial state.
-     *     stiffness_corrections - An (n * max_neigh) array of bond stiffness correction factors.
-     *     critical_stretches - An (n * max_neigh) array of bond critical strains.
-     * fc_types - An (n,3) array of force boundary condition types...
+     * fc_types - An (n,3) array of force boundary condition types,
      *     a value of 0 denotes a particle that is not externally loaded.
      * fc_values - An (n,3) array of the force boundary condition values applied to particles.
+     * stiffness_corrections - Not applied in this bond_force kernel. Placeholder argument.
+     * bond_types - Not applied in this bond_force kernel. Placeholder argument.
+     * regimes - Not applied in this bond_force kernel. Placeholder argument.
+     * plus_cs - Not applied in this bond_force kernel. Placeholder argument.
      * local_cache_x - local (local_size) array to store the x components of the bond forces.
      * local_cache_y - local (local_size) array to store the y components of the bond forces.
      * local_cache_z - local (local_size) array to store the z components of the bond forces.
-     * fc_scale - scale factor applied to 
+     * fc_scale - scale factor appied to the force bondary conditions.
      * bond_stiffness - The bond stiffness.
-     * critical_strain - The critical strain, at and above which bonds will be
-     *     broken. */
+     * critical_stretch - The critical stretch, at and above which bonds will be broken.
+     * nregimes - Not applied in this bond_force kernel. Placeholder argument. */
     // global_id is the bond number
     const int global_id = get_global_id(0);
     // local_id is the LOCAL node id in range [0, max_neigh] of a node in this parent node's family
@@ -134,7 +136,7 @@ __kernel void
     __global double const* fc_values,
     __global double const* stiffness_corrections,
     __global int const* bond_types,
-    __global int regimes,
+    __global int* regimes,
     __global float const* plus_cs,
     __local double* local_cache_x,
     __local double* local_cache_y,
@@ -154,19 +156,20 @@ __kernel void
      * nlist - An (n, local_size) array containing the neighbour lists,
      *     a value of -1 corresponds to a broken bond.
      * r0 - An (n,3) array of the coordinates of the nodes in the initial state.
-     *     stiffness_corrections - An (n * max_neigh) array of bond stiffness correction factors.
-     *     critical_stretches - An (n * max_neigh) array of bond critical strains.
      * fc_types - An (n,3) array of force boundary condition types...
      *     a value of 0 denotes a particle that is not externally loaded.
      * fc_values - An (n,3) array of the force boundary condition values applied to particles.
-     * fc_values - An (n, local_size) array of the stiffness correction factors.
+     * stiffness_corrections - An (n, local_size) array of bond stiffness correction factors.
+     * bond_types - Not applied in this bond_force kernel. Placeholder argument.
+     * regimes - Not applied in this bond_force kernel. Placeholder argument.
+     * plus_cs - Not applied in this bond_force kernel. Placeholder argument.
      * local_cache_x - local (local_size) array to store the x components of the bond forces.
      * local_cache_y - local (local_size) array to store the y components of the bond forces.
      * local_cache_z - local (local_size) array to store the z components of the bond forces.
-     * fc_scale - scale factor applied to 
+     * fc_scale - scale factor applied to the force boundary conditions.
      * bond_stiffness - The bond stiffness.
-     * critical_strain - The critical strain, at and above which bonds will be
-     *     broken. */
+     * critical_stretch - The critical stretch, at and above which bonds will be broken.
+     * nregimes - Not applied in this bond_force kernel. Placeholder argument. */
     // global_id is the bond number
     const int global_id = get_global_id(0);
     // local_id is the LOCAL node id in range [0, max_neigh] of a node in this parent node's family
