@@ -9,7 +9,7 @@ import pytest
 def test_read_and_write_array(tmpdir):
     """Test reading and writing an array."""
     rw_path = tmpdir/"test_rw_array.h5"
-    expected_array = np.empty((2113, 256))
+    expected_array = np.ones((2113, 256))
     write_array(rw_path, "name", expected_array)
     array = read_array(rw_path, "name")
     assert np.all(array == expected_array)
