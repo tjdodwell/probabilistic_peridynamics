@@ -475,22 +475,30 @@ class TestBondTypes:
                    in exception.value)
 
     @context_available
-    def test_bond_type_support_cl(self, data_path):
-        """Test _set_bond_types support for the EulerCL integrator."""
+    def test_change_nbond_types(self, data_path):
+        """Test exception when nbond_types is changed between simulations."""
         mesh_file = data_path / "example_mesh.vtk"
-        integrator = EulerCL(dt=1e-3)
+        integrator = EulerCromerCL(dt=1, damping=1)
 
         def bond_type_function(x, y):
             if x[0] == 0.0:
                 return 0
             else:
                 return 1
+
+        def density_function(x):
+            return 1.0
+
+        model = Model(mesh_file, integrator=integrator, horizon=0.1,
+                      critical_stretch=[[0.05], [0.05]],
+                      bond_stiffness=[[1.0], [2.0]],
+                      is_bond_type=bond_type_function,
+                      is_density=density_function)
         with pytest.raises(ValueError) as exception:
-            Model(mesh_file, integrator=integrator, horizon=0.1,
-                  critical_stretch=[[0.05], [0.05]],
-                  bond_stiffness=[[1.0], [2.0]],
-                  is_bond_type=bond_type_function)
-            assert(str("bond_types are not supported by this")
+            model.simulate(steps=2,
+                           bond_stiffness=[[1.0], [2.0], [3.0]],
+                           critical_stretch=[[0.05], [0.05], [0.05]])
+            assert(str("Number of bond types has unexpectedly changed")
                    in exception.value)
 
 

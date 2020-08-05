@@ -11,12 +11,36 @@ from peridynamics.utilities import calc_boundary_conditions_magnitudes
 from pstats import SortKey, Stats
 
 mesh_files = {
-    '1650beam144900t.msh': '1650beam144900t',
-    '1650beam144900.msh': '1650beam144900'}
+    '1650beam74800.msh': '1650beam74800',
+    '1650beam74800transfinite.msh': '1650beam74800transfinite',
+    '1650beam144900.msh': '1650beam144900',
+    '1650beam144900transfinite.msh': '1650beam144900transfinite',
+    '1650beam247500.msh': '1650beam247500',
+    '1650beam247500transfinite.msh': '1650beam247500transfinite'}
 
 dxs = {
-    '1650beam144900t.msh': 0.012,
-    '1650beam144900.msh': 0.012}
+    '1650beam74800.msh': 0.015,
+    '1650beam74800transfinite.msh': 0.015,
+    '1650beam144900.msh': 0.012,
+    '1650beam144900transfinite.msh': 0.012,
+    '1650beam247500.msh': 0.010,
+    '1650beam247500transfinite.msh': 0.010}
+
+build_displacements = {
+    '1650beam74800transfinite.msh': 0.0009464,
+    '1650beam144900transfinite.msh': 0.0005,
+    '1650beam247500transfinite.msh': 0.0005,
+    '1650beam74800.msh': 0.0009464,
+    '1650beam144900.msh': 0.0005,
+    '1650beam247500.msh': 0.0005}
+
+time_steps = {
+    '1650beam74800transfinite.msh': 200000,
+    '1650beam144900transfinite.msh': 100000,
+    '1650beam247500transfinite.msh': 100000,
+    '1650beam74800t.msh': 200000,
+    '1650beam144900t.msh': 100000,
+    '1650beam247500t.msh': 100000}
 
 
 def is_material(x):
@@ -112,7 +136,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "mesh_file_name", help="run example on a given mesh file name")
-    parser.add_argument('--opencl', action='store_const', const=True)
     parser.add_argument('--profile', action='store_const', const=True)
     args = parser.parse_args()
 
@@ -141,12 +164,12 @@ def main():
                           / (3 * (1 - 2 * poisson_ratio)))
     bond_stiffness_steel = (18.00 * bulk_modulus_steel
                             / np.pi * np.power(horizon, 4))
-    bond_stiffness = [bond_stiffness_concrete,
-                      3.0 * bond_stiffness_concrete,
-                      bond_stiffness_steel]
-    critical_stretch = [critical_stretch_concrete,
-                        3.0 * critical_stretch_concrete,
-                        critical_stretch_steel]
+    bond_stiffness = [[bond_stiffness_concrete],
+                      [3.0 * bond_stiffness_concrete],
+                      [bond_stiffness_steel]]
+    critical_stretch = [[critical_stretch_concrete],
+                        [3.0 * critical_stretch_concrete],
+                        [critical_stretch_steel]]
     # Try reading connectivity, bond_types and stiffness_correction files
     volume = read_model(write_path_model, "volume")
     density = read_model(write_path_model, "density")
@@ -167,17 +190,17 @@ def main():
         profile.enable()
 
     # Integrator object
-    saf_fac = 0.70
+    saf_fac = 0.5
     dt = (0.8 * np.power(2.0 * 2400.0 * dx / (
             np.pi
             * np.power(horizon, 2.0)
             * dx
-            * bond_stiffness_concrete), 0.5) * saf_fac)
-    damping = 2.0e6
-    integrator = EulerCromerCL(dt, damping)
+            * bond_stiffness_concrete), 0.5) / saf_fac)
+    print(dt)
+    integrator = EulerCromerCL(dt=1e-5, damping=2.0e6)
 
     # Model
-    if args.mesh_file_name == '1650beam247500t.msh':
+    if str('transfinite') in args.mesh_file_name:
         model = Model(
             mesh_file,
             integrator=integrator,
@@ -199,7 +222,7 @@ def main():
             bond_types=bond_types,
             stiffness_corrections=stiffness_corrections,
             precise_stiffness_correction=0)
-    elif args.mesh_file_name == '1650beam247500.msh':
+    elif args.mesh_file_name == '1650beam792t.msh':
         model = Model(
             mesh_file,
             integrator=integrator,
@@ -222,13 +245,14 @@ def main():
 
     # Example function for calculating the boundary conditions magnitudes
     displacement_bc_array, *_ = calc_boundary_conditions_magnitudes(
-        steps=10000, max_displacement_rate=1e-8)
+        steps=time_steps[args.mesh_file_name], max_displacement_rate=1e-8,
+        build_displacement=build_displacements[args.mesh_file_name])
 
     # Simulation
     u, damage, *_ = model.simulate(
-        steps=10000,
+        steps=time_steps[args.mesh_file_name],
         displacement_bc_magnitudes=displacement_bc_array,
-        write=500,
+        write=1000,
         write_path=write_path_solutions
         )
 

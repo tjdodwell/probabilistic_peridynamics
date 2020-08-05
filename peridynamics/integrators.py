@@ -126,8 +126,15 @@ class Integrator(ABC):
                 self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                 hostbuf=bond_types)
         elif ((stiffness_corrections is None) and (bond_types is not None)):
-            raise ValueError("bond_types but no stiffness_corrections is "
-                             "not yet supported.")
+            self.bond_force_kernel = self.program.bond_force3
+            self.bond_types_d = cl.Buffer(
+                self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                hostbuf=bond_types)
+            # Placeholder buffers
+            stiffness_corrections = np.array([0], dtype=np.float64)
+            self.stiffness_corrections_d = cl.Buffer(
+                self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                hostbuf=stiffness_corrections)
         elif ((stiffness_corrections is not None)
               and (bond_types is not None)):
             self.bond_force_kernel = self.program.bond_force4
