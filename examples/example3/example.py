@@ -38,9 +38,17 @@ time_steps = {
     '1650beam74800transfinite.msh': 200000,
     '1650beam144900transfinite.msh': 100000,
     '1650beam247500transfinite.msh': 100000,
-    '1650beam74800t.msh': 200000,
-    '1650beam144900t.msh': 100000,
-    '1650beam247500t.msh': 100000}
+    '1650beam74800.msh': 200000,
+    '1650beam144900.msh': 100000,
+    '1650beam247500.msh': 100000}
+
+safety_factors = {
+    '1650beam74800transfinite.msh': 2.0,
+    '1650beam144900transfinite.msh': 2.0,
+    '1650beam247500transfinite.msh': 2.0,
+    '1650beam74800.msh': 2.0,
+    '1650beam144900.msh': 2.0,
+    '1650beam247500.msh': 2.0}
 
 
 def is_material(x):
@@ -190,14 +198,13 @@ def main():
         profile.enable()
 
     # Integrator object
-    saf_fac = 0.5
+    saf_fac = safety_factors[args.mesh_file_name]
     dt = (0.8 * np.power(2.0 * 2400.0 * dx / (
             np.pi
             * np.power(horizon, 2.0)
             * dx
             * bond_stiffness_concrete), 0.5) / saf_fac)
-    print(dt)
-    integrator = EulerCromerCL(dt=1e-5, damping=2.0e6)
+    integrator = EulerCromerCL(dt=dt, damping=2.0e6)
 
     # Model
     if str('transfinite') in args.mesh_file_name:
@@ -222,7 +229,7 @@ def main():
             bond_types=bond_types,
             stiffness_corrections=stiffness_corrections,
             precise_stiffness_correction=0)
-    elif args.mesh_file_name == '1650beam792t.msh':
+    else:
         model = Model(
             mesh_file,
             integrator=integrator,
@@ -249,12 +256,20 @@ def main():
         build_displacement=build_displacements[args.mesh_file_name])
 
     # Simulation
-    u, damage, *_ = model.simulate(
+    (u,
+     damage,
+     connectivity,
+     force,
+     ud,
+     damage_sum_data,
+     tip_displacement_data,
+     *_) = model.simulate(
         steps=time_steps[args.mesh_file_name],
         displacement_bc_magnitudes=displacement_bc_array,
         write=1000,
         write_path=write_path_solutions
         )
+    print('tip_displacement_data', tip_displacement_data)
 
     if args.profile:
         profile.disable()
