@@ -584,6 +584,114 @@ class EulerCromerCL(Integrator):
         return u_d
 
 
+class VelocityVerletCL(Integrator):
+    r"""
+    Velocity-Verlet integrator for OpenCL.
+
+    The Velocity-Verlet method is a second-order numerical integration method.
+    The integration is given by,
+
+    .. math::
+        ud(t + \delta t / 2) = ud(t + \delta t) + (\delta t / 2) udd(t)
+        u(t + \delta t) = u(t) + \delta t ud(t + \delta t / 2)
+        ud(t + \delta t) = ud(t + \delta t / 2) + \delta t ud(t + \delta t / 2)
+
+    where :math:`u(t)` is the displacement at time :math:`t`, :math:`ud(t)` is
+    the velocity at time :math:`t`, :math:`udd(t)` is the acceleration at time
+    :math:`t` and :math:`\delta t` is the time step.
+
+    Given the displacement and velocity vectors of each node at time step n,
+    and by calculating the vector of acceleration from the equation of motion,
+
+    A dynamic relaxation damping term is added for the solution to quickly
+    converge to a steady state solution. By calculating the acceleration
+    which is given by the equation of motion,
+
+    .. math::
+        udd(t) = (f(t) - \eta ud(t)) / \rho
+
+    where :math:`f(t)` is the force at time :math:`t`, :math:`\eta` is the
+    dynamic relaxation damping and :math:`\rho` is the density, the 2nd order
+    accurate displacements of the next time step are given as,
+
+    .. math::
+        u(t + \delta t) = (u(t) + \delta t ud(t + \delta t)
+                           + (\delta t / 2) udd(t))
+    """
+
+    def __init__(self, damping, *args, **kwargs):
+        """
+        Create an :class:`Euler` integrator object.
+
+        :arg float damping: The damping constant with units [kg/(m^3 s)]
+
+        :returns: A :class:`Euler` object
+        """
+        super().__init__(*args, **kwargs)
+
+    def __call__(self, displacement_bc_scale, force_bc_scale):
+        """Conduct one iteration of the integrator."""
+        self._bond_force(
+            self.u_d, self.force_d, self.r0_d, self.vols_d, self.nlist_d,
+            self.force_bc_types_d, self.force_bc_values_d,
+            self.stiffness_corrections_d, self.bond_types_d, self.regimes_d,
+            self.plus_cs_d, self.local_mem_x, self.local_mem_y,
+            self.local_mem_z, self.bond_stiffness_d, self.critical_stretch_d,
+            force_bc_scale, self.nregimes)
+
+        self._update_displacement(
+            self.force_d, self.u_d, self.ud_d, self.bc_types_d,
+            self.bc_values_d, displacement_bc_scale, self.dt)
+
+    def _build_special(self):
+        """Build OpenCL kernels special to the Euler integrator."""
+        if (self.densities is None):
+            raise ValueError(
+                "densities must be supplied when using VelocityVerletCL "
+                "integrator (got {}). This integrator is dynamic "
+                " and requires the density or is_density argument to be "
+                "supplied to :class:Model, alternatively, use a static "
+                " integrator, such as EulerCL.".format(type(self.densities)))
+        else:
+            self.densities_d = cl.Buffer(
+                self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                hostbuf=self.densities)
+
+        kernel_source = open(
+            pathlib.Path(__file__).parent.absolute() /
+            "cl/velocity_verlet.cl").read()
+
+        # Build kernels
+        self.euler_cromer = cl.Program(
+            self.context, kernel_source).build()
+        self.update_displacement_kernel = self.euler_cromer.update_displacement
+        self.partial_update_displacement_kernel = (
+            self.euler_cromer.update_displacement)
+
+    def _set_special_buffers(self):
+        """Set buffers special to the Euler integrator."""
+        udd = np.zeros(self.nnodes, self.degrees_freedom)
+
+        self.udd_d = cl.Buffer(
+            self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+            hostbuf=udd)
+
+    def _update_displacement(
+            self, force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
+            densities_d, displacement_bc_scale, damping, dt):
+        """Update displacements."""
+        queue = self.queue
+        # Call kernel
+        self.update_displacement_kernel(
+                self.queue, (self.degrees_freedom * self.nnodes,), None,
+                force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d, densities_d,
+                np.float64(displacement_bc_scale), np.float64(damping),
+                np.float64(dt)
+                )
+        queue.finish()
+        return u_d
+
+
 class ContextError(Exception):
     """No suitable context was found by :func:`get_context`."""
 
