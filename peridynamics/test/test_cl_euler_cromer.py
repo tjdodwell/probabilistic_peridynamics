@@ -76,8 +76,9 @@ class TestUpdateDisplacement:
         update_displacement_kernel(
             queue, (3 * nnodes,), None,
             force_d, u_d, ud_d, bc_types_d, bc_values_d, densities_d,
-            np.float64(displacement_bc_scale), np.float64(dt),
-            np.float64(damping))
+            np.float64(displacement_bc_scale), np.float64(damping),
+            np.float64(dt)
+            )
         cl.enqueue_copy(queue, u, u_d)
         cl.enqueue_copy(queue, ud, ud_d)
 
@@ -126,8 +127,9 @@ class TestUpdateDisplacement:
         update_displacement_kernel(
             queue, (3 * nnodes,), None,
             force_d, u_d, ud_d, bc_types_d, bc_values_d, densities_d,
-            np.float64(displacement_bc_scale), np.float64(dt),
-            np.float64(damping))
+            np.float64(displacement_bc_scale), np.float64(damping),
+            np.float64(dt)
+            )
         cl.enqueue_copy(queue, u, u_d)
         cl.enqueue_copy(queue, ud, ud_d)
 
@@ -176,8 +178,9 @@ class TestUpdateDisplacement:
         update_displacement_kernel(
             queue, (3 * nnodes,), None,
             force_d, u_d, ud_d, bc_types_d, bc_values_d, densities_d,
-            np.float64(displacement_bc_scale), np.float64(dt),
-            np.float64(damping))
+            np.float64(displacement_bc_scale), np.float64(damping),
+            np.float64(dt)
+            )
         cl.enqueue_copy(queue, u, u_d)
         cl.enqueue_copy(queue, ud, ud_d)
         u_expected = np.array([0.0, 0.0, 6.0])
@@ -228,8 +231,9 @@ class TestUpdateDisplacement:
         update_displacement_kernel(
             queue, (3 * nnodes,), None,
             force_d, u_d, ud_d, bc_types_d, bc_values_d, densities_d,
-            np.float64(displacement_bc_scale), np.float64(dt),
-            np.float64(damping))
+            np.float64(displacement_bc_scale), np.float64(damping),
+            np.float64(dt)
+            )
         cl.enqueue_copy(queue, u, u_d)
         cl.enqueue_copy(queue, ud, ud_d)
         u_expected = np.array([1.0, 1.0, 12.0])

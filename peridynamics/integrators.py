@@ -494,19 +494,27 @@ class EulerCromerCL(Integrator):
     r"""
     Euler Cromer integrator for OpenCL.
 
-    The Euler method is a first-order numerical integration method. The
+    The Euler-Cromer method is a first-order numerical integration method. The
     integration is given by,
 
     .. math::
-        udd(t) = (f(t) - \eta ud(t)) / \rho
         ud(t + \delta t) = ud(t) + \delta t udd(t)
         u(t + \delta t) = u(t) + \delta t ud(t + \delta t)
 
     where :math:`u(t)` is the displacement at time :math:`t`, :math:`ud(t)` is
     the velocity at time :math:`t`, :math:`udd(t)` is the acceleration at time
-    :math:`t`, :math:`f(t)` is the force at time :math:`t`, :math:`\delta t`
-    is the time step,:math:`\eta` is the damping and :math:`\rho` is the
-    density.
+    :math:`t`, and :math:`\delta t` is the time step
+
+    A dynamic relaxation damping term is added for the solution to quickly
+    converge to a steady state solution, so that the equation of motion is
+    given by,
+
+    .. math::
+        udd(t) = (f(t) - \eta ud(t)) / \rho
+
+    where :math:`udd(t)` is the acceleration at time :math:`t`, :math:`f(t)`
+    is the force at time :math:`t`, :math:`\eta` is the dynamic relaxation
+    damping and :math:`\rho` is the density.
     """
 
     def __init__(self, damping, *args, **kwargs):
@@ -531,7 +539,8 @@ class EulerCromerCL(Integrator):
 
         self._update_displacement(
             self.force_d, self.u_d, self.ud_d, self.bc_types_d,
-            self.bc_values_d, displacement_bc_scale, self.dt)
+            self.bc_values_d, self.densities_d, displacement_bc_scale,
+            self.damping, self.dt)
 
     def _build_special(self):
         """Build OpenCL kernels special to the Euler integrator."""
@@ -568,8 +577,9 @@ class EulerCromerCL(Integrator):
         self.update_displacement_kernel(
                 self.queue, (self.degrees_freedom * self.nnodes,), None,
                 force_d, u_d, ud_d, bc_types_d, bc_values_d, densities_d,
-                np.float64(displacement_bc_scale), np.float64(dt),
-                np.float64(damping))
+                np.float64(displacement_bc_scale), np.float64(damping),
+                np.float64(dt)
+                )
         queue.finish()
         return u_d
 

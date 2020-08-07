@@ -9,8 +9,8 @@ __kernel void
 		__global double const* bc_values,
         __global double const* densities,
         double bc_scale,
-        double dt,
-        double damping
+        double damping,
+        double dt
 	){
     /* Calculate the dispalcement and velocity of each node using an
      * Euler Cromer integrator.
