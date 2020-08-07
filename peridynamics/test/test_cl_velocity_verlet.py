@@ -266,3 +266,4 @@ class TestUpdateDisplacement:
 
         assert np.all(u == u_expected)
         assert np.all(ud == ud_expected)
+        assert np.all(udd == udd_expected)
