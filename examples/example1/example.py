@@ -90,8 +90,12 @@ def main():
         profile.enable()
 
     if args.opencl:
+        # The :class:`peridynamics.integrators.EulerCL` class is the OpenCL
+        # implementation of the explicit Euler integration scheme.
         integrator = EulerCL(dt=1e-3)
     else:
+        # The :class:`peridynamics.integrators.Euler` class is the cython
+        # implementation of the explicit Euler integration scheme.
         integrator = Euler(dt=1e-3)
 
     # The bond_stiffness, also known as the micromodulus, of the peridynamic
@@ -100,6 +104,8 @@ def main():
     # An arbritrary value of the critical_stretch = 0.005m is used.
     horizon = 0.1
     bond_stiffness = 18.00 * 0.05 / (np.pi * horizon**4)
+    # The :class:`peridynamics.model.Model` defines and calculates the
+    # connectivity of the model, as well as the boundary conditions and crack.
     model = Model(
         mesh_file, integrator=integrator, horizon=horizon,
         critical_stretch=0.005, bond_stiffness=bond_stiffness,
@@ -115,6 +121,9 @@ def main():
     # left and right hand side) of 5mm.
     displacement_bc_array = np.linspace(2.5e-6, 2.5e-3, steps)
 
+    # The :meth:`Model.simulate` method can be used to conduct a peridynamics
+    # simulation. Here it is possible to define the boundary condition
+    # magnitude throughout the simulation.
     u, damage, *_ = model.simulate(
         steps=steps,
         displacement_bc_magnitudes=displacement_bc_array,

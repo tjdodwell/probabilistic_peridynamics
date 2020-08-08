@@ -107,14 +107,20 @@ class Model(object):
         >>>     )
 
     The :meth:`Model.simulate` method can be used to conduct a peridynamics
-    simulation. Here it is possible to define the boundary conditions
+    simulation. Here it is possible to define the boundary condition magnitude
+    throughout the simulation.
 
         >>> model = Model(...)
         >>>
+        >>> # Number of time-steps
+        >>> steps = 1000
+        >>>
+        >>> # Boundary condition magnitude throughout the simulation
+        >>> displacement_bc_array = np.linspace(2.5e-6, 2.5e-3, steps)
         >>>
         >>> u, damage, *_ = model.simulate(
-        >>>     steps=1000,
-        >>>     max_displacement_rate=0.000005/2,
+        >>>     steps=steps,
+        >>>     displacement_bc_magnitudes=displacement_bc_array,
         >>>     write=100
         >>>     )
     """
@@ -208,9 +214,9 @@ class Model(object):
             in each cartesian direction.
             A boundary type with an int value of None if the particle is not
             on a displacement controlled boundary, a value of 1 if is is on a
-            boundary and loaded in the positive cartesian direction, and a
-            value of -1 if it is on the boundary and loaded in the negative
-            direction, and a value of 0 if it is not loaded.
+            boundary and displaced in the positive cartesian direction, a
+            value of -1 if it is on the boundary and displaced in the negative
+            direction, and a value of 0 if it is clamped.
         :type is_displacement_boundary: function
         :arg is_force_boundary: As 'is_displacement_boundary' but applying to
             force boundary conditions as opposed to displacement boundary
