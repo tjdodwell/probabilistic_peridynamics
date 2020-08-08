@@ -29,10 +29,10 @@ class Model(object):
     optionally functions implementing the boundarys.
 
     The :class:`peridynamics.integrators.Integrator` is the explicit time
-    integration method (see integrators.py for options). Any integrator
-    with the suffix 'CL' uses OpenCL kernels to calculate the bond force and
-    displacement update, resulting in orders of magnitude faster simulation
-    time when compared to using the cython implementation,
+    integration method, see :mod:`peridynamics.integrators` for options.
+    Any integrator with the suffix 'CL' uses OpenCL kernels to calculate the
+    bond force and displacement update, resulting in orders of magnitude faster
+    simulation time when compared to using the cython implementation,
     :class:`peridynamics.integrators.Euler`. OpenCL is 'heterogeneous' which
     means the 'CL' integrator classes will work on a CPU device as well as a
     GPU device. This implementation automatically choses the preferable
@@ -130,6 +130,15 @@ class Model(object):
                  precise_stiffness_correction=None):
         """
         Create a :class:`ModelCLBen` object.
+
+        Note that nnodes is the number of nodes in the mesh. nbond_types is
+        the number of different bonds, i.e. the number of damage models (e.g.
+        there might be a damage model for each material and interface
+        in a composite). nregimes is the number of linear splines that define
+        the damage model (e.g. An n-linear damage model has nregimes = n. The
+        bond-based prototype microelastic brittle (PMB) model has nregimes = 1.
+        Note that nregimes and nbond_types are defined by the size of the
+        critical_stretch and bond_stiffness positional arguments.
 
         :arg str mesh_file: Path of the mesh file defining the systems nodes
             and connectivity.
@@ -702,8 +711,9 @@ class Model(object):
         :arg is_bond_type: A function that returns an integer value (a
             flag) of the bond type, given two node coordinates as input.
         :type is_bond_type: function
-        :arg int nbond_types: The expected number of damage models, one
-            for each type of bond.
+        :arg int nbond_types: The number of different bonds; the number of
+        damage models, for example there might be a damage model for each
+        material and interface in a composite.
         :arg int nbond_types: The expected number of regimes in the damage
             model.
         :arg write_path: The path where the vtk files should be written.
@@ -835,9 +845,10 @@ class Model(object):
         Calculate the parameters for the damage models.
 
         Calculates the `+ c`s (c.f. `y = mx + c`) for the n-linear
-        damage models for each bond type, where n is nregimes, e.g. linear,
-        bi-linear, tri-linear, etc. from the bond_stiffness and
-        critical_stretch values provided.
+        damage model for each bond type, where n is nregimes is the number of
+        linear splines that define the damage model (e.g. An n-linear damage
+        model has nregimes = n. The bond-based prototype microelastic brittle
+        (PMB) model has nregimes = 1.
 
         :arg bond_stiffness: An (nregimes, nbond_types) array of bond
             stiffness values, each corresponding to a bond type and a regime.
@@ -845,7 +856,6 @@ class Model(object):
         :arg critical_stretch: An (n_regimes, nbond_types) array of critical
             stretch values, each corresponding to a bond type and a regime.
         :type critical_stretch: list or :class:`numpy.ndarray`
-        :arg int n_regimes:
 
         :returns: A tuple of the damage model:
             bond_stiffness, a float or array of the bond stiffness(es);
