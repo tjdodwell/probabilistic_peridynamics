@@ -28,8 +28,18 @@ class Model(object):
     this an :class:`peridynamics.integrators.Integrator` is required, and
     optionally functions implementing the boundarys.
 
+    The :class:`peridynamics.integrators.Integrator` is the explicit time
+    integration method (see integrators.py for options). Any integrator
+    with the suffix 'CL' uses OpenCL kernels to calculate the bond force and
+    displacement update, resulting in orders of magnitude faster simulation
+    time when compared to using the cython implementation,
+    :class:`peridynamics.integrators.Euler`. OpenCL is 'heterogeneous' which
+    means the 'CL' integrator classes will work on a CPU device as well as a
+    GPU device. This implementation automatically choses the preferable
+    (faster) device.
+
         >>> from peridynamics import Model
-        >>> from peridynamics.integrators import Euler
+        >>> from peridynamics.integrators import EulerCL
         >>>
         >>> def is_displacement_boundary(x):
         >>>     # Particle does not live on a boundary
@@ -42,6 +52,9 @@ class Model(object):
         >>>         # Displacement BCs are applied in positive x direction
         >>>         bnd[0] = 1
         >>>     return bnd
+        >>>
+        >>> # for the cython implementation, use euler = Euler(dt)
+        >>> euler = EulerCL(dt=1e-3)
         >>>
         >>> model = Model(
         >>>     mesh_file,
