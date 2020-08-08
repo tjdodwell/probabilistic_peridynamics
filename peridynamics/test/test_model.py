@@ -659,7 +659,6 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_2d
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            model.horizon, model.initial_connectivity,
             precise_stiffness_correction=0, write_path=None)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d.npy")
@@ -672,7 +671,6 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using precise nodal volumes."""
         model, integrator = basic_model_2d
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            model.horizon, model.initial_connectivity,
             precise_stiffness_correction=1, write_path=None)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d_precise.npy")
@@ -685,7 +683,6 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_3d
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            model.horizon, model.initial_connectivity,
             precise_stiffness_correction=0, write_path=None)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d.npy")
@@ -699,7 +696,6 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_2d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            model.horizon, model.initial_connectivity,
             precise_stiffness_correction=0, write_path=None)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d_cl.npy")
@@ -713,7 +709,6 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using precise nodal volumes."""
         model, integrator = basic_model_2d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            model.horizon, model.initial_connectivity,
             precise_stiffness_correction=1, write_path=None)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d_precise_cl.npy")
@@ -727,7 +722,6 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_3d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            model.horizon, model.initial_connectivity,
             precise_stiffness_correction=0, write_path=None)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d_cl.npy")
@@ -741,7 +735,6 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using precise nodal volumes."""
         model, integrator = basic_model_3d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            model.horizon, model.initial_connectivity,
             precise_stiffness_correction=1, write_path=None)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d_precise_cl.npy")
@@ -1003,18 +996,22 @@ class TestBoundaryConditions:
                    + " of length *3* of floats or None" in exception.value)
 
     def test_no_boundary_function(self, data_path, request):
-        """Ensure no boundary function works correctly."""
+        """Ensure no boundary function works as expected."""
         mesh_file = data_path / "example_mesh.vtk"
         euler = Euler(dt=1e-3)
 
         def is_displacement_boundary(x):
             return [None, None, None]
 
+        def is_force_boundary(x):
+            return [None, None, None]
+
         model = Model(
             mesh_file, integrator=euler, horizon=0.1,
             critical_stretch=0.05,
             bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
-            is_displacement_boundary=is_displacement_boundary)
+            is_displacement_boundary=is_displacement_boundary,
+            is_force_boundary=is_force_boundary)
 
         u, damage, connectivity, *_ = model.simulate(
             steps=2,
@@ -1038,6 +1035,64 @@ class TestBoundaryConditions:
         assert np.all(damage == expected_damage)
         assert np.all(connectivity[0] == expected_connectivity[0])
         assert np.all(connectivity[1] == expected_connectivity[1])
+
+    def test_boundary_function(self, data_path, request):
+        """Regression test for _set_boundary_conditions function."""
+        mesh_file = data_path / "example_mesh.vtk"
+        euler = Euler(dt=1e-3)
+
+        def is_displacement_boundary(x):
+            bnd = [None, None, None]
+            if x[0] < 0.1:
+                bnd[0] = -1
+            elif x[0] > 0.9:
+                bnd[0] = 1
+            return bnd
+
+        def is_force_boundary(x):
+            bnd = [None, None, None]
+            if x[0] < 0.1:
+                bnd[0] = -1
+            elif x[0] > 0.9:
+                bnd[0] = 1
+            return bnd
+
+        def is_tip(x):
+            bnd = [None, None, None]
+            if x[0] < 0.1:
+                bnd[0] = 1
+            return bnd
+
+        model = Model(
+            mesh_file, integrator=euler, horizon=0.1,
+            critical_stretch=0.05,
+            bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+            is_displacement_boundary=is_displacement_boundary,
+            is_force_boundary=is_force_boundary,
+            is_tip=is_tip)
+
+        (bc_types,
+         bc_values,
+         force_bc_types,
+         force_bc_values,
+         tip_types) = model._set_boundary_conditions(
+            is_displacement_boundary=is_displacement_boundary,
+            is_force_boundary=is_force_boundary,
+            is_tip=is_tip)
+
+        expected_bc_types = np.load(data_path/"expected_bc_types.npy")
+        expected_bc_values = np.load(data_path/"expected_bc_values.npy")
+        expected_force_bc_types = np.load(
+            data_path/"expected_force_bc_types.npy")
+        expected_force_bc_values = np.load(
+            data_path/"expected_force_bc_values.npy")
+        expected_tip_types = np.load(data_path/"expected_tip_types.npy")
+
+        assert np.allclose(bc_types, expected_bc_types)
+        assert np.allclose(bc_values, expected_bc_values)
+        assert np.allclose(force_bc_types, expected_force_bc_types)
+        assert np.allclose(force_bc_values, expected_force_bc_values)
+        assert np.allclose(tip_types, expected_tip_types)
 
 
 class TestIntegrator:

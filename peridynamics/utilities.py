@@ -47,10 +47,8 @@ def read_array(read_path, dataset):
                     "that file path.".format(dataset, read_path, dataset))
     except IOError:
         warnings.warn(
-            "The {} file does not appear to exist yet. Please set a "
-            "write_path keyword argument in `Model` and the {} array will "
-            "be created and then written to that file path.".format(
-                read_path, dataset))
+            "The {} file does not appear to exist yet.".format(
+                read_path))
         return None
 
 

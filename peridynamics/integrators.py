@@ -173,7 +173,8 @@ class Integrator(ABC):
 
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs, u,
-            ud, force, damage, regimes, nregimes, nbond_types):
+            ud, udd, force, body_force, damage, regimes, nregimes,
+            nbond_types):
         """
         Initialise the OpenCL buffers.
 
@@ -223,9 +224,14 @@ class Integrator(ABC):
         self.ud_d = cl.Buffer(
             self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=ud)
+        self.udd_d = cl.Buffer(
+            self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+            hostbuf=udd)
         # Write only
         self.damage_d = cl.Buffer(
             self.context, mf.WRITE_ONLY, damage.nbytes)
+        self.body_force_d = cl.Buffer(
+            self.context, mf.WRITE_ONLY, body_force.nbytes)
         self.n_neigh_d = cl.Buffer(
             self.context, mf.WRITE_ONLY, n_neigh.nbytes)
 
@@ -243,7 +249,7 @@ class Integrator(ABC):
         queue.finish()
 
     def _bond_force(
-            self, u_d, force_d, r0_d, vols_d, nlist_d,
+            self, u_d, force_d, body_force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
             bond_types_d, regimes_d, plus_cs_d, local_mem_x, local_mem_y,
             local_mem_z, bond_stiffness_d, critical_stretch_d, force_bc_scale,
@@ -253,15 +259,15 @@ class Integrator(ABC):
         # Call kernel
         self.bond_force_kernel(
                 queue, (self.nnodes * self.max_neighbours,),
-                (self.max_neighbours,), u_d, force_d, r0_d, vols_d, nlist_d,
-                force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
-                bond_types_d, regimes_d, plus_cs_d, local_mem_x,
-                local_mem_y, local_mem_z, bond_stiffness_d,
+                (self.max_neighbours,), u_d, force_d, body_force_d, r0_d,
+                vols_d, nlist_d, force_bc_types_d, force_bc_values_d,
+                stiffness_corrections_d, bond_types_d, regimes_d, plus_cs_d,
+                local_mem_x, local_mem_y, local_mem_z, bond_stiffness_d,
                 critical_stretch_d, np.float64(force_bc_scale),
                 np.intc(nregimes))
         queue.finish()
 
-    def write(self, u, ud, force, damage, nlist, n_neigh):
+    def write(self, u, ud, udd, force, body_force, damage, nlist, n_neigh):
         """Copy the state variables from device memory to host memory."""
         queue = self.queue
         # Calculate the damage
@@ -271,10 +277,12 @@ class Integrator(ABC):
         cl.enqueue_copy(queue, damage, self.damage_d)
         cl.enqueue_copy(queue, u, self.u_d)
         cl.enqueue_copy(queue, ud, self.ud_d)
+        cl.enqueue_copy(queue, udd, self.udd_d)
         cl.enqueue_copy(queue, force, self.force_d)
+        cl.enqueue_copy(queue, body_force, self.body_force_d)
         cl.enqueue_copy(queue, nlist, self.nlist_d)
         cl.enqueue_copy(queue, n_neigh, self.n_neigh_d)
-        return (u, ud, force, damage, nlist, n_neigh)
+        return (u, ud, udd, force, body_force, damage, nlist, n_neigh)
 
 
 class Euler(Integrator):
@@ -317,7 +325,8 @@ class Euler(Integrator):
 
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
-            u, ud, force, damage, regimes, nregimes, nbond_types):
+            u, ud, udd, force, body_force, damage, regimes, nregimes,
+            nbond_types):
         """
         Initiate arrays that are dependent on simulation parameters.
 
@@ -327,18 +336,20 @@ class Euler(Integrator):
         if nregimes != 1:
             raise ValueError("n-linear damage model's are not supported by "
                              "this integrator. Please supply just one "
-                             "bond_stiffness")
+                             "bond_stiffness.")
         if nbond_types != 1:
             raise ValueError("n-material composite models are not supported by"
                              " this integrator. Please supply just one "
-                             "material type and bond_stiffness")
+                             "material type and bond_stiffness.")
         self.nlist = nlist
         self.n_neigh = n_neigh
         self.bond_stiffness = bond_stiffness
         self.critical_stretch = critical_stretch
         self.u = u
         self.ud = ud
+        self.udd = udd
         self.force = force
+        self.body_force = body_force
 
     def build(
             self, nnodes, degrees_freedom, max_neighbours, coords,
@@ -363,13 +374,13 @@ class Euler(Integrator):
         if (bond_types is not None):
             raise ValueError("bond_types are not supported by this "
                              "integrator (expected {}, got {}), please use "
-                             "EulerOpenCL instead".format(
+                             "EulerCL instead".format(
                                  type(None),
                                  type(bond_types)))
         if (stiffness_corrections is not None):
             raise ValueError("stiffness_corrections are not supported by this "
                              "integrator (expected {}, got {}), please use "
-                             "EulerOpenCL instead".format(
+                             "EulerCL instead".format(
                                  type(None),
                                  type(stiffness_corrections)))
         if (densities is not None):
@@ -410,10 +421,11 @@ class Euler(Integrator):
             self.force_bc_types, force_bc_scale)
         return force
 
-    def write(self, damage, u, ud, force, nlist, n_neigh):
+    def write(self, damage, u, ud, udd, force, body_force, nlist, n_neigh):
         """Return the state variable arrays."""
         damage = self._damage(self.n_neigh)
-        return (self.u, self.ud, self.force, damage, self.nlist, self.n_neigh)
+        return (self.u, self.ud, self.udd, self.force, self.body_force, damage,
+                self.nlist, self.n_neigh)
 
 
 class EulerCL(Integrator):
@@ -441,8 +453,8 @@ class EulerCL(Integrator):
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """Conduct one iteration of the integrator."""
         self._bond_force(
-            self.u_d, self.force_d, self.r0_d, self.vols_d, self.nlist_d,
-            self.force_bc_types_d, self.force_bc_values_d,
+            self.u_d, self.force_d, self.body_force_d, self.r0_d, self.vols_d,
+            self.nlist_d, self.force_bc_types_d, self.force_bc_values_d,
             self.stiffness_corrections_d, self.bond_types_d, self.regimes_d,
             self.plus_cs_d, self.local_mem_x, self.local_mem_y,
             self.local_mem_z, self.bond_stiffness_d, self.critical_stretch_d,
@@ -526,19 +538,20 @@ class EulerCromerCL(Integrator):
         :returns: A :class:`Euler` object
         """
         super().__init__(*args, **kwargs)
+        self.damping = damping
 
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """Conduct one iteration of the integrator."""
         self._bond_force(
-            self.u_d, self.force_d, self.r0_d, self.vols_d, self.nlist_d,
-            self.force_bc_types_d, self.force_bc_values_d,
+            self.u_d, self.force_d, self.body_force_d, self.r0_d, self.vols_d,
+            self.nlist_d, self.force_bc_types_d, self.force_bc_values_d,
             self.stiffness_corrections_d, self.bond_types_d, self.regimes_d,
             self.plus_cs_d, self.local_mem_x, self.local_mem_y,
             self.local_mem_z, self.bond_stiffness_d, self.critical_stretch_d,
             force_bc_scale, self.nregimes)
 
         self._update_displacement(
-            self.force_d, self.u_d, self.ud_d, self.bc_types_d,
+            self.force_d, self.u_d, self.ud_d, self.udd_d, self.bc_types_d,
             self.bc_values_d, self.densities_d, displacement_bc_scale,
             self.damping, self.dt)
 
@@ -569,16 +582,16 @@ class EulerCromerCL(Integrator):
         """Set buffers special to the Euler integrator."""
 
     def _update_displacement(
-            self, force_d, u_d, ud_d, bc_types_d, bc_values_d, densities_d,
-            displacement_bc_scale, damping, dt):
+            self, force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
+            densities_d, displacement_bc_scale, damping, dt):
         """Update displacements."""
         queue = self.queue
         # Call kernel
         self.update_displacement_kernel(
                 self.queue, (self.degrees_freedom * self.nnodes,), None,
-                force_d, u_d, ud_d, bc_types_d, bc_values_d, densities_d,
-                np.float64(displacement_bc_scale), np.float64(damping),
-                np.float64(dt)
+                force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
+                densities_d, np.float64(displacement_bc_scale),
+                np.float64(damping), np.float64(dt)
                 )
         queue.finish()
         return u_d
@@ -628,12 +641,13 @@ class VelocityVerletCL(Integrator):
         :returns: A :class:`Euler` object
         """
         super().__init__(*args, **kwargs)
+        self.damping = damping
 
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """Conduct one iteration of the integrator."""
         self._bond_force(
-            self.u_d, self.force_d, self.r0_d, self.vols_d, self.nlist_d,
-            self.force_bc_types_d, self.force_bc_values_d,
+            self.u_d, self.force_d, self.body_force_d, self.r0_d, self.vols_d,
+            self.nlist_d, self.force_bc_types_d, self.force_bc_values_d,
             self.stiffness_corrections_d, self.bond_types_d, self.regimes_d,
             self.plus_cs_d, self.local_mem_x, self.local_mem_y,
             self.local_mem_z, self.bond_stiffness_d, self.critical_stretch_d,
@@ -670,11 +684,6 @@ class VelocityVerletCL(Integrator):
 
     def _set_special_buffers(self):
         """Set buffers special to the Euler integrator."""
-        udd = np.zeros(self.nnodes, self.degrees_freedom)
-
-        self.udd_d = cl.Buffer(
-            self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
-            hostbuf=udd)
 
     def _update_displacement(
             self, force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
@@ -684,9 +693,9 @@ class VelocityVerletCL(Integrator):
         # Call kernel
         self.update_displacement_kernel(
                 self.queue, (self.degrees_freedom * self.nnodes,), None,
-                force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d, densities_d,
-                np.float64(displacement_bc_scale), np.float64(damping),
-                np.float64(dt)
+                force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
+                densities_d, np.float64(displacement_bc_scale),
+                np.float64(damping), np.float64(dt)
                 )
         queue.finish()
         return u_d

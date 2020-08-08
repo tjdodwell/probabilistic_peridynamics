@@ -32,7 +32,7 @@ def program(context):
     return cl.Program(context, kernel_source).build()
 
 
-class TestBondForce():
+class TestBondForce:
     """Test force calculation for the simple bond_force kernel."""
 
     @context_available
@@ -49,6 +49,7 @@ class TestBondForce():
         horizon = 1.1
         nnodes = 5
         u = np.zeros((nnodes, 3), dtype=np.float64)
+        body_force = np.zeros((nnodes, 3), dtype=np.float64)
         volume = np.ones(nnodes, dtype=np.float64)
         nregimes = 1
         bond_stiffness = 1.0
@@ -104,11 +105,14 @@ class TestBondForce():
             hostbuf=stiffness_corrections)
         bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                                  hostbuf=bond_types)
+        body_force_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                                 hostbuf=body_force)
+
         # Call kernel
         bond_force = program.bond_force1
         bond_force(
             queue, (nnodes * max_neigh,),
-            (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
+            (max_neigh,), u_d, force_d, body_force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
             bond_types_d, regimes_d, plus_cs_d, local_mem_x,
             local_mem_y, local_mem_z, np.float64(bond_stiffness),
@@ -139,6 +143,7 @@ class TestBondForce():
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
+        body_force = np.zeros((nnodes, 3), dtype=np.float64)
 
         # Displace particles
         u = np.array([
@@ -197,12 +202,14 @@ class TestBondForce():
             hostbuf=stiffness_corrections)
         bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                                  hostbuf=bond_types)
+        body_force_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                                 hostbuf=body_force)
 
         # Call kernel
         bond_force = program.bond_force1
         bond_force(
             queue, (nnodes * max_neigh,),
-            (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
+            (max_neigh,), u_d, force_d, body_force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
             bond_types_d, regimes_d, plus_cs_d, local_mem_x,
             local_mem_y, local_mem_z, np.float64(bond_stiffness),
@@ -235,6 +242,7 @@ class TestBondForce():
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
+        body_force = np.zeros((nnodes, 3), dtype=np.float64)
 
         nlist_expected = np.array([
             [1, 2, 4, -1],
@@ -309,13 +317,15 @@ class TestBondForce():
             hostbuf=stiffness_corrections)
         bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                                  hostbuf=bond_types)
+        body_force_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                                 hostbuf=body_force)
 
         # Call kernel
         bond_force = program.bond_force1
         damage_kernel = program.damage
         bond_force(
             queue, (nnodes * max_neigh,),
-            (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
+            (max_neigh,), u_d, force_d, body_force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
             bond_types_d, regimes_d, plus_cs_d, local_mem_x,
             local_mem_y, local_mem_z, np.float64(bond_stiffness),
@@ -346,7 +356,7 @@ class TestBondForce():
         assert np.allclose(damage, damage_expected)
 
 
-class TestBondForce2():
+class TestBondForce2:
     """Test force calculation with stiffness corrections."""
 
     @context_available
@@ -370,6 +380,7 @@ class TestBondForce2():
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
         stiffness_corrections = np.ones((nnodes, max_neigh), dtype=np.float64)
+        body_force = np.zeros((nnodes, 3), dtype=np.float64)
 
         # Displace particles
         u = np.array([
@@ -427,12 +438,14 @@ class TestBondForce2():
                               hostbuf=regimes)
         bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                                  hostbuf=bond_types)
+        body_force_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                                 hostbuf=body_force)
 
         # Call kernel
         bond_force = program.bond_force2
         bond_force(
             queue, (nnodes * max_neigh,),
-            (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
+            (max_neigh,), u_d, force_d, body_force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
             bond_types_d, regimes_d, plus_cs_d, local_mem_x,
             local_mem_y, local_mem_z, np.float64(bond_stiffness),
@@ -463,6 +476,7 @@ class TestBondForce2():
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
+        body_force = np.zeros((nnodes, 3), dtype=np.float64)
         stiffness_corrections = np.array(
             [[4.0, 1.0, 1.0, 1.0],
              [4.0, 2.0, 1.0, 1.0],
@@ -524,12 +538,14 @@ class TestBondForce2():
                               hostbuf=regimes)
         bond_types_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                                  hostbuf=bond_types)
+        body_force_d = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                                 hostbuf=body_force)
 
         # Call kernel
         bond_force = program.bond_force2
         bond_force(
             queue, (nnodes * max_neigh,),
-            (max_neigh,), u_d, force_d, r0_d, vols_d, nlist_d,
+            (max_neigh,), u_d, force_d, body_force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
             bond_types_d, regimes_d, plus_cs_d, local_mem_x,
             local_mem_y, local_mem_z, np.float64(bond_stiffness),

@@ -1,4 +1,10 @@
-"""A simple, 2D peridynamics simulation example."""
+"""
+A simple, 2D peridynamics simulation example.
+
+This example is a 1.0m x 1.0m 2D plate with a central pre-crack subjected to
+uniform velocity displacements on the left-hand side and righ-hand side of
+2.5x10^-6 metres per time-step.
+"""
 import argparse
 import cProfile
 from io import StringIO
@@ -42,7 +48,7 @@ def is_tip(x):
     # Particle does not live on tip
     tip = [None, None, None]
     # Particle does live on tip
-    if x[0] > 1.0 - 0.1:
+    if x[0] > 0.9:
         tip[0] = 1
     return tip
 
@@ -59,24 +65,10 @@ def is_displacement_boundary(x):
     # Particle does not live on a boundary
     bnd = [None, None, None]
     # Particle does live on boundary
-    if x[0] < 1.5 * 0.1:
+    if x[0] < 0.15:
         bnd[0] = -1
-    elif x[0] > 1.0 - 1.5 * 0.1:
+    elif x[0] > 0.85:
         bnd[0] = 1
-    return bnd
-
-
-def is_forces_boundary(x):
-    """
-    Return if the particle coordinate is a force boundary.
-
-    Marks types of body force on the particles
-    None is no boundary condition (the number here is an arbitrary choice)
-    -1 is force loaded IN -ve direction
-    1 is force loaded IN +ve direction
-    """
-    # Particle does not live on forces boundary
-    bnd = [None, None, None]
     return bnd
 
 
@@ -99,12 +91,11 @@ def main():
         mesh_file, integrator=integrator, horizon=0.1, critical_stretch=0.005,
         bond_stiffness=18.00 * 0.05 / (np.pi * 0.1**4),
         is_displacement_boundary=is_displacement_boundary,
-        is_forces_boundary=is_forces_boundary,
         is_tip=is_tip, dimensions=2, initial_crack=is_crack)
 
     # Example function for calculating the boundary conditions magnitudes
     displacement_bc_array, *_ = calc_boundary_conditions_magnitudes(
-        steps=1000, max_displacement_rate=0.000005/2)
+        steps=1000, max_displacement_rate=0.0000025)
 
     u, damage, *_ = model.simulate(
         steps=1000,

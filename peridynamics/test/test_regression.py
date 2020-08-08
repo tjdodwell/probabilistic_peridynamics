@@ -77,7 +77,6 @@ class TestRegression:
         actual_force = force
         assert np.all(expected_force == actual_force)
 
-    @pytest.mark.skip(reason="Stalling")
     def test_mesh_cython(self, regression_cython, data_path, tmp_path):
         """Ensure mesh file is identical."""
         model, displacements, damage, *_ = regression_cython
@@ -117,7 +116,6 @@ class TestRegression:
         actual_force = force
         assert np.allclose(expected_force, actual_force)
 
-    @pytest.mark.skip(reason="Stalling")
     def test_mesh_cl(self, regression_cl, data_path, tmp_path):
         """Ensure mesh file is identical."""
         model, displacements, damage, *_ = regression_cl

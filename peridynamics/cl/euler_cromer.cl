@@ -5,6 +5,7 @@ __kernel void
         __global double const* force,
         __global double* u,
         __global double* ud,
+        __global double* udd,
         __global int const* bc_types,
 		__global double const* bc_values,
         __global double const* densities,
@@ -25,7 +26,8 @@ __kernel void
      * damping - The damping constant in [kg/(m^3 s)] */
 	const int i = get_global_id(0);
 
-    double udd = (force[i] - damping * ud[i]) / densities[i];
-    ud[i] += udd * dt;
+    double uddi = (force[i] - damping * ud[i]) / densities[i];
+    udd[i] = uddi;
+    ud[i] += uddi * dt;
     u[i] = (bc_types[i] == 0 ? (u[i] + dt * ud[i]) : (bc_scale * bc_values[i]));
 }
