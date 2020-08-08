@@ -2,7 +2,7 @@
 A simple, 2D peridynamics simulation example.
 
 This example is a 1.0m x 1.0m 2D plate with a central pre-crack subjected to
-uniform velocity displacements on the left-hand side and righ-hand side of
+uniform velocity displacements on the left-hand side and right-hand side of
 2.5x10^-6 metres per time-step.
 """
 import argparse
@@ -13,10 +13,12 @@ import pathlib
 from peridynamics import Model
 from peridynamics.model import initial_crack_helper
 from peridynamics.integrators import EulerCL, Euler
-from peridynamics.utilities import calc_boundary_conditions_magnitudes
 from pstats import SortKey, Stats
 
 
+# The .msh file is a finite element mesh generated with a finite
+# element mesh generator. 'test.vtk' was generated with gmsh and
+# contains 2113 nodes.
 mesh_file = pathlib.Path(__file__).parent.absolute() / "test.vtk"
 
 
@@ -55,12 +57,16 @@ def is_tip(x):
 
 def is_displacement_boundary(x):
     """
-    Return if the particle coordinate is a displacement boundary.
+    Return a boolean list of displacement boundarys for each direction.
 
-    Function which marks displacement boundary constrained particles. Returns
-    a list (3) for constraint in each direction. None is no boundary condition,
-    -1 is displacement loaded IN -ve direction, 1 is displacement loaded IN +ve
-    direction, 0 is clamped boundary.
+    Returns a (3,) boolean list, whose elements are:
+        None where there is no boundary condition;
+        -1 where the boundary is displacement loaded in negative direction;
+        1 where the boundary is displacement loaded in positive direction;
+        0 where the boundary is clamped;
+
+    :arg x: Particle coordinate array of size (3,).
+    :type x: :class:`numpy.ndarray`
     """
     # Particle does not live on a boundary
     bnd = [None, None, None]
@@ -76,6 +82,7 @@ def main():
     """Conduct a peridynamics simulation."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--profile', action='store_const', const=True)
+    # The --opencl argument toggles between OpenCL and cython implementations
     parser.add_argument('--opencl', action='store_const', const=True)
     args = parser.parse_args()
     if args.profile:
@@ -87,18 +94,29 @@ def main():
     else:
         integrator = Euler(dt=1e-3)
 
+    # The bond_stiffness, also known as the micromodulus, of the peridynamic
+    # bond, using Silling's (2005) derivation for the prototype microelastic
+    # brittle (PMB) material model.
+    # An arbritrary value of the critical_stretch = 0.005m is used.
+    horizon = 0.1
+    bond_stiffness = 18.00 * 0.05 / (np.pi * horizon**4)
     model = Model(
-        mesh_file, integrator=integrator, horizon=0.1, critical_stretch=0.005,
-        bond_stiffness=18.00 * 0.05 / (np.pi * 0.1**4),
+        mesh_file, integrator=integrator, horizon=horizon,
+        critical_stretch=0.005, bond_stiffness=bond_stiffness,
         is_displacement_boundary=is_displacement_boundary,
         is_tip=is_tip, dimensions=2, initial_crack=is_crack)
 
-    # Example function for calculating the boundary conditions magnitudes
-    displacement_bc_array, *_ = calc_boundary_conditions_magnitudes(
-        steps=1000, max_displacement_rate=0.0000025)
+    # The simulation will have 1000 time steps, and last
+    # dt * steps = 1e-3 * 1000 = 1.0 seconds
+    steps = 1000
+
+    # The boundary condition magnitudes will be applied at a rate of
+    # 2.5e-6 m per time-step, giving a total final displacement (the sum of the
+    # left and right hand side) of 5mm.
+    displacement_bc_array = np.linspace(2.5e-6, 2.5e-3, steps)
 
     u, damage, *_ = model.simulate(
-        steps=1000,
+        steps=steps,
         displacement_bc_magnitudes=displacement_bc_array,
         write=100)
 

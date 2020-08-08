@@ -10,7 +10,6 @@ model are calculated, they are also stored in file '1650beam13539_model.h5'.
 In subsequent simulations, the arrays are loaded from this h5 file instead of
 being calculated again, therefore reducing the overhead of initiating the
 model.
-
 """
 import argparse
 import cProfile
@@ -21,6 +20,12 @@ from peridynamics import Model
 from peridynamics.integrators import EulerCromerCL
 from peridynamics.utilities import read_array as read_model
 from pstats import SortKey, Stats
+
+
+# The .msh file is a finite element mesh generated with  a finite
+# element mesh generator. '1650beam5153.msh' was generated with gmsh and
+# contains 13539 nodes.
+mesh_file = pathlib.Path(__file__).parent.absolute() / '1650beam13539.msh'
 
 
 def is_tip(x):
@@ -59,7 +64,7 @@ def is_displacement_boundary(x):
     """
     Return a boolean list of displacement boundarys for each direction.
 
-    Returns a boolean list, whose elements are:
+    Returns a (3,) boolean list, whose elements are:
         None where there is no boundary condition;
         -1 where the boundary is displacement loaded in negative direction;
         1 where the boundary is displacement loaded in positive direction;
@@ -106,10 +111,6 @@ def main():
     parser.add_argument('--profile', action='store_const', const=True)
     args = parser.parse_args()
 
-    # The .msh file is a finite element mesh generated with  a finite
-    # element mesh generator. '1650beam5153.msh' was generated with gmsh and
-    # contains 13539 nodes.
-    mesh_file = pathlib.Path(__file__).parent.absolute() / '1650beam13539.msh'
     write_path_model = (pathlib.Path(__file__).parent.absolute() / str(
         "1650beam13539_model.h5"))
 
@@ -140,7 +141,7 @@ def main():
     # Dynamic relaxation damping constant to converge to steady solution
     damping = 2.2e6
     # Stable time step (What happens if you increase or decrease it?)
-    dt = 1.50e-5
+    dt = 1.5e-5
     integrator = EulerCromerCL(dt=dt, damping=damping)
 
     # Try reading connectivity, bond_types and stiffness_correction files from
