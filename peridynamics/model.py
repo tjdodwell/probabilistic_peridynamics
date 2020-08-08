@@ -135,7 +135,7 @@ class Model(object):
                  stiffness_corrections=None,
                  precise_stiffness_correction=None):
         """
-        Create a :class:`ModelCLBen` object.
+        Create a :class:`Model` object.
 
         Note that nnodes is the number of nodes in the mesh. nbond_types is
         the number of different bonds, i.e. the number of damage models (e.g.
@@ -223,14 +223,14 @@ class Model(object):
             conditions.
         :type is_force_boundary: function
         :arg is_tip: A function to determine if a node is to be measured for
-            its reaction force or displacement over time, and if it is, which
-            direction the measurements are made
+            its reaction force or state variables over time, and if it is,
+            which direction the measurements are made
             (positive or negative cartesian direction). It has the form
             is_tip(:class:`numpy.ndarray`). The argument is the initial
             coordinates of a particle being simulated. `is_tip` returns a
-            (3) list of the measurement types in each cartesian direction.
-            A boundary type with an int value of None if the particle is not on
-            the `tip` to be measured, a value of 1 if is is on the `tip` and
+            (3,) list of the measurement types in each cartesian direction.
+            A tip type has a value of None if the particle is not on
+            the 'tip', and a value of 1 if is is on the `tip`
             to be measured.
         :type is_tip: function
         :arg density: An (nnodes, ) array of node density values, each
@@ -1365,7 +1365,7 @@ class Model(object):
 
         # Use the initial damage model
         # (when the Model was constructed) if none is provided
-        if ((bond_stiffness is None) and (critical_stretch is None)):
+        if (bond_stiffness is None) and (critical_stretch is None):
             bond_stiffness = self.bond_stiffness
             critical_stretch = self.critical_stretch
             plus_cs = self.plus_cs

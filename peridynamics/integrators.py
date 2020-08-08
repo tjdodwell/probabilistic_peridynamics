@@ -13,11 +13,12 @@ class Integrator(ABC):
     Base class for integrators.
 
     All integrators must define an init method, which may or may not
-    use Integrator as a parent class using `super()`. They must also define a
-    call method which performs one integration step, a build_special method
-    which builds the OpenCL programs which are special to the integrator, and a
-    set_special_buffers method which sets the OpenCL buffers which are special
-    to the integrator.
+    use inherit Integrator as a parent class using `super()`. All integrators
+    that inherit Integrator are OpenCL implementations that can use GPU or CPU.
+    All integrators must also define a call method which performs one
+    integration step, a build_special method which builds the OpenCL programs
+    which are special to the integrator, and a set_special_buffers method which
+    sets the OpenCL buffers which are special to the integrator.
     """
 
     @abstractmethod
@@ -104,7 +105,7 @@ class Integrator(ABC):
             self.context, kernel_source).build()
 
         # Set bond_force program
-        if ((stiffness_corrections is None) and (bond_types is None)):
+        if (stiffness_corrections is None) and (bond_types is None):
             self.bond_force_kernel = self.program.bond_force1
             # Placeholder buffers
             stiffness_corrections = np.array([0], dtype=np.float64)
@@ -115,7 +116,7 @@ class Integrator(ABC):
             self.bond_types_d = cl.Buffer(
                 self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                 hostbuf=bond_types)
-        elif ((stiffness_corrections is not None) and (bond_types is None)):
+        elif (stiffness_corrections is not None) and (bond_types is None):
             self.bond_force_kernel = self.program.bond_force2
             self.stiffness_corrections_d = cl.Buffer(
                 self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
@@ -125,7 +126,7 @@ class Integrator(ABC):
             self.bond_types_d = cl.Buffer(
                 self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                 hostbuf=bond_types)
-        elif (bond_types is not None):
+        elif bond_types is not None:
             raise ValueError("bond_types are not supported by this "
                              "integrator yet (expected {}, got {})".format(
                                  type(None),
@@ -289,7 +290,8 @@ class Euler(Integrator):
     r"""
     Euler integrator for cython.
 
-    The Euler method is a first-order numerical integration method. The
+    C implementation of the Euler integrator generated using Cython. Uses CPU
+    only. The Euler method is a first-order numerical integration method. The
     integration is given by,
 
     .. math::
@@ -371,19 +373,19 @@ class Euler(Integrator):
         self.bc_values = bc_values
         self.force_bc_types = force_bc_types
         self.force_bc_values = force_bc_values
-        if (bond_types is not None):
+        if bond_types is not None:
             raise ValueError("bond_types are not supported by this "
                              "integrator (expected {}, got {}), please use "
                              "EulerCL instead".format(
                                  type(None),
                                  type(bond_types)))
-        if (stiffness_corrections is not None):
+        if stiffness_corrections is not None:
             raise ValueError("stiffness_corrections are not supported by this "
                              "integrator (expected {}, got {}), please use "
                              "EulerCL instead".format(
                                  type(None),
                                  type(stiffness_corrections)))
-        if (densities is not None):
+        if densities is not None:
             raise ValueError("densities are not supported by this "
                              "integrator (expected {}, got {}). This "
                              " integrator neglects inertial effects. Do not "
@@ -470,7 +472,7 @@ class EulerCL(Integrator):
             pathlib.Path(__file__).parent.absolute() /
             "cl/euler.cl").read()
 
-        if (self.densities is not None):
+        if self.densities is not None:
             raise ValueError("densities are not supported by this "
                              "integrator (expected {}, got {}). This "
                              " integrator neglects inertial effects. Do not "
@@ -504,7 +506,7 @@ class EulerCL(Integrator):
 
 class EulerCromerCL(Integrator):
     r"""
-    Euler Cromer integrator for OpenCL.
+    Euler Cromer integrator for OpenCL which can use GPU or CPU.
 
     The Euler-Cromer method is a first-order numerical integration method. The
     integration is given by,
@@ -557,7 +559,7 @@ class EulerCromerCL(Integrator):
 
     def _build_special(self):
         """Build OpenCL kernels special to the Euler integrator."""
-        if (self.densities is None):
+        if self.densities is None:
             raise ValueError(
                 "densities must be supplied when using EulerCromerCL "
                 "integrator (got {}). This integrator is dynamic "
@@ -659,7 +661,7 @@ class VelocityVerletCL(Integrator):
 
     def _build_special(self):
         """Build OpenCL kernels special to the Euler integrator."""
-        if (self.densities is None):
+        if self.densities is None:
             raise ValueError(
                 "densities must be supplied when using VelocityVerletCL "
                 "integrator (got {}). This integrator is dynamic "
