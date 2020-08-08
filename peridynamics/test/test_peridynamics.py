@@ -63,7 +63,7 @@ def test_break_bonds():
     assert np.all(n_neigh == n_neigh_expected)
 
 
-class TestForce():
+class TestForce:
     """Test force calculation."""
 
     def test_initial_force(self):

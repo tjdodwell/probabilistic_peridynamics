@@ -28,8 +28,18 @@ class Model(object):
     this an :class:`peridynamics.integrators.Integrator` is required, and
     optionally functions implementing the boundarys.
 
+    The :class:`peridynamics.integrators.Integrator` is the explicit time
+    integration method, see :mod:`peridynamics.integrators` for options.
+    Any integrator with the suffix 'CL' uses OpenCL kernels to calculate the
+    bond force and displacement update, resulting in orders of magnitude faster
+    simulation time when compared to using the cython implementation,
+    :class:`peridynamics.integrators.Euler`. OpenCL is 'heterogeneous' which
+    means the 'CL' integrator classes will work on a CPU device as well as a
+    GPU device. This implementation automatically choses the preferable
+    (faster) device.
+
         >>> from peridynamics import Model
-        >>> from peridynamics.integrators import Euler
+        >>> from peridynamics.integrators import EulerCL
         >>>
         >>> def is_displacement_boundary(x):
         >>>     # Particle does not live on a boundary
@@ -42,6 +52,9 @@ class Model(object):
         >>>         # Displacement BCs are applied in positive x direction
         >>>         bnd[0] = 1
         >>>     return bnd
+        >>>
+        >>> # for the cython implementation, use euler = Euler(dt)
+        >>> euler = EulerCL(dt=1e-3)
         >>>
         >>> model = Model(
         >>>     mesh_file,
@@ -94,14 +107,20 @@ class Model(object):
         >>>     )
 
     The :meth:`Model.simulate` method can be used to conduct a peridynamics
-    simulation. Here it is possible to define the boundary conditions
+    simulation. Here it is possible to define the boundary condition magnitude
+    throughout the simulation.
 
         >>> model = Model(...)
         >>>
+        >>> # Number of time-steps
+        >>> steps = 1000
+        >>>
+        >>> # Boundary condition magnitude throughout the simulation
+        >>> displacement_bc_array = np.linspace(2.5e-6, 2.5e-3, steps)
         >>>
         >>> u, damage, *_ = model.simulate(
-        >>>     steps=1000,
-        >>>     max_displacement_rate=0.000005/2,
+        >>>     steps=steps,
+        >>>     displacement_bc_magnitudes=displacement_bc_array,
         >>>     write=100
         >>>     )
     """
@@ -111,12 +130,21 @@ class Model(object):
                  volume_total=None, write_path=None, connectivity=None,
                  family=None, volume=None, initial_crack=[], dimensions=2,
                  is_density=None, is_bond_type=None,
-                 is_displacement_boundary=None, is_forces_boundary=None,
+                 is_displacement_boundary=None, is_force_boundary=None,
                  is_tip=None, density=None, bond_types=None,
                  stiffness_corrections=None,
                  precise_stiffness_correction=None):
         """
-        Create a :class:`ModelCLBen` object.
+        Create a :class:`Model` object.
+
+        Note that nnodes is the number of nodes in the mesh. nbond_types is
+        the number of different bonds, i.e. the number of damage models (e.g.
+        there might be a damage model for each material and interface
+        in a composite). nregimes is the number of linear splines that define
+        the damage model (e.g. An n-linear damage model has nregimes = n. The
+        bond-based prototype microelastic brittle (PMB) model has nregimes = 1.
+        Note that nregimes and nbond_types are defined by the size of the
+        critical_stretch and bond_stiffness positional arguments.
 
         :arg str mesh_file: Path of the mesh file defining the systems nodes
             and connectivity.
@@ -186,23 +214,23 @@ class Model(object):
             in each cartesian direction.
             A boundary type with an int value of None if the particle is not
             on a displacement controlled boundary, a value of 1 if is is on a
-            boundary and loaded in the positive cartesian direction, and a
-            value of -1 if it is on the boundary and loaded in the negative
-            direction, and a value of 0 if it is not loaded.
+            boundary and displaced in the positive cartesian direction, a
+            value of -1 if it is on the boundary and displaced in the negative
+            direction, and a value of 0 if it is clamped.
         :type is_displacement_boundary: function
-        :arg is_forces_boundary: As 'is_displacement_boundary' but applying to
+        :arg is_force_boundary: As 'is_displacement_boundary' but applying to
             force boundary conditions as opposed to displacement boundary
             conditions.
-        :type is_forces_boundary: function
+        :type is_force_boundary: function
         :arg is_tip: A function to determine if a node is to be measured for
-            its reaction force or displacement over time, and if it is, which
-            direction the measurements are made
+            its reaction force or state variables over time, and if it is,
+            which direction the measurements are made
             (positive or negative cartesian direction). It has the form
             is_tip(:class:`numpy.ndarray`). The argument is the initial
             coordinates of a particle being simulated. `is_tip` returns a
-            (3) list of the measurement types in each cartesian direction.
-            A boundary type with an int value of None if the particle is not on
-            the `tip` to be measured, a value of 1 if is is on the `tip` and
+            (3,) list of the measurement types in each cartesian direction.
+            A tip type has a value of None if the particle is not on
+            the 'tip', and a value of 1 if is is on the `tip`
             to be measured.
         :type is_tip: function
         :arg density: An (nnodes, ) array of node density values, each
@@ -411,7 +439,6 @@ class Model(object):
             else:
                 # Calculate stiffness correction factors and write to file
                 self.stiffness_corrections = self._set_stiffness_corrections(
-                    self.horizon, self.initial_connectivity,
                     precise_stiffness_correction, self.write_path)
         elif type(stiffness_corrections) == np.ndarray:
             if np.shape(stiffness_corrections) != (
@@ -470,8 +497,8 @@ class Model(object):
             density, is_density, self.write_path)
 
         # Create dummy boundary conditions functions if none is provided
-        if is_forces_boundary is None:
-            def is_forces_boundary(x):
+        if is_force_boundary is None:
+            def is_force_boundary(x):
                 # Particle does not live on forces boundary
                 bnd = [None, None, None]
                 return bnd
@@ -487,19 +514,19 @@ class Model(object):
                 return bnd
 
         # Apply boundary conditions
-        (bc_types,
-         bc_values,
-         force_bc_types,
-         force_bc_values,
+        (self.bc_types,
+         self.bc_values,
+         self.force_bc_types,
+         self.force_bc_values,
          self.tip_types) = self._set_boundary_conditions(
-            is_displacement_boundary, is_forces_boundary, is_tip)
+            is_displacement_boundary, is_force_boundary, is_tip)
 
         # Build the integrator
         self.integrator.build(
             self.nnodes, self.degrees_freedom, self.max_neighbours,
-            self.coords, self.volume, self.family, bc_types, bc_values,
-            force_bc_types, force_bc_values, self.stiffness_corrections,
-            self.bond_types, self.densities)
+            self.coords, self.volume, self.family, self.bc_types,
+            self.bc_values, self.force_bc_types, self.force_bc_values,
+            self.stiffness_corrections, bond_types, self.densities)
 
     def _read_mesh(self, filename):
         """
@@ -666,6 +693,8 @@ class Model(object):
                 raise ValueError("densty shape is wrong, and must be "
                                  "(nnodes,) (expected {}, got {})".format(
                                      (self.nnodes,), np.shape(density)))
+            warnings.warn(
+                "Reading density from argument.")
             densities = np.transpose(
                 np.tile(density, (self.degrees_freedom, 1))).astype(np.float64)
         else:
@@ -688,8 +717,9 @@ class Model(object):
         :arg is_bond_type: A function that returns an integer value (a
             flag) of the bond type, given two node coordinates as input.
         :type is_bond_type: function
-        :arg int nbond_types: The expected number of damage models, one
-            for each type of bond.
+        :arg int nbond_types: The number of different bonds; the number of
+        damage models, for example there might be a damage model for each
+        material and interface in a composite.
         :arg int nbond_types: The expected number of regimes in the damage
             model.
         :arg write_path: The path where the vtk files should be written.
@@ -737,8 +767,7 @@ class Model(object):
         return bond_types
 
     def _set_stiffness_corrections(
-            self, horizon, connectivity, precise_stiffness_correction,
-            write_path):
+            self, precise_stiffness_correction, write_path):
         """
         Calculate an array of stiffness correction factors.
 
@@ -768,13 +797,13 @@ class Model(object):
             correction factor of each bond for each node.
         :rtype: :class:`numpy.ndarray`
         """
-        nlist, n_neigh = connectivity
+        nlist, n_neigh = self.initial_connectivity
         stiffness_corrections = np.ones((self.nnodes, self.max_neighbours))
 
         if self.dimensions == 2:
-            family_volume_bulk = np.pi*np.power(horizon, 2)
+            family_volume_bulk = np.pi*np.power(self.horizon, 2)
         elif self.dimensions == 3:
-            family_volume_bulk = (4./3)*np.pi*np.power(horizon, 3)
+            family_volume_bulk = (4./3)*np.pi*np.power(self.horizon, 3)
 
         if precise_stiffness_correction == 1:
             family_volumes = np.zeros(self.nnodes)
@@ -822,9 +851,10 @@ class Model(object):
         Calculate the parameters for the damage models.
 
         Calculates the `+ c`s (c.f. `y = mx + c`) for the n-linear
-        damage models for each bond type, where n is nregimes, e.g. linear,
-        bi-linear, tri-linear, etc. from the bond_stiffness and
-        critical_stretch values provided.
+        damage model for each bond type, where n is nregimes is the number of
+        linear splines that define the damage model (e.g. An n-linear damage
+        model has nregimes = n. The bond-based prototype microelastic brittle
+        (PMB) model has nregimes = 1.
 
         :arg bond_stiffness: An (nregimes, nbond_types) array of bond
             stiffness values, each corresponding to a bond type and a regime.
@@ -832,7 +862,6 @@ class Model(object):
         :arg critical_stretch: An (n_regimes, nbond_types) array of critical
             stretch values, each corresponding to a bond type and a regime.
         :type critical_stretch: list or :class:`numpy.ndarray`
-        :arg int n_regimes:
 
         :returns: A tuple of the damage model:
             bond_stiffness, a float or array of the bond stiffness(es);
@@ -953,7 +982,7 @@ class Model(object):
                 nregimes)
 
     def _set_boundary_conditions(
-            self, is_displacement_boundary, is_forces_boundary, is_tip):
+            self, is_displacement_boundary, is_force_boundary, is_tip):
         """
         Set the boundary conditions of the model.
 
@@ -971,10 +1000,10 @@ class Model(object):
             value of -1 if it is on the boundary and loaded in the negative
             direction, and a value of 0 if it is not loaded.
         :type is_displacement_boundary: function
-        :arg is_forces_boundary: As 'is_displacement_boundary' but applying to
+        :arg is_force_boundary: As 'is_displacement_boundary' but applying to
             force boundary conditions as opposed to displacement boundary
             conditions.
-        :type is_forces_boundary: function
+        :type is_force_boundary: function
         :arg is_tip: A function to determine if a node is to be measured for
             its reaction force or displacement over time, and if it is, which
             direction the measurements are made
@@ -993,7 +1022,7 @@ class Model(object):
                       :class:`numpy.ndarray`, :class:`numpy.ndarray`)
         """
         functions = {'is_displacement_boundary': is_displacement_boundary,
-                     'is_forces_boundary': is_forces_boundary,
+                     'is_force_boundary': is_force_boundary,
                      'is_tip': is_tip}
         for function in functions:
             if not callable(functions[function]):
@@ -1019,7 +1048,7 @@ class Model(object):
         num_force_bc_nodes = 0
         for i in range(self.nnodes):
             bnd = is_displacement_boundary(self.coords[i][:])
-            forces_bnd = is_forces_boundary(self.coords[i][:])
+            forces_bnd = is_force_boundary(self.coords[i][:])
             tip = is_tip(self.coords[i][:])
             is_force_node = 0
             for j in range(self.degrees_freedom):
@@ -1111,7 +1140,9 @@ class Model(object):
         """
         (u,
          ud,
+         udd,
          force,
+         body_force,
          nlist,
          n_neigh,
          displacement_bc_magnitudes,
@@ -1120,7 +1151,9 @@ class Model(object):
          damage_sum_data,
          tip_displacement_data,
          tip_velocity_data,
+         tip_acceleration_data,
          tip_force_data,
+         tip_body_force_data,
          write_path) = self._simulate_initialise(
              steps, first_step, regimes, u, ud, displacement_bc_magnitudes,
              force_bc_magnitudes, connectivity, bond_stiffness,
@@ -1138,17 +1171,21 @@ class Model(object):
                 if step % write == 0:
                     (u,
                      ud,
+                     udd,
                      force,
+                     body_force,
                      damage,
                      nlist,
                      n_neigh) = self.integrator.write(
-                         u, ud, force, damage, nlist, n_neigh)
+                         u, ud, udd, body_force, force, damage, nlist, n_neigh)
 
                     self.write_mesh(write_path/f"U_{step}.vtk", damage, u)
 
                     tip_displacement = 0
                     tip_velocity = 0
+                    tip_acceleration = 0
                     tip_force = 0
+                    tip_body_force = 0
                     tmp = 0
                     for i in range(self.nnodes):
                         for j in range(self.degrees_freedom):
@@ -1156,17 +1193,25 @@ class Model(object):
                                 tmp += 1
                                 tip_displacement += u[i][j]
                                 tip_force += force[i][j]
+                                tip_body_force += (
+                                    body_force[i][j] * self.volume[i])
                                 tip_velocity += ud[i][j]
+                                tip_acceleration += udd[i][j]
                     if tmp != 0:
                         tip_displacement /= tmp
                         tip_velocity /= tmp
+                        tip_acceleration /= tmp
                     else:
                         tip_force = None
                         tip_displacement = None
                         tip_velocity = None
+                        tip_acceleration = None
+                        tip_body_force = None
 
                     tip_displacement_data.append(tip_displacement)
                     tip_velocity_data.append(tip_velocity)
+                    tip_body_force_data.append(tip_body_force)
+                    tip_acceleration_data.append(tip_acceleration)
                     tip_force_data.append(tip_force)
                     damage_sum = np.sum(damage)
                     damage_sum_data.append(damage_sum)
@@ -1178,14 +1223,17 @@ class Model(object):
                                       peridynamics simulation continuing')
         (u,
          ud,
+         udd,
          force,
+         body_force,
          damage,
          nlist,
          n_neigh) = self.integrator.write(
-             u, ud, force, damage, nlist, n_neigh)
+             u, ud, udd, force, body_force, damage, nlist, n_neigh)
 
         return (u, damage, (nlist, n_neigh), force, ud, damage_sum_data,
-                tip_displacement_data, tip_velocity_data, tip_force_data)
+                tip_displacement_data, tip_velocity_data,
+                tip_acceleration_data, tip_force_data, tip_body_force_data)
 
     def _simulate_initialise(
             self, steps, first_step, regimes, u, ud,
@@ -1237,14 +1285,16 @@ class Model(object):
                      :class:`numpy.ndarray`, :class:`numpy.ndarray`,
                      :class:`numpy.ndarray`, :class`pathlib.Path`)
         """
-        # Create initial displacements if none is provided
+        # Create initial displacements and velocities if none is provided
         if u is None:
             u = np.zeros((self.nnodes, 3), dtype=np.float64)
         if ud is None:
             ud = np.zeros((self.nnodes, 3), dtype=np.float64)
-        # Initiate forces and damage
+        # Initiate forces, damage and accelerations
         force = np.zeros((self.nnodes, 3), dtype=np.float64)
+        body_force = np.zeros((self.nnodes, 3), dtype=np.float64)
         damage = np.zeros(self.nnodes, dtype=np.float64)
+        udd = np.zeros((self.nnodes, 3), dtype=np.float64)
         # Create boundary condition magnitudes if none is provided
         if displacement_bc_magnitudes is None:
             displacement_bc_magnitudes = np.zeros(
@@ -1315,14 +1365,13 @@ class Model(object):
 
         # Use the initial damage model
         # (when the Model was constructed) if none is provided
-        if ((bond_stiffness is None) and (critical_stretch is None)):
+        if (bond_stiffness is None) and (critical_stretch is None):
             bond_stiffness = self.bond_stiffness
             critical_stretch = self.critical_stretch
             plus_cs = self.plus_cs
             nbond_types = self.nbond_types
             nregimes = self.nregimes
         else:
-            print('here')
             (bond_stiffness,
              critical_stretch,
              plus_cs,
@@ -1348,17 +1397,20 @@ class Model(object):
         damage_sum_data = []
         tip_displacement_data = []
         tip_velocity_data = []
+        tip_acceleration_data = []
         tip_force_data = []
+        tip_body_force_data = []
 
         # Initialise the OpenCL buffers
         self.integrator.set_buffers(
             nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs, u, ud,
-            force, damage, regimes, nregimes, nbond_types)
+            udd, force, body_force, damage, regimes, nregimes, nbond_types)
 
-        return (u, ud, force, nlist, n_neigh, displacement_bc_magnitudes,
-                force_bc_magnitudes, damage,
-                damage_sum_data, tip_displacement_data, tip_velocity_data,
-                tip_force_data, write_path)
+        return (u, ud, udd, force, body_force, nlist, n_neigh,
+                displacement_bc_magnitudes, force_bc_magnitudes, damage,
+                damage_sum_data, tip_displacement_data, tip_acceleration_data,
+                tip_velocity_data, tip_force_data, tip_body_force_data,
+                write_path)
 
 
 def initial_crack_helper(crack_function):

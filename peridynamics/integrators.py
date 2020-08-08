@@ -13,11 +13,12 @@ class Integrator(ABC):
     Base class for integrators.
 
     All integrators must define an init method, which may or may not
-    use Integrator as a parent class using `super()`. They must also define a
-    call method which performs one integration step, a build_special method
-    which builds the OpenCL programs which are special to the integrator, and a
-    set_special_buffers method which sets the OpenCL buffers which are special
-    to the integrator.
+    use inherit Integrator as a parent class using `super()`. All integrators
+    that inherit Integrator are OpenCL implementations that can use GPU or CPU.
+    All integrators must also define a call method which performs one
+    integration step, a build_special method which builds the OpenCL programs
+    which are special to the integrator, and a set_special_buffers method which
+    sets the OpenCL buffers which are special to the integrator.
     """
 
     @abstractmethod
@@ -104,7 +105,7 @@ class Integrator(ABC):
             self.context, kernel_source).build()
 
         # Set bond_force program
-        if ((stiffness_corrections is None) and (bond_types is None)):
+        if (stiffness_corrections is None) and (bond_types is None):
             self.bond_force_kernel = self.program.bond_force1
             # Placeholder buffers
             stiffness_corrections = np.array([0], dtype=np.float64)
@@ -115,7 +116,7 @@ class Integrator(ABC):
             self.bond_types_d = cl.Buffer(
                 self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                 hostbuf=bond_types)
-        elif ((stiffness_corrections is not None) and (bond_types is None)):
+        elif (stiffness_corrections is not None) and (bond_types is None):
             self.bond_force_kernel = self.program.bond_force2
             self.stiffness_corrections_d = cl.Buffer(
                 self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
@@ -144,6 +145,7 @@ class Integrator(ABC):
             self.bond_types_d = cl.Buffer(
                 self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                 hostbuf=bond_types)
+
         self.damage_kernel = self.program.damage
 
         # Build OpenCL data structures that are independent of
@@ -186,7 +188,8 @@ class Integrator(ABC):
 
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs, u,
-            ud, force, damage, regimes, nregimes, nbond_types):
+            ud, udd, force, body_force, damage, regimes, nregimes,
+            nbond_types):
         """
         Initialise the OpenCL buffers.
 
@@ -236,9 +239,14 @@ class Integrator(ABC):
         self.ud_d = cl.Buffer(
             self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
             hostbuf=ud)
+        self.udd_d = cl.Buffer(
+            self.context, mf.READ_WRITE | mf.COPY_HOST_PTR,
+            hostbuf=udd)
         # Write only
         self.damage_d = cl.Buffer(
             self.context, mf.WRITE_ONLY, damage.nbytes)
+        self.body_force_d = cl.Buffer(
+            self.context, mf.WRITE_ONLY, body_force.nbytes)
         self.n_neigh_d = cl.Buffer(
             self.context, mf.WRITE_ONLY, n_neigh.nbytes)
 
@@ -256,7 +264,7 @@ class Integrator(ABC):
         queue.finish()
 
     def _bond_force(
-            self, u_d, force_d, r0_d, vols_d, nlist_d,
+            self, u_d, force_d, body_force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
             bond_types_d, regimes_d, plus_cs_d, local_mem_x, local_mem_y,
             local_mem_z, bond_stiffness_d, critical_stretch_d, force_bc_scale,
@@ -266,15 +274,15 @@ class Integrator(ABC):
         # Call kernel
         self.bond_force_kernel(
                 queue, (self.nnodes * self.max_neighbours,),
-                (self.max_neighbours,), u_d, force_d, r0_d, vols_d, nlist_d,
-                force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
-                bond_types_d, regimes_d, plus_cs_d, local_mem_x,
-                local_mem_y, local_mem_z, bond_stiffness_d,
+                (self.max_neighbours,), u_d, force_d, body_force_d, r0_d,
+                vols_d, nlist_d, force_bc_types_d, force_bc_values_d,
+                stiffness_corrections_d, bond_types_d, regimes_d, plus_cs_d,
+                local_mem_x, local_mem_y, local_mem_z, bond_stiffness_d,
                 critical_stretch_d, np.float64(force_bc_scale),
                 np.intc(nregimes))
         queue.finish()
 
-    def write(self, u, ud, force, damage, nlist, n_neigh):
+    def write(self, u, ud, udd, force, body_force, damage, nlist, n_neigh):
         """Copy the state variables from device memory to host memory."""
         queue = self.queue
         # Calculate the damage
@@ -284,17 +292,20 @@ class Integrator(ABC):
         cl.enqueue_copy(queue, damage, self.damage_d)
         cl.enqueue_copy(queue, u, self.u_d)
         cl.enqueue_copy(queue, ud, self.ud_d)
+        cl.enqueue_copy(queue, udd, self.udd_d)
         cl.enqueue_copy(queue, force, self.force_d)
+        cl.enqueue_copy(queue, body_force, self.body_force_d)
         cl.enqueue_copy(queue, nlist, self.nlist_d)
         cl.enqueue_copy(queue, n_neigh, self.n_neigh_d)
-        return (u, ud, force, damage, nlist, n_neigh)
+        return (u, ud, udd, force, body_force, damage, nlist, n_neigh)
 
 
 class Euler(Integrator):
     r"""
     Euler integrator for cython.
 
-    The Euler method is a first-order numerical integration method. The
+    C implementation of the Euler integrator generated using Cython. Uses CPU
+    only. The Euler method is a first-order numerical integration method. The
     integration is given by,
 
     .. math::
@@ -330,7 +341,8 @@ class Euler(Integrator):
 
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
-            u, ud, force, damage, regimes, nregimes, nbond_types):
+            u, ud, udd, force, body_force, damage, regimes, nregimes,
+            nbond_types):
         """
         Initiate arrays that are dependent on simulation parameters.
 
@@ -340,18 +352,20 @@ class Euler(Integrator):
         if nregimes != 1:
             raise ValueError("n-linear damage model's are not supported by "
                              "this integrator. Please supply just one "
-                             "bond_stiffness")
+                             "bond_stiffness.")
         if nbond_types != 1:
             raise ValueError("n-material composite models are not supported by"
                              " this integrator. Please supply just one "
-                             "material type and bond_stiffness")
+                             "material type and bond_stiffness.")
         self.nlist = nlist
         self.n_neigh = n_neigh
         self.bond_stiffness = bond_stiffness
         self.critical_stretch = critical_stretch
         self.u = u
         self.ud = ud
+        self.udd = udd
         self.force = force
+        self.body_force = body_force
 
     def build(
             self, nnodes, degrees_freedom, max_neighbours, coords,
@@ -373,19 +387,19 @@ class Euler(Integrator):
         self.bc_values = bc_values
         self.force_bc_types = force_bc_types
         self.force_bc_values = force_bc_values
-        if (bond_types is not None):
+        if bond_types is not None:
             raise ValueError("bond_types are not supported by this "
                              "integrator (expected {}, got {}), please use "
-                             "EulerOpenCL instead".format(
+                             "EulerCL instead".format(
                                  type(None),
                                  type(bond_types)))
-        if (stiffness_corrections is not None):
+        if stiffness_corrections is not None:
             raise ValueError("stiffness_corrections are not supported by this "
                              "integrator (expected {}, got {}), please use "
-                             "EulerOpenCL instead".format(
+                             "EulerCL instead".format(
                                  type(None),
                                  type(stiffness_corrections)))
-        if (densities is not None):
+        if densities is not None:
             raise ValueError("densities are not supported by this "
                              "integrator (expected {}, got {}). This "
                              " integrator neglects inertial effects. Do not "
@@ -423,10 +437,11 @@ class Euler(Integrator):
             self.force_bc_types, force_bc_scale)
         return force
 
-    def write(self, damage, u, ud, force, nlist, n_neigh):
+    def write(self, damage, u, ud, udd, force, body_force, nlist, n_neigh):
         """Return the state variable arrays."""
         damage = self._damage(self.n_neigh)
-        return (self.u, self.ud, self.force, damage, self.nlist, self.n_neigh)
+        return (self.u, self.ud, self.udd, self.force, self.body_force, damage,
+                self.nlist, self.n_neigh)
 
 
 class EulerCL(Integrator):
@@ -454,8 +469,8 @@ class EulerCL(Integrator):
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """Conduct one iteration of the integrator."""
         self._bond_force(
-            self.u_d, self.force_d, self.r0_d, self.vols_d, self.nlist_d,
-            self.force_bc_types_d, self.force_bc_values_d,
+            self.u_d, self.force_d, self.body_force_d, self.r0_d, self.vols_d,
+            self.nlist_d, self.force_bc_types_d, self.force_bc_values_d,
             self.stiffness_corrections_d, self.bond_types_d, self.regimes_d,
             self.plus_cs_d, self.local_mem_x, self.local_mem_y,
             self.local_mem_z, self.bond_stiffness_d, self.critical_stretch_d,
@@ -471,7 +486,7 @@ class EulerCL(Integrator):
             pathlib.Path(__file__).parent.absolute() /
             "cl/euler.cl").read()
 
-        if (self.densities is not None):
+        if self.densities is not None:
             raise ValueError("densities are not supported by this "
                              "integrator (expected {}, got {}). This "
                              " integrator neglects inertial effects. Do not "
@@ -505,21 +520,29 @@ class EulerCL(Integrator):
 
 class EulerCromerCL(Integrator):
     r"""
-    Euler Cromer integrator for OpenCL.
+    Euler Cromer integrator for OpenCL which can use GPU or CPU.
 
-    The Euler method is a first-order numerical integration method. The
+    The Euler-Cromer method is a first-order numerical integration method. The
     integration is given by,
 
     .. math::
-        udd(t) = (f(t) - \eta ud(t)) / \rho
         ud(t + \delta t) = ud(t) + \delta t udd(t)
         u(t + \delta t) = u(t) + \delta t ud(t + \delta t)
 
     where :math:`u(t)` is the displacement at time :math:`t`, :math:`ud(t)` is
     the velocity at time :math:`t`, :math:`udd(t)` is the acceleration at time
-    :math:`t`, :math:`f(t)` is the force at time :math:`t`, :math:`\delta t`
-    is the time step,:math:`\eta` is the damping and :math:`\rho` is the
-    density.
+    :math:`t`, and :math:`\delta t` is the time step
+
+    A dynamic relaxation damping term is added for the solution to quickly
+    converge to a steady state solution, so that the equation of motion is
+    given by,
+
+    .. math::
+        udd(t) = (f(t) - \eta ud(t)) / \rho
+
+    where :math:`udd(t)` is the acceleration at time :math:`t`, :math:`f(t)`
+    is the force at time :math:`t`, :math:`\eta` is the dynamic relaxation
+    damping and :math:`\rho` is the density.
     """
 
     def __init__(self, damping, *args, **kwargs):
@@ -536,21 +559,21 @@ class EulerCromerCL(Integrator):
     def __call__(self, displacement_bc_scale, force_bc_scale):
         """Conduct one iteration of the integrator."""
         self._bond_force(
-            self.u_d, self.force_d, self.r0_d, self.vols_d, self.nlist_d,
-            self.force_bc_types_d, self.force_bc_values_d,
+            self.u_d, self.force_d, self.body_force_d, self.r0_d, self.vols_d,
+            self.nlist_d, self.force_bc_types_d, self.force_bc_values_d,
             self.stiffness_corrections_d, self.bond_types_d, self.regimes_d,
             self.plus_cs_d, self.local_mem_x, self.local_mem_y,
             self.local_mem_z, self.bond_stiffness_d, self.critical_stretch_d,
             force_bc_scale, self.nregimes)
 
         self._update_displacement(
-            self.force_d, self.u_d, self.ud_d, self.bc_types_d,
+            self.force_d, self.u_d, self.ud_d, self.udd_d, self.bc_types_d,
             self.bc_values_d, self.densities_d, displacement_bc_scale,
             self.damping, self.dt)
 
     def _build_special(self):
         """Build OpenCL kernels special to the Euler integrator."""
-        if (self.densities is None):
+        if self.densities is None:
             raise ValueError(
                 "densities must be supplied when using EulerCromerCL "
                 "integrator (got {}). This integrator is dynamic "
@@ -575,16 +598,121 @@ class EulerCromerCL(Integrator):
         """Set buffers special to the Euler integrator."""
 
     def _update_displacement(
-            self, force_d, u_d, ud_d, bc_types_d, bc_values_d, densities_d,
-            displacement_bc_scale, damping, dt):
+            self, force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
+            densities_d, displacement_bc_scale, damping, dt):
         """Update displacements."""
         queue = self.queue
         # Call kernel
         self.update_displacement_kernel(
                 self.queue, (self.degrees_freedom * self.nnodes,), None,
-                force_d, u_d, ud_d, bc_types_d, bc_values_d, densities_d,
-                np.float64(displacement_bc_scale), np.float64(dt),
-                np.float64(damping))
+                force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
+                densities_d, np.float64(displacement_bc_scale),
+                np.float64(damping), np.float64(dt)
+                )
+        queue.finish()
+        return u_d
+
+
+class VelocityVerletCL(Integrator):
+    r"""
+    Velocity-Verlet integrator for OpenCL.
+
+    The Velocity-Verlet method is a second-order numerical integration method.
+    The integration is given by,
+
+    .. math::
+        ud(t + \delta t / 2) = ud(t + \delta t) + (\delta t / 2) udd(t)
+        u(t + \delta t) = u(t) + \delta t ud(t + \delta t / 2)
+        ud(t + \delta t) = ud(t + \delta t / 2) + \delta t ud(t + \delta t / 2)
+
+    where :math:`u(t)` is the displacement at time :math:`t`, :math:`ud(t)` is
+    the velocity at time :math:`t`, :math:`udd(t)` is the acceleration at time
+    :math:`t` and :math:`\delta t` is the time step.
+
+    Given the displacement and velocity vectors of each node at time step n,
+    and by calculating the vector of acceleration from the equation of motion,
+
+    A dynamic relaxation damping term is added for the solution to quickly
+    converge to a steady state solution. By calculating the acceleration
+    which is given by the equation of motion,
+
+    .. math::
+        udd(t) = (f(t) - \eta ud(t)) / \rho
+
+    where :math:`f(t)` is the force at time :math:`t`, :math:`\eta` is the
+    dynamic relaxation damping and :math:`\rho` is the density, the 2nd order
+    accurate displacements of the next time step are given as,
+
+    .. math::
+        u(t + \delta t) = (u(t) + \delta t ud(t + \delta t)
+                           + (\delta t / 2) udd(t))
+    """
+
+    def __init__(self, damping, *args, **kwargs):
+        """
+        Create an :class:`Euler` integrator object.
+
+        :arg float damping: The damping constant with units [kg/(m^3 s)]
+
+        :returns: A :class:`Euler` object
+        """
+        super().__init__(*args, **kwargs)
+        self.damping = damping
+
+    def __call__(self, displacement_bc_scale, force_bc_scale):
+        """Conduct one iteration of the integrator."""
+        self._bond_force(
+            self.u_d, self.force_d, self.body_force_d, self.r0_d, self.vols_d,
+            self.nlist_d, self.force_bc_types_d, self.force_bc_values_d,
+            self.stiffness_corrections_d, self.bond_types_d, self.regimes_d,
+            self.plus_cs_d, self.local_mem_x, self.local_mem_y,
+            self.local_mem_z, self.bond_stiffness_d, self.critical_stretch_d,
+            force_bc_scale, self.nregimes)
+
+        self._update_displacement(
+            self.force_d, self.u_d, self.ud_d, self.bc_types_d,
+            self.bc_values_d, displacement_bc_scale, self.dt)
+
+    def _build_special(self):
+        """Build OpenCL kernels special to the Euler integrator."""
+        if self.densities is None:
+            raise ValueError(
+                "densities must be supplied when using VelocityVerletCL "
+                "integrator (got {}). This integrator is dynamic "
+                " and requires the density or is_density argument to be "
+                "supplied to :class:Model, alternatively, use a static "
+                " integrator, such as EulerCL.".format(type(self.densities)))
+        else:
+            self.densities_d = cl.Buffer(
+                self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
+                hostbuf=self.densities)
+
+        kernel_source = open(
+            pathlib.Path(__file__).parent.absolute() /
+            "cl/velocity_verlet.cl").read()
+
+        # Build kernels
+        self.euler_cromer = cl.Program(
+            self.context, kernel_source).build()
+        self.update_displacement_kernel = self.euler_cromer.update_displacement
+        self.partial_update_displacement_kernel = (
+            self.euler_cromer.update_displacement)
+
+    def _set_special_buffers(self):
+        """Set buffers special to the Euler integrator."""
+
+    def _update_displacement(
+            self, force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
+            densities_d, displacement_bc_scale, damping, dt):
+        """Update displacements."""
+        queue = self.queue
+        # Call kernel
+        self.update_displacement_kernel(
+                self.queue, (self.degrees_freedom * self.nnodes,), None,
+                force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
+                densities_d, np.float64(displacement_bc_scale),
+                np.float64(damping), np.float64(dt)
+                )
         queue.finish()
         return u_d
 
