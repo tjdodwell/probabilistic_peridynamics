@@ -471,6 +471,7 @@ class TestBondTypes:
                   critical_stretch=[[0.05], [0.05]],
                   bond_stiffness=[[1.0], [2.0]],
                   is_bond_type=bond_type_function)
+
             assert(str("bond_types are not supported by this")
                    in exception.value)
 
