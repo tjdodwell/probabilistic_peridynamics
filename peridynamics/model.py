@@ -283,7 +283,7 @@ class Model(object):
             raise DimensionalityError(dimensions)
 
         # Read coordinates and connectivity from mesh file
-        self._read_mesh(mesh_file)
+        self._read_mesh(mesh_file, transfinite)
 
         self.horizon = horizon
 
@@ -528,7 +528,7 @@ class Model(object):
             self.bc_values, self.force_bc_types, self.force_bc_values,
             self.stiffness_corrections, bond_types, self.densities)
 
-    def _read_mesh(self, filename):
+    def _read_mesh(self, filename, transfinite):
         """
         Read the model's nodes, connectivity and boundary from a mesh file.
 
@@ -539,17 +539,22 @@ class Model(object):
         """
         mesh = meshio.read(filename)
 
-        # Get coordinates, encoded as mesh points
-        self.coords = np.array(mesh.points, dtype=np.float64)
-        self.nnodes = self.coords.shape[0]
+        if transfinite:
+            # In this case, only need coordinates, encoded as mesh points
+            self.coords = np.array(mesh.points, dtype=np.float64)
+            self.nnodes = self.coords.shape[0]
+        else:
+            # Get coordinates, encoded as mesh points
+            self.coords = np.array(mesh.points, dtype=np.float64)
+            self.nnodes = self.coords.shape[0]
 
-        # Get connectivity, mesh triangle cells
-        self.mesh_connectivity = mesh.cells_dict[
-            self.mesh_elements.connectivity
-            ]
+            # Get connectivity, mesh triangle cells
+            self.mesh_connectivity = mesh.cells_dict[
+                self.mesh_elements.connectivity
+                ]
 
-        # Get boundary connectivity, mesh lines
-        self.mesh_boundary = mesh.cells_dict[self.mesh_elements.boundary]
+            # Get boundary connectivity, mesh lines
+            self.mesh_boundary = mesh.cells_dict[self.mesh_elements.boundary]
 
     def write_mesh(self, filename, damage=None, displacements=None,
                    file_format=None):
