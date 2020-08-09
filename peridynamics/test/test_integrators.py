@@ -442,7 +442,6 @@ class TestEulerCL:
     @context_available
     def test_set_buffers_array(self, euler_cl_integrator):
         """Test initiation of arrays that are dependent on simulation."""
-
         model, integrator = euler_cl_integrator
         nlist, n_neigh = model.initial_connectivity
         bond_stiffness = model.bond_stiffness
