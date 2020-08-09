@@ -1,7 +1,6 @@
 """Tests for the integrators module."""
 from .conftest import context_available
-from ..integrators import (Integrator, Euler, EulerCL, EulerCromerCL,
-                           VelocityVerletCL, ContextError)
+from ..integrators import (Integrator, Euler, EulerCL, ContextError)
 from ..model import Model, initial_crack_helper
 from ..cl import get_context
 import pytest
@@ -208,7 +207,6 @@ class TestEuler:
 
     def test_set_buffers(self, euler_integrator):
         """Test initiation of arrays that are dependent on simulation."""
-
         model, integrator = euler_integrator
         nlist, n_neigh = model.initial_connectivity
         bond_stiffness = model.bond_stiffness
@@ -240,8 +238,7 @@ class TestEuler:
         assert np.allclose(integrator.body_force, body_force)
 
     def test_build(self, euler_integrator):
-        """ Test initiate integrator arrays."""
-
+        """Test initiate integrator arrays."""
         model, integrator = euler_integrator
 
         nnodes = model.nnodes
@@ -300,7 +297,6 @@ class TestEuler:
 
     def test_build_exception_stiffness_corrections(self, euler_integrator):
         """Test exception when stiffness_corrections are applied to Euler."""
-
         model, integrator = euler_integrator
 
         nnodes = model.nnodes
@@ -420,7 +416,6 @@ class TestEulerCL:
     @context_available
     def test_set_buffers_float(self, euler_cl_integrator):
         """Test initiation of arrays that are dependent on simulation."""
-
         model, integrator = euler_cl_integrator
         nlist, n_neigh = model.initial_connectivity
         bond_stiffness = model.bond_stiffness
@@ -447,7 +442,6 @@ class TestEulerCL:
     @context_available
     def test_set_buffers_array(self, euler_cl_integrator):
         """Test initiation of arrays that are dependent on simulation."""
-
         model, integrator = euler_cl_integrator
         nlist, n_neigh = model.initial_connectivity
         bond_stiffness = model.bond_stiffness
