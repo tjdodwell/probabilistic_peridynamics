@@ -868,6 +868,9 @@ class Model(object):
             stretch values, each corresponding to a bond type and a regime.
         :type critical_stretch: list or :class:`numpy.ndarray`
 
+        :raises DamageModelError: when an unsorted (i.e. not in ascending
+            order) `critical_stretch` argument is provided.
+
         :returns: A tuple of the damage model:
             bond_stiffness, a float or array of the bond stiffness(es);
             critcal_stretch, a float or array of the critical stretch(es);
@@ -927,10 +930,7 @@ class Model(object):
                     if not all(
                         critical_stretch[i] <= critical_stretch[i + 1]
                             for i in range(nregimes-1)):
-                        raise ValueError(
-                            "critical_stretch must be a *sorted* list or array"
-                            " in ascending order (got {})".format(
-                                critical_stretch))
+                        raise DamageModelError(critical_stretch)
 
                     bond_stiffness = np.array(
                         bond_stiffness, dtype=np.float64)
@@ -960,11 +960,7 @@ class Model(object):
                             critical_stretch[i][j] <=
                                 critical_stretch[i][j + 1]
                                 for j in range(nregimes-1)):
-                            raise ValueError(
-                                "critical_stretch must be a *sorted* list or "
-                                "array in ascending order (got {} for "
-                                "bond_type {})".format(
-                                    critical_stretch[i], i))
+                            raise DamageModelError(critical_stretch[i])
 
                     bond_stiffness = np.array(
                         bond_stiffness, dtype=np.float64)
@@ -1514,6 +1510,27 @@ class FamilyError(Exception):
         message = (
                 "The following nodes have no bonds in the initial state,"
                 f" {indicies}."
+                )
+
+        super().__init__(message)
+
+
+class DamageModelError(Exception):
+    """An invalid critical stretch argument was used to construct a model."""
+
+    def __init__(self, critical_stretch):
+        """
+        Construct the exception.
+
+        :arg critical_stretch: The critical_stretch array.
+        :type critical_stretch: :class:`numpy.ndarray` or list
+
+        :rtype: :class:`DamageModelError`
+        """
+        message = (
+                "The critical_stretch list or array for a bond-type with "
+                "multiple regimes must be in ascending order, "
+                f" {critical_stretch} was given."
                 )
 
         super().__init__(message)
