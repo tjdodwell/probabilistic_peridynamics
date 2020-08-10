@@ -95,3 +95,4 @@ def output_device_info(device_id):
     sys.stdout.write(str(device_id.local_mem_size))
     sys.stdout.write(" bytes. \n")
     sys.stdout.flush()
+    return 1

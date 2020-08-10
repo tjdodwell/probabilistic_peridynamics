@@ -1,6 +1,7 @@
 """Tests for the integrators module."""
 from .conftest import context_available
-from ..integrators import (Integrator, Euler, EulerCL, ContextError)
+from ..integrators import (
+    Integrator, Euler, EulerCL, EulerCromerCL, VelocityVerletCL, ContextError)
 from ..model import Model, initial_crack_helper
 from ..cl import get_context
 import pytest
@@ -31,9 +32,14 @@ def is_crack(x, y):
     return output
 
 
+def is_density(x):
+    """Return the density of the nodal volume."""
+    return 1.0
+
+
 @pytest.fixture(scope="module")
 def euler_integrator(data_path, simple_displacement_boundary):
-    """Run the example simulation."""
+    """Run the example simulation on the Euler integrator."""
     path = data_path
     mesh_file = path / "example_mesh.vtk"
     euler = Euler(dt=1e-3)
@@ -49,7 +55,7 @@ def euler_integrator(data_path, simple_displacement_boundary):
 
 @pytest.fixture(scope="module")
 def euler_cl_integrator(data_path, simple_displacement_boundary):
-    """Run the example simulation."""
+    """Run the example simulation on the EulerCL integrator."""
     path = data_path
     mesh_file = path / "example_mesh.vtk"
     euler = EulerCL(dt=1e-3)
@@ -59,6 +65,40 @@ def euler_cl_integrator(data_path, simple_displacement_boundary):
                   bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
                   is_displacement_boundary=simple_displacement_boundary,
                   initial_crack=is_crack)
+
+    return model, euler
+
+
+@pytest.fixture(scope="module")
+def euler_cromer_cl_integrator(data_path, simple_displacement_boundary):
+    """Run the example simulation on the EulerCromerCL integrator."""
+    path = data_path
+    mesh_file = path / "example_mesh.vtk"
+    euler = EulerCromerCL(dt=1e-3, damping=0.0)
+    # Create model
+    model = Model(mesh_file, integrator=euler, horizon=0.1,
+                  critical_stretch=0.005,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                  is_displacement_boundary=simple_displacement_boundary,
+                  initial_crack=is_crack,
+                  is_density=is_density)
+
+    return model, euler
+
+
+@pytest.fixture(scope="module")
+def velocity_verlet_cl_integrator(data_path, simple_displacement_boundary):
+    """Run the example simulation on the VelocityVerletCL integrator =."""
+    path = data_path
+    mesh_file = path / "example_mesh.vtk"
+    euler = VelocityVerletCL(dt=1e-3, damping=0.0)
+    # Create model
+    model = Model(mesh_file, integrator=euler, horizon=0.1,
+                  critical_stretch=0.005,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                  is_displacement_boundary=simple_displacement_boundary,
+                  initial_crack=is_crack,
+                  is_density=is_density)
 
     return model, euler
 
@@ -105,7 +145,7 @@ class TestIntegrator:
 
 
 class TestEuler:
-    """Euler integrator tests. See test_euler.py for more tests."""
+    """EulerCL integrator tests. See test_euler.py for more tests."""
 
     def test_call(self, data_path, euler_integrator):
         """Regression test for the Euler integrator."""
@@ -498,5 +538,300 @@ class TestEulerCL:
     def test_set_special_buffers(self, euler_cl_integrator):
         """There are no special buffers so this method does nothing."""
         model, integrator = euler_cl_integrator
+        value = integrator._set_special_buffers()
+        assert value is None
+
+
+class TestEulerCromerCL:
+    """EulerCromerCL integrator tests. See test_euler.py for more tests."""
+
+    @context_available
+    def test_call(self, data_path, euler_cromer_cl_integrator):
+        """Regression test for the EulerCromerCL integrator."""
+        path = data_path
+        model, integrator = euler_cromer_cl_integrator
+        nlist, n_neigh = model.initial_connectivity
+        u = np.zeros((model.nnodes, 3), dtype=np.float64)
+        ud = np.zeros((model.nnodes, 3), dtype=np.float64)
+        udd = np.zeros((model.nnodes, 3), dtype=np.float64)
+        force = np.zeros((model.nnodes, 3), dtype=np.float64)
+        body_force = np.zeros((model.nnodes, 3), dtype=np.float64)
+        damage = np.zeros((model.nnodes), dtype=np.float64)
+        regimes = None
+
+        integrator.set_buffers(
+            nlist, n_neigh, model.bond_stiffness, model.critical_stretch,
+            model.plus_cs, u, ud, udd, force, body_force, damage, regimes,
+            model.nregimes, model.nbond_types)
+        displacement_bc_magnitudes = 0.00001 / 2 * np.linspace(
+            1, 10, 10)
+        for step in range(10):
+            integrator.__call__(
+                displacement_bc_scale=displacement_bc_magnitudes[step],
+                force_bc_scale=0.0)
+
+        (u_actual,
+         ud_actual,
+         _,
+         force_actual,
+         _,
+         damage_actual,
+         nlist_actual,
+         n_neigh_actual
+         ) = integrator.write(
+             u, ud, udd, force, body_force, damage, nlist, n_neigh)
+        np.save(path/"expected_displacements_euler_cromer", u_actual)
+        np.save(path/"expected_velocities_euler_cromer", ud_actual)
+        np.save(path/"expected_force_euler_cromer", force_actual)
+        np.save(path/"expected_damage_euler_cromer", damage_actual)
+        np.savez(path/"expected_connectivity_euler_cromer_cl",
+                 nlist=nlist_actual, n_neigh=n_neigh_actual)
+
+        u_expected = np.load(path/"expected_displacements_euler_cromer.npy")
+        force_expected = np.load(path/"expected_force_euler_cromer.npy")
+        damage_expected = np.load(path/"expected_damage_euler_cromer.npy")
+        expected_connectivity = np.load(
+            path/"expected_connectivity_euler_cromer_cl.npz")
+        nlist_expected = expected_connectivity["nlist"]
+        n_neigh_expected = expected_connectivity["n_neigh"]
+
+        assert np.allclose(u_actual, u_expected)
+        assert np.allclose(force_actual, force_expected)
+        assert np.allclose(damage_actual, damage_expected)
+        assert np.allclose(nlist_actual, nlist_expected)
+        assert np.allclose(n_neigh_actual, n_neigh_expected)
+
+    @context_available
+    def test_set_buffers_float(self, euler_cromer_cl_integrator):
+        """Test initiation of arrays that are dependent on simulation."""
+        model, integrator = euler_cromer_cl_integrator
+        nlist, n_neigh = model.initial_connectivity
+        bond_stiffness = model.bond_stiffness
+        critical_stretch = model.critical_stretch
+        plus_cs = model.plus_cs
+        u = np.zeros((model.nnodes, 3), dtype=np.float64)
+        ud = np.zeros((model.nnodes, 3), dtype=np.float64)
+        udd = np.zeros((model.nnodes, 3), dtype=np.float64)
+        force = np.zeros((model.nnodes, 3), dtype=np.float64)
+        body_force = np.zeros((model.nnodes, 3), dtype=np.float64)
+        damage = np.zeros((model.nnodes, 3), dtype=np.float64)
+        regimes = None
+        nregimes = 1
+        nbond_types = 1
+
+        integrator.set_buffers(
+            nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
+            u, ud, udd, force, body_force, damage, regimes, nregimes,
+            nbond_types)
+
+        assert(type(integrator.bond_stiffness_d) is np.float64)
+        assert(type(integrator.critical_stretch_d) is np.float64)
+
+    @context_available
+    def test_set_buffers_array(self, euler_cromer_cl_integrator):
+        """Test initiation of arrays that are dependent on simulation."""
+        model, integrator = euler_cromer_cl_integrator
+        nlist, n_neigh = model.initial_connectivity
+        bond_stiffness = model.bond_stiffness
+        critical_stretch = model.critical_stretch
+        plus_cs = np.zeros((2, 2), dtype=np.float64)
+        u = np.zeros((model.nnodes, 3), dtype=np.float64)
+        ud = np.zeros((model.nnodes, 3), dtype=np.float64)
+        udd = np.zeros((model.nnodes, 3), dtype=np.float64)
+        force = np.zeros((model.nnodes, 3), dtype=np.float64)
+        body_force = np.zeros((model.nnodes, 3), dtype=np.float64)
+        damage = np.zeros((model.nnodes, 3), dtype=np.float64)
+        regimes = np.zeros(
+            (model.nnodes, model.max_neighbours), dtype=np.float64)
+        nregimes = 2
+        nbond_types = 2
+
+        integrator.set_buffers(
+            nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
+            u, ud, udd, force, body_force, damage, regimes, nregimes,
+            nbond_types)
+
+        assert(type(integrator.bond_stiffness_d) is cl._cl.Buffer)
+        assert(type(integrator.critical_stretch_d) is cl._cl.Buffer)
+
+    @context_available
+    def test_build_exception(self, euler_cromer_cl_integrator):
+        """Test exception when densities are not supplied to EulerCromerCL."""
+        model, integrator = euler_cromer_cl_integrator
+
+        nnodes = model.nnodes
+        degrees_freedom = model.degrees_freedom
+        max_neighbours = model.max_neighbours
+        coords = model.coords
+        family = model.family
+        volume = model.volume
+        bc_types = model.bc_types
+        bc_values = model.bc_values
+        force_bc_types = model.force_bc_types
+        force_bc_values = model.force_bc_values
+        stiffness_corrections = None
+        bond_types = None
+        densities = None
+
+        with pytest.raises(ValueError) as exception:
+
+            integrator.build(
+                nnodes, degrees_freedom, max_neighbours, coords,
+                volume, family, bc_types, bc_values, force_bc_types,
+                force_bc_values, stiffness_corrections, bond_types, densities)
+            assert (
+                str("densities must be supplied") in exception.value)
+
+    @context_available
+    def test_set_special_buffers(self, euler_cromer_cl_integrator):
+        """There are no special buffers so this method does nothing."""
+        model, integrator = euler_cromer_cl_integrator
+        value = integrator._set_special_buffers()
+        assert value is None
+
+
+class TestVelocityVerletCL:
+    """VelocityVerletCL integrator tests. See test_euler.py for more tests."""
+
+    @context_available
+    def test_call(self, data_path, velocity_verlet_cl_integrator):
+        """Regression test for the VelocityVerletCL integrator."""
+        path = data_path
+        model, integrator = velocity_verlet_cl_integrator
+        nlist, n_neigh = model.initial_connectivity
+        u = np.zeros((model.nnodes, 3), dtype=np.float64)
+        ud = np.zeros((model.nnodes, 3), dtype=np.float64)
+        udd = np.zeros((model.nnodes, 3), dtype=np.float64)
+        force = np.zeros((model.nnodes, 3), dtype=np.float64)
+        body_force = np.zeros((model.nnodes, 3), dtype=np.float64)
+        damage = np.zeros((model.nnodes), dtype=np.float64)
+        regimes = None
+
+        integrator.set_buffers(
+            nlist, n_neigh, model.bond_stiffness, model.critical_stretch,
+            model.plus_cs, u, ud, udd, force, body_force, damage, regimes,
+            model.nregimes, model.nbond_types)
+        displacement_bc_magnitudes = 0.00001 / 2 * np.linspace(
+            1, 10, 10)
+        for step in range(10):
+            integrator.__call__(
+                displacement_bc_scale=displacement_bc_magnitudes[step],
+                force_bc_scale=0.0)
+
+        (u_actual,
+         ud_actual,
+         udd_actual,
+         force_actual,
+         _,
+         damage_actual,
+         nlist_actual,
+         n_neigh_actual
+         ) = integrator.write(
+             u, ud, udd, force, body_force, damage, nlist, n_neigh)
+
+        u_expected = np.load(path/"expected_displacements_velocity_verlet.npy")
+        ud_expected = np.load(path/"expected_velocities_velocity_verlet.npy")
+        udd_expected = np.load(
+            path/"expected_accelerations_velocity_verlet.npy")
+        force_expected = np.load(path/"expected_force_velocity_verlet.npy")
+        damage_expected = np.load(path/"expected_damage_velocity_verlet.npy")
+        expected_connectivity = np.load(
+            path/"expected_connectivity_velocity_verlet_cl.npz")
+        nlist_expected = expected_connectivity["nlist"]
+        n_neigh_expected = expected_connectivity["n_neigh"]
+
+        assert np.allclose(u_actual, u_expected)
+        assert np.allclose(ud_actual, ud_expected)
+        assert np.allclose(udd_actual, udd_expected)
+        assert np.allclose(force_actual, force_expected)
+        assert np.allclose(damage_actual, damage_expected)
+        assert np.allclose(nlist_actual, nlist_expected)
+        assert np.allclose(n_neigh_actual, n_neigh_expected)
+
+    @context_available
+    def test_set_buffers_float(self, velocity_verlet_cl_integrator):
+        """Test initiation of arrays that are dependent on simulation."""
+        model, integrator = velocity_verlet_cl_integrator
+        nlist, n_neigh = model.initial_connectivity
+        bond_stiffness = model.bond_stiffness
+        critical_stretch = model.critical_stretch
+        plus_cs = model.plus_cs
+        u = np.zeros((model.nnodes, 3), dtype=np.float64)
+        ud = np.zeros((model.nnodes, 3), dtype=np.float64)
+        udd = np.zeros((model.nnodes, 3), dtype=np.float64)
+        force = np.zeros((model.nnodes, 3), dtype=np.float64)
+        body_force = np.zeros((model.nnodes, 3), dtype=np.float64)
+        damage = np.zeros((model.nnodes, 3), dtype=np.float64)
+        regimes = None
+        nregimes = 1
+        nbond_types = 1
+
+        integrator.set_buffers(
+            nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
+            u, ud, udd, force, body_force, damage, regimes, nregimes,
+            nbond_types)
+
+        assert(type(integrator.bond_stiffness_d) is np.float64)
+        assert(type(integrator.critical_stretch_d) is np.float64)
+
+    @context_available
+    def test_set_buffers_array(self, velocity_verlet_cl_integrator):
+        """Test initiation of arrays that are dependent on simulation."""
+        model, integrator = velocity_verlet_cl_integrator
+        nlist, n_neigh = model.initial_connectivity
+        bond_stiffness = model.bond_stiffness
+        critical_stretch = model.critical_stretch
+        plus_cs = np.zeros((2, 2), dtype=np.float64)
+        u = np.zeros((model.nnodes, 3), dtype=np.float64)
+        ud = np.zeros((model.nnodes, 3), dtype=np.float64)
+        udd = np.zeros((model.nnodes, 3), dtype=np.float64)
+        force = np.zeros((model.nnodes, 3), dtype=np.float64)
+        body_force = np.zeros((model.nnodes, 3), dtype=np.float64)
+        damage = np.zeros((model.nnodes, 3), dtype=np.float64)
+        regimes = np.zeros(
+            (model.nnodes, model.max_neighbours), dtype=np.float64)
+        nregimes = 2
+        nbond_types = 2
+
+        integrator.set_buffers(
+            nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
+            u, ud, udd, force, body_force, damage, regimes, nregimes,
+            nbond_types)
+
+        assert(type(integrator.bond_stiffness_d) is cl._cl.Buffer)
+        assert(type(integrator.critical_stretch_d) is cl._cl.Buffer)
+
+    @context_available
+    def test_build_exception(self, velocity_verlet_cl_integrator):
+        """Test exception when densities not supplied to VelocityVerletCL."""
+        model, integrator = velocity_verlet_cl_integrator
+
+        nnodes = model.nnodes
+        degrees_freedom = model.degrees_freedom
+        max_neighbours = model.max_neighbours
+        coords = model.coords
+        family = model.family
+        volume = model.volume
+        bc_types = model.bc_types
+        bc_values = model.bc_values
+        force_bc_types = model.force_bc_types
+        force_bc_values = model.force_bc_values
+        stiffness_corrections = None
+        bond_types = None
+        densities = None
+
+        with pytest.raises(ValueError) as exception:
+
+            integrator.build(
+                nnodes, degrees_freedom, max_neighbours, coords,
+                volume, family, bc_types, bc_values, force_bc_types,
+                force_bc_values, stiffness_corrections, bond_types, densities)
+            assert (
+                str("densities must be supplied") in exception.value)
+
+    @context_available
+    def test_set_special_buffers(self, velocity_verlet_cl_integrator):
+        """There are no special buffers so this method does nothing."""
+        model, integrator = velocity_verlet_cl_integrator
         value = integrator._set_special_buffers()
         assert value is None

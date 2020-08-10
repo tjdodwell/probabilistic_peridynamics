@@ -656,8 +656,9 @@ class VelocityVerletCL(Integrator):
             force_bc_scale, self.nregimes)
 
         self._update_displacement(
-            self.force_d, self.u_d, self.ud_d, self.bc_types_d,
-            self.bc_values_d, displacement_bc_scale, self.dt)
+            self.force_d, self.u_d, self.ud_d, self.udd_d, self.bc_types_d,
+            self.bc_values_d, self.densities_d, displacement_bc_scale,
+            self.damping, self.dt)
 
     def _build_special(self):
         """Build OpenCL kernels special to the Euler integrator."""
