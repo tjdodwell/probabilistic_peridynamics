@@ -923,6 +923,15 @@ class Model(object):
                 elif np.shape(bond_stiffness[0]) == ():
                     nbond_types = 1
                     nregimes = np.shape(bond_stiffness)[0]
+
+                    if not all(
+                        critical_stretch[i] <= critical_stretch[i + 1]
+                            for i in range(nregimes-1)):
+                        raise ValueError(
+                            "critical_stretch must be a *sorted* list or array"
+                            " in ascending order (got {})".format(
+                                critical_stretch))
+
                     bond_stiffness = np.array(
                         bond_stiffness, dtype=np.float64)
                     critical_stretch = np.array(
@@ -945,6 +954,18 @@ class Model(object):
                 else:
                     nregimes = np.shape(bond_stiffness)[1]
                     nbond_types = np.shape(bond_stiffness)[0]
+
+                    for i in range(nbond_types):
+                        if not all(
+                            critical_stretch[i][j] <=
+                                critical_stretch[i][j + 1]
+                                for j in range(nregimes-1)):
+                            raise ValueError(
+                                "critical_stretch must be a *sorted* list or "
+                                "array in ascending order (got {} for "
+                                "bond_type {})".format(
+                                    critical_stretch[i], i))
+
                     bond_stiffness = np.array(
                         bond_stiffness, dtype=np.float64)
                     critical_stretch = np.array(
@@ -1024,7 +1045,8 @@ class Model(object):
         :returns: A tuple of the displacement and foce boundary condition types
             and values, and the tip types.
         :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
-                      :class:`numpy.ndarray`, :class:`numpy.ndarray`)
+                      :class:`numpy.ndarray`, :class:`numpy.ndarray`,
+                      :class:`numpy.ndarray`)
         """
         functions = {'is_displacement_boundary': is_displacement_boundary,
                      'is_force_boundary': is_force_boundary,
