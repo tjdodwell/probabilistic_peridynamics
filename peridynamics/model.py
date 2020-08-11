@@ -1102,7 +1102,7 @@ class Model(object):
     def simulate(self, steps, u=None, ud=None, connectivity=None,
                  regimes=None, critical_stretch=None, bond_stiffness=None,
                  displacement_bc_magnitudes=None, force_bc_magnitudes=None,
-                 max_load=0.0, first_step=1, write=None,
+                 first_step=1, write=None,
                  write_path=None):
         """
         Simulate the peridynamics model.
