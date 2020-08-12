@@ -270,6 +270,7 @@ __kernel void
 	bond_force3(
     __global double const* u,
     __global double* force,
+    __global double* body_force,
     __global double const* r0,
     __global double const* vols,
 	__global int* nlist,
@@ -278,7 +279,7 @@ __kernel void
     __global double const* stiffness_corrections,
     __global int const* bond_types,
     __global int* regimes,
-    __global float const* plus_cs,
+    __global double const* plus_cs,
     __local double* local_cache_x,
     __local double* local_cache_y,
     __local double* local_cache_z,
@@ -416,6 +417,7 @@ __kernel void
 	bond_force4(
     __global double const* u,
     __global double* force,
+    __global double* body_force,
     __global double const* r0,
     __global double const* vols,
 	__global int* nlist,
@@ -424,7 +426,7 @@ __kernel void
     __global double const* stiffness_corrections,
     __global int const* bond_types,
     __global int* regimes,
-    __global float const* plus_cs,
+    __global double const* plus_cs,
     __local double* local_cache_x,
     __local double* local_cache_y,
     __local double* local_cache_z,
