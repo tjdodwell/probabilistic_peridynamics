@@ -2,8 +2,8 @@
 A simple, 3D peridynamics simulation example.
 
 This example is a 1.65m x 0.6m x 0.25m plain concrete canteliver beam with no
-pre-crack subjected to displacement loading on the  right-hand side of the beam
-at 2.0x10^-8 metres per time-step.
+pre-crack subjected to force controlled loading on the  right-hand side of the
+beam which linearly increases up to 45kN.
 
 In this example, the first time the volume, family and connectivity of the
 model are calculated, they are also stored in file '1650beam13539_model.h5'.
@@ -17,14 +17,14 @@ from io import StringIO
 import numpy as np
 import pathlib
 from peridynamics import Model
-from peridynamics.integrators import EulerCromerCL
+from peridynamics.integrators import VelocityVerletCL
 from peridynamics.utilities import read_array as read_model
 from pstats import SortKey, Stats
 
 
 # The .msh file is a finite element mesh generated with  a finite
 # element mesh generator. '1650beam5153.msh' was generated with gmsh and
-# contains 13539 nodes.
+# contains 13539 nodes
 mesh_file = pathlib.Path(__file__).parent.absolute() / '1650beam13539.msh'
 
 
@@ -138,25 +138,26 @@ def main():
         profile = cProfile.Profile()
         profile.enable()
 
-    # Dynamic relaxation damping constant to converge to steady solution
-    damping = 2.2e6
+    # Increasing the dynamic relaxation damping constant to a critical value
+    # will help the system to converge to the equilibrium steady-state solution
+    damping = 0.0
     # Stable time step (What happens if you increase or decrease it?)
     dt = 1.5e-5
-    integrator = EulerCromerCL(dt=dt, damping=damping)
+    integrator = VelocityVerletCL(dt=dt, damping=damping)
 
     # Try reading connectivity, bond_types and stiffness_correction files from
     # the file ./1650beam13539_model.h5
     # volume is an (nnodes, ) :class:`np.ndarray` of nodal volumes, where
-    # nnodes is the number of nodes in the .msh file.
+    # nnodes is the number of nodes in the .msh file
     volume = read_model(write_path_model, "volume")
     # density is an (nnodes, ) :class:`np.ndarray` of nodal densities
     density = read_model(write_path_model, "density")
     # family is an (nnodes, ) :class:`np.ndarray` of initial number of
-    # neighbours for each node.
+    # neighbours for each node
     family = read_model(write_path_model, "family")
     # nlist is an (nnodes, max_neigh) :class:`np.ndarray` of the neighbours
     # for each node. Each neigbour is given an integer i.d. in the range
-    # [0, nnodes). max_neigh is atleast as large as np.max(family).
+    # [0, nnodes). max_neigh is atleast as large as np.max(family)
     nlist = read_model(write_path_model, "nlist")
     # n_neigh is an (nnodes, ) :class:`np.ndarray` of current number of
     # neighbours for each node.
@@ -173,7 +174,7 @@ def main():
             (connectivity is not None)):
         # Model has been initiated before, so to avoid calculating volume,
         # family and connectivity arrays again, we can pass them as arguments
-        # to the Model class.
+        # to the Model class
         model = Model(
             mesh_file, integrator=integrator, horizon=horizon,
             critical_stretch=critical_stretch, bond_stiffness=bond_stiffness,
@@ -186,7 +187,7 @@ def main():
     else:
         # This is the first time that Model has been initiated, so the volume,
         # family and connectivity = (nlist, n_neigh) arrays will be calculated
-        # and written to the file at location "write_path_model".
+        # and written to the file at location "write_path_model"
         model = Model(
             mesh_file, integrator=integrator, horizon=horizon,
             critical_stretch=critical_stretch, bond_stiffness=bond_stiffness,
@@ -198,17 +199,33 @@ def main():
             write_path=write_path_model)
 
     # The force boundary condition magnitudes linearly increment in
-    # time with a max force rate of 50kN over 4000 time-steps.
-    force_bc_array = np.linspace(0, 50000, 4000)
+    # time with a max force rate of 45kN over 5000 time-steps
+    force_bc_array = np.linspace(0, 45000, 5000)
 
+    # Run the simulation
+    # Use e.g. paraview to view the output .vtk files of simulate
     (u, damage, connectivity, force, ud, damage_sum_data,
      tip_displacement_data, tip_velocity_data, tip_acceleration_data,
      tip_force_data, tip_body_force_data) = model.simulate(
-        steps=4000,
+        steps=5000,
         force_bc_magnitudes=force_bc_array,
         write=200
         )
     # Try plotting tip_body_force_data against tip_displacement_data
+
+    # Note that bond_stiffness and critical_stretch can be changed without
+    # re-initialising :class `Model`:, e.g.
+    # >>> _* = model.simulate(
+    # >>>     bond_stiffness=<my_new_bond_stiffness_value>,
+    # >>>     critical_stretch=<my_new_critical_stretch_value>,
+    # >>>     steps=5000,
+    # >>>     force_bc_magnitudes=force_bc_array,
+    # >>>     write=200
+    # >>>     )
+    # Try experimenting with different values of the peridynamics parameters
+    # The horizon distance cannot be changed without re-initialising
+    # :class:`Model`, since it controls the connectivity and family of the
+    # model
 
     if args.profile:
         profile.disable()

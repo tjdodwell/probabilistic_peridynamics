@@ -200,8 +200,8 @@ class TestUpdateDisplacement:
         cl.enqueue_copy(queue, u, u_d)
         cl.enqueue_copy(queue, ud, ud_d)
         cl.enqueue_copy(queue, udd, udd_d)
-        u_expected = np.array([0.0, 0.0, 10.0])
-        ud_expected = np.array([2.0, 3.0, 4.0])
+        u_expected = np.array([0.0, 0.0, 8.0])
+        ud_expected = np.array([1.0, 2.0, 3.0])
         udd_expected = np.array([-1.0, 0.0, 1.0])
 
         assert np.all(u == u_expected)

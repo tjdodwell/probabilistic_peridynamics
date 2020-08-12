@@ -1,4 +1,4 @@
-"""Utilitie functions that are unrelated to peridynamics."""
+"""Utility functions that are unrelated to peridynamics."""
 import h5py
 import warnings
 

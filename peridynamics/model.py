@@ -868,6 +868,9 @@ class Model(object):
             stretch values, each corresponding to a bond type and a regime.
         :type critical_stretch: list or :class:`numpy.ndarray`
 
+        :raises DamageModelError: when an unsorted (i.e. not in ascending
+            order) `critical_stretch` argument is provided.
+
         :returns: A tuple of the damage model:
             bond_stiffness, a float or array of the bond stiffness(es);
             critcal_stretch, a float or array of the critical stretch(es);
@@ -923,6 +926,12 @@ class Model(object):
                 elif np.shape(bond_stiffness[0]) == ():
                     nbond_types = 1
                     nregimes = np.shape(bond_stiffness)[0]
+
+                    if not all(
+                        critical_stretch[i] <= critical_stretch[i + 1]
+                            for i in range(nregimes-1)):
+                        raise DamageModelError(critical_stretch)
+
                     bond_stiffness = np.array(
                         bond_stiffness, dtype=np.float64)
                     critical_stretch = np.array(
@@ -945,6 +954,14 @@ class Model(object):
                 else:
                     nregimes = np.shape(bond_stiffness)[1]
                     nbond_types = np.shape(bond_stiffness)[0]
+
+                    for i in range(nbond_types):
+                        if not all(
+                            critical_stretch[i][j] <=
+                                critical_stretch[i][j + 1]
+                                for j in range(nregimes-1)):
+                            raise DamageModelError(critical_stretch[i])
+
                     bond_stiffness = np.array(
                         bond_stiffness, dtype=np.float64)
                     critical_stretch = np.array(
@@ -1024,7 +1041,8 @@ class Model(object):
         :returns: A tuple of the displacement and foce boundary condition types
             and values, and the tip types.
         :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
-                      :class:`numpy.ndarray`, :class:`numpy.ndarray`)
+                      :class:`numpy.ndarray`, :class:`numpy.ndarray`,
+                      :class:`numpy.ndarray`)
         """
         functions = {'is_displacement_boundary': is_displacement_boundary,
                      'is_force_boundary': is_force_boundary,
@@ -1084,7 +1102,7 @@ class Model(object):
     def simulate(self, steps, u=None, ud=None, connectivity=None,
                  regimes=None, critical_stretch=None, bond_stiffness=None,
                  displacement_bc_magnitudes=None, force_bc_magnitudes=None,
-                 max_load=0.0, first_step=1, write=None,
+                 first_step=1, write=None,
                  write_path=None):
         """
         Simulate the peridynamics model.
@@ -1492,6 +1510,27 @@ class FamilyError(Exception):
         message = (
                 "The following nodes have no bonds in the initial state,"
                 f" {indicies}."
+                )
+
+        super().__init__(message)
+
+
+class DamageModelError(Exception):
+    """An invalid critical stretch argument was used to construct a model."""
+
+    def __init__(self, critical_stretch):
+        """
+        Construct the exception.
+
+        :arg critical_stretch: The critical_stretch array.
+        :type critical_stretch: :class:`numpy.ndarray` or list
+
+        :rtype: :class:`DamageModelError`
+        """
+        message = (
+                "The critical_stretch list or array for a bond-type with "
+                "multiple regimes must be in ascending order, "
+                f" {critical_stretch} was given."
                 )
 
         super().__init__(message)
