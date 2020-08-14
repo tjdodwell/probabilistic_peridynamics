@@ -1,7 +1,7 @@
 """Tests for the model class."""
 from .conftest import context_available
 from ..model import (Model, DimensionalityError, FamilyError,
-                     initial_crack_helper, InvalidIntegrator)
+                     initial_crack_helper, InvalidIntegrator, DamageModelError)
 from pyopencl import mem_flags as mf
 import pyopencl as cl
 from ..integrators import Euler, EulerCL, EulerCromerCL
@@ -898,6 +898,16 @@ class TestDamageModel:
         with pytest.raises(ValueError) as exception:
             model._set_damage_model(bond_stiffness, critical_stretch)
             assert(str("critical_stretch values must not be < 0")
+                   in exception.values)
+
+    def test_plus_cs_unordered_array(self, basic_models_2d):
+        """Test for damage model parameters with negative critical stretch."""
+        bond_stiffness = np.array([[1.0, 1.0, -0.5], [1.0, 0.0, 0.0]])
+        critical_stretch = np.array([[1.0, 0.9, 2.5], [1.0, 1000.0, 1001.0]])
+        model = basic_models_2d
+        with pytest.raises(DamageModelError) as exception:
+            model._set_damage_model(bond_stiffness, critical_stretch)
+            assert(str("must be in ascending order")
                    in exception.values)
 
     def test_plus_cs_negative_float(self, basic_models_2d):
