@@ -1,7 +1,7 @@
 """
 A simple, 3D peridynamics simulation example.
 
-This example is a 1.65m x 0.6m x 0.25m plain concrete canteliver beam with no
+This example is a 1.65m x 0.25m x 0.6m plain concrete canteliver beam with no
 pre-crack subjected to force controlled loading on the  right-hand side of the
 beam which linearly increases up to 45kN.
 
