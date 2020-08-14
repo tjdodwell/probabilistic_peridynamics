@@ -1215,7 +1215,8 @@ class Model(object):
                             if self.tip_types[i][j] == 1:
                                 tmp += 1
                                 tip_displacement += u[i][j]
-                                tip_force += force[i][j]
+                                tip_force += (
+                                    force[i][j] * self.volume[i])
                                 tip_body_force += (
                                     body_force[i][j] * self.volume[i])
                                 tip_velocity += ud[i][j]
