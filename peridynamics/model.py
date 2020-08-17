@@ -751,13 +751,12 @@ class Model(object):
                         raise TypeError(
                             "is_bond_type must be a function that returns an "
                             "*int* (expected {}, got {})".format(
-                                int, type(is_bond_type(
-                                    self.coords[0], self.coords[1]))))
+                                int, type(bond_type)))
                     if bond_type < 0:
                         raise ValueError(
                             "is_bond_type must be a function that returns a "
                             "*positive* int or 0 (got {})".format(
-                                is_bond_type(self.coords[0], self.coords[1])))
+                                bond_type))
                     if bond_type > nbond_types - 1:
                         raise ValueError(
                             "is_bond_type must be a function that returns a "
@@ -766,9 +765,9 @@ class Model(object):
                             "nbond_types = {}, got is_bond_type = {} for "
                             "particle coordinate pair {}, {})".format(
                                 nbond_types,
-                                is_bond_type(self.coords[0], self.coords[1]),
-                                self.coords[0],
-                                self.coords[1]
+                                bond_type,
+                                self.coords[i, :],
+                                self.coords[j, :]
                                 ))
                     bond_types[i][neigh] = bond_type
             bond_types = bond_types.astype(np.intc)

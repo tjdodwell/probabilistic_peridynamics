@@ -544,14 +544,68 @@ class TestBondTypes:
                 return 1
             else:
                 return 2
+
         with pytest.raises(ValueError) as exception:
             Model(
                 mesh_file, integrator=integrator, horizon=0.1,
                 critical_stretch=[[0.05], [0.05]],
                 bond_stiffness=[[1.0], [2.0]],
                 is_bond_type=invalid_bond_type_function)
-            assert(str("nbond_types = 2, got is_bond_type = 2 for")
+            assert(str(
+                "nbond_types = 2, got is_bond_type = 2 for")
                    in exception.value)
+
+    @context_available
+    def test_valid_bond_type_function1(self, data_path, request):
+        """Test expection for valid is_bond_type function."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = EulerCL(dt=1e-3)
+
+        def invalid_bond_type_function(x, y):
+            if x[0] == 0.0:
+                return 0
+            else:
+                return 1
+
+        model = Model(
+                mesh_file, integrator=integrator, horizon=0.1,
+                critical_stretch=[[0.05], [0.05]],
+                bond_stiffness=[[1.0], [2.0]],
+                is_bond_type=invalid_bond_type_function)
+        actual_bond_types = model.bond_types
+        expected_bond_types = np.load(data_path/"expected_bond_types.npy")
+        assert np.all(expected_bond_types == actual_bond_types)
+
+    @context_available
+    def test_valid_bond_type_function2(self, data_path, request):
+        """Test bond_types when nbond_types == 1 function."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = EulerCL(dt=1e-3)
+
+        model = Model(
+                mesh_file, integrator=integrator, horizon=0.1,
+                critical_stretch=[0.05, 0.10],
+                bond_stiffness=[1.0, 0.5])
+        actual_bond_types = model.bond_types
+        expected_bond_types = np.zeros((model.nnodes, model.max_neighbours),
+                                       dtype=np.intc)
+        assert np.all(expected_bond_types == actual_bond_types)
+
+    @pytest.mark.parametrize(
+        "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
+    def test_valid_bond_type_function3(
+            self, data_path, request, integrator):
+        """Test bond_types when nbond_types == 1 and nregimes == 1."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = integrator(dt=1e-3)
+
+        model = Model(
+                mesh_file, integrator=integrator, horizon=0.1,
+                critical_stretch=0.05,
+                bond_stiffness=1.0)
+        actual_bond_types = model.bond_types
+        assert actual_bond_types is None
+
 
     def test_bond_type_support(self, data_path):
         """Test _set_bond_types support for the Euler integrator."""
