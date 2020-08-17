@@ -45,16 +45,6 @@ def is_crack(x, y):
     return output
 
 
-def is_tip(x):
-    """Return if the particle coordinate is a `tip`."""
-    # Particle does not live on tip
-    tip = [None, None, None]
-    # Particle does live on tip
-    if x[0] > 0.9:
-        tip[0] = 1
-    return tip
-
-
 def is_displacement_boundary(x):
     """
     Return a boolean list of displacement boundarys for each direction.
@@ -110,7 +100,7 @@ def main():
         mesh_file, integrator=integrator, horizon=horizon,
         critical_stretch=0.005, bond_stiffness=bond_stiffness,
         is_displacement_boundary=is_displacement_boundary,
-        is_tip=is_tip, dimensions=2, initial_crack=is_crack)
+        dimensions=2, initial_crack=is_crack)
 
     # The simulation will have 1000 time steps, and last
     # dt * steps = 1e-3 * 1000 = 1.0 seconds
