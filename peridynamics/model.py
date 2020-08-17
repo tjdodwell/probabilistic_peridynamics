@@ -472,7 +472,7 @@ class Model(object):
 
         if bond_types is None:
             # Calculate bond types and write to file
-            bond_types = self._set_bond_types(
+            self.bond_types = self._set_bond_types(
                 self.initial_connectivity, is_bond_type,
                 self.nbond_types, self.nregimes, self.write_path)
 
@@ -526,7 +526,7 @@ class Model(object):
             self.nnodes, self.degrees_freedom, self.max_neighbours,
             self.coords, self.volume, self.family, self.bc_types,
             self.bc_values, self.force_bc_types, self.force_bc_values,
-            self.stiffness_corrections, bond_types, self.densities)
+            self.stiffness_corrections, self.bond_types, self.densities)
 
     def _read_mesh(self, filename, transfinite):
         """
@@ -540,7 +540,7 @@ class Model(object):
         mesh = meshio.read(filename)
 
         if transfinite:
-            # In this case, only need coordinates, encoded as mesh points
+            # Only need coordinates, encoded as mesh points
             self.coords = np.array(mesh.points, dtype=np.float64)
             self.nnodes = self.coords.shape[0]
         else:
@@ -739,26 +739,39 @@ class Model(object):
             if not callable(is_bond_type):
                 raise TypeError(
                     "is_bond_type must be a *function*.")
-            if type(is_bond_type(self.coords[0], self.coords[1])) is not int:
-                raise TypeError(
-                    "is_bond_type must be a function that returns an *int* "
-                    "(expected {}, got {})".format(
-                        int, type(
-                            is_bond_type(self.coords[0], self.coords[1]))))
             nlist, n_neigh = connectivity
             bond_types = np.zeros(
                 (self.nnodes, self.max_neighbours))
             for i in range(self.nnodes):
                 for neigh in range(n_neigh[i]):
                     j = nlist[i][neigh]
-                    bond_types[i][neigh] = is_bond_type(
+                    bond_type = is_bond_type(
                         self.coords[i, :], self.coords[j, :])
+                    if type(bond_type) is not int:
+                        raise TypeError(
+                            "is_bond_type must be a function that returns an "
+                            "*int* (expected {}, got {})".format(
+                                int, type(is_bond_type(
+                                    self.coords[0], self.coords[1]))))
+                    if bond_type < 0:
+                        raise ValueError(
+                            "is_bond_type must be a function that returns a "
+                            "*positive* int or 0 (got {})".format(
+                                is_bond_type(self.coords[0], self.coords[1])))
+                    if bond_type > nbond_types - 1:
+                        raise ValueError(
+                            "is_bond_type must be a function that returns a "
+                            "positive int or 0 which is *less* than "
+                            "nbond_types (the number of different bonds, "
+                            "nbond_types = {}, got is_bond_type = {} for "
+                            "particle coordinate pair {}, {})".format(
+                                nbond_types,
+                                is_bond_type(self.coords[0], self.coords[1]),
+                                self.coords[0],
+                                self.coords[1]
+                                ))
+                    bond_types[i][neigh] = bond_type
             bond_types = bond_types.astype(np.intc)
-            if np.any(bond_types > (nbond_types-1)):
-                raise ValueError("number of bond types must be equal to the"
-                                 " number of bond_stiffness values (expected"
-                                 " {}, got {})".format(
-                                     nbond_types, np.max(bond_types)))
             if write_path is not None:
                 write_array(write_path, "bond_types", bond_types)
         elif nregimes != 1:
@@ -842,7 +855,7 @@ class Model(object):
                         stiffness_correction_factor)
         else:
             raise ValueError("precise_stiffness_correction value is wrong "
-                             "(expected 0 or 1 or None, got {})".format(
+                             "(expected 0, 1 or None, got {})".format(
                                  precise_stiffness_correction))
         stiffness_corrections = stiffness_corrections.astype(np.float64)
         if write_path is not None:
@@ -1183,6 +1196,7 @@ class Model(object):
          force_bc_magnitudes,
          damage,
          data,
+         nwrites,
          write_path) = self._simulate_initialise(
              steps, first_step, write, regimes, u, ud,
              displacement_bc_magnitudes, force_bc_magnitudes, connectivity,
@@ -1210,7 +1224,9 @@ class Model(object):
 
                     self.write_mesh(write_path/f"U_{step}.vtk", damage, u)
 
-                    ii = step // write - 1
+                    # Write index number
+                    ii = step // write - (first_step - 1) // write - 1
+
                     for i in range(self.nnodes):
                         for j in range(self.degrees_freedom):
                             tip_type = self.tip_types[i][j]
@@ -1219,15 +1235,15 @@ class Model(object):
                                     # Build data dict for this tip type
                                     data[str(tip_type)] = {
                                         'displacement': np.zeros(
-                                            steps // write, dtype=np.float64),
+                                            nwrites, dtype=np.float64),
                                         'velocity': np.zeros(
-                                            steps // write, dtype=np.float64),
+                                            nwrites, dtype=np.float64),
                                         'acceleration': np.zeros(
-                                            steps // write, dtype=np.float64),
+                                            nwrites, dtype=np.float64),
                                         'force': np.zeros(
-                                            steps // write, dtype=np.float64),
+                                            nwrites, dtype=np.float64),
                                         'body_force': np.zeros(
-                                            steps // write, dtype=np.float64)
+                                            nwrites, dtype=np.float64)
                                         }
 
                                 # Add to tip data for the write index, ii
@@ -1331,9 +1347,8 @@ class Model(object):
                      :class:`numpy.ndarray`, :class:`numpy.ndarray`,
                      :class:`numpy.ndarray`, :class:`numpy.ndarray`,
                      :class:`numpy.ndarray`, :class:`numpy.ndarray`,
-                     :class:`numpy.ndarray`, :class:`numpy.ndarray`,
-                     :class:`numpy.ndarray`, :class:`numpy.ndarray`,
-                     :class:`numpy.ndarray`, :class`pathlib.Path`)
+                     :class:`numpy.ndarray`, dict,
+                     int, :class`pathlib.Path`)
         """
         # Create initial displacements and velocities if none is provided
         if u is None:
@@ -1445,15 +1460,19 @@ class Model(object):
 
         # Container for plotting data
         data = {}
-        if write is not None:
-            data['model'] = {
-                'displacement': np.zeros(steps // write, dtype=np.float64),
-                'velocity': np.zeros(steps // write, dtype=np.float64),
-                'acceleration': np.zeros(steps // write, dtype=np.float64),
-                'force': np.zeros(steps // write, dtype=np.float64),
-                'body_force': np.zeros(steps // write, dtype=np.float64),
-                'damage_sum': np.zeros(steps // write, dtype=np.float64)
-                }
+        nwrites = None
+        if write:
+            nwrites = (
+                (first_step + steps - 1) // write - (first_step - 1) // write)
+            if write is not None:
+                data['model'] = {
+                    'displacement': np.zeros(nwrites, dtype=np.float64),
+                    'velocity': np.zeros(nwrites, dtype=np.float64),
+                    'acceleration': np.zeros(nwrites, dtype=np.float64),
+                    'force': np.zeros(nwrites, dtype=np.float64),
+                    'body_force': np.zeros(nwrites, dtype=np.float64),
+                    'damage_sum': np.zeros(nwrites, dtype=np.float64)
+                    }
 
         # Initialise the OpenCL buffers
         self.integrator.set_buffers(
@@ -1462,7 +1481,7 @@ class Model(object):
 
         return (u, ud, udd, force, body_force, nlist, n_neigh,
                 displacement_bc_magnitudes, force_bc_magnitudes, damage, data,
-                write_path)
+                nwrites, write_path)
 
 
 def initial_crack_helper(crack_function):

@@ -7,6 +7,7 @@ import pyopencl as cl
 from ..integrators import Euler, EulerCL, EulerCromerCL
 import meshio
 import numpy as np
+import warnings
 import pytest
 
 
@@ -86,6 +87,50 @@ def basic_model_3d_cl(data_path, simple_displacement_boundary):
                   bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
                   dimensions=3,
                   is_displacement_boundary=simple_displacement_boundary)
+    return model, euler
+
+
+@pytest.fixture(
+    scope="session",
+    params=[Euler, pytest.param(EulerCL, marks=context_available)])
+def basic_models_transfinite(data_path, request, simple_displacement_boundary):
+    """Create a basic 2D transfinite model object."""
+    mesh_file = data_path / "example_mesh_transfinite.msh"
+    euler = request.param(dt=1e-3)
+    model = Model(mesh_file, integrator=euler, horizon=0.1,
+                  critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                  is_displacement_boundary=simple_displacement_boundary,
+                  transfinite=1,
+                  volume_total=1.0)
+    return model
+
+
+@pytest.fixture()
+def basic_model_transfinite(data_path, simple_displacement_boundary):
+    """Create a basic 2D transfinite model object using a cython integrator."""
+    mesh_file = data_path / "example_mesh_transfinite.msh"
+    euler = Euler(dt=1e-3)
+    model = Model(mesh_file, integrator=euler, horizon=0.1,
+                  critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                  is_displacement_boundary=simple_displacement_boundary,
+                  transfinite=1,
+                  volume_total=1.0)
+    return model, euler
+
+
+@pytest.fixture()
+def basic_model_transfinite_cl(data_path, simple_displacement_boundary):
+    """Create a basic 2D transfinite model object using OpenCL integrator."""
+    mesh_file = data_path / "example_mesh_transfinite.msh"
+    euler = EulerCL(dt=1e-3)
+    model = Model(mesh_file, integrator=euler, horizon=0.1,
+                  critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                  is_displacement_boundary=simple_displacement_boundary,
+                  transfinite=1,
+                  volume_total=1.0)
     return model, euler
 
 
@@ -176,6 +221,16 @@ class TestRead3D:
         assert np.all(model.mesh_boundary[100] == np.array([172, 185, 124]))
 
 
+def test_read_transfinite(basic_models_transfinite):
+    """Test reading a mesh with a transfinite model."""
+    model = basic_models_transfinite
+
+    assert model.coords.shape == (2116, 3)
+    assert model.nnodes == 2116
+    assert np.allclose(model.coords[69], np.array(
+        [0, 0.4888888888888889, 0]))
+
+
 @pytest.fixture(scope="class")
 def written_example(basic_models_3d, tmp_path_factory):
     """Write an example model to a mesh object."""
@@ -229,30 +284,52 @@ class TestWrite:
         assert np.all(u == mesh.point_data["displacements"])
 
 
-def test_volume_2d(basic_models_2d, data_path):
-    """Test volume calculation."""
-    expected_volume = np.load(data_path/"expected_volume.npy")
-    assert np.allclose(basic_models_2d.volume, expected_volume)
+class TestVolume:
+    """Tests for the calculation of particle volumes."""
 
+    def test_volume_2d(self, basic_models_2d, data_path):
+        """Test volume calculation."""
+        expected_volume = np.load(data_path/"expected_volume.npy")
+        assert np.allclose(basic_models_2d.volume, expected_volume)
 
-def test_volume_3d(basic_models_3d, data_path):
-    """Test volume calculation."""
-    expected_volume = np.load(data_path/"expected_volume_3d.npy")
-    assert np.allclose(basic_models_3d.volume, expected_volume)
+    def test_volume_3d(self, basic_models_3d, data_path):
+        """Test volume calculation."""
+        expected_volume = np.load(data_path/"expected_volume_3d.npy")
+        assert np.allclose(basic_models_3d.volume, expected_volume)
 
+    def test_volume_transfinite(self, basic_models_transfinite, data_path):
+        """Test volume calculation."""
+        expected_volume = np.ones(2116) / 2116.
+        assert np.allclose(basic_models_transfinite.volume, expected_volume)
 
-@pytest.mark.parametrize(
-    "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
-def test_volume_transfinite(data_path, integrator):
-    """Test exception when volume_total is not provided in transfinite mode."""
-    with pytest.raises(TypeError) as exception:
-        integrator = integrator(1)
+    @pytest.mark.parametrize(
+        "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
+    def test_no_volume_total_transfinite(self, data_path, integrator):
+        """Test exceptn when volume_total not provided in transfinite mode."""
+        with pytest.raises(TypeError) as exception:
+            integrator = integrator(1)
+            mesh_file = data_path / "example_mesh_3d.vtk"
+            Model(mesh_file, integrator, horizon=0.1, critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.0001**4),
+                  dimensions=3, transfinite=1)
+            assert (str("In transfinite mode, a total mesh volume")
+                    in exception.value)
+
+    @pytest.mark.parametrize(
+        "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
+    def test_volume_read(self, data_path, integrator):
+        """Test reading density from file behaves as expected."""
         mesh_file = data_path / "example_mesh_3d.vtk"
-        Model(mesh_file, integrator, horizon=0.1, critical_stretch=0.05,
-              bond_stiffness=18.0 * 0.05 / (np.pi * 0.0001**4),
-              dimensions=3, transfinite=1)
-        assert (str("In transfinite mode, a total mesh volume")
-                in exception.value)
+        expected_volume = np.load(data_path/"expected_volume_3d.npy")
+
+        with pytest.warns(UserWarning):
+            integrator = integrator(1)
+            warnings.warn("Reading volume from argument", UserWarning)
+            model = Model(mesh_file, integrator=integrator, horizon=0.1,
+                          critical_stretch=1.0,
+                          bond_stiffness=1.0,
+                          volume=expected_volume)
+            assert np.allclose(model.volume, expected_volume)
 
 
 def test_bond_stiffness_2d(basic_models_2d):
@@ -441,6 +518,26 @@ class TestBondTypes:
         integrator = integrator(dt=1e-3)
 
         def invalid_bond_type_function(x, y):
+            return -1
+        with pytest.raises(ValueError) as exception:
+            Model(
+                mesh_file, integrator=integrator, horizon=0.1,
+                critical_stretch=[[1.0], [2.0]],
+                bond_stiffness=[[1.0], [2.0]],
+                is_bond_type=invalid_bond_type_function)
+            assert(str(
+                "is_bond_type must be a function that returns a *positive*")
+                   in exception.value)
+
+    @pytest.mark.parametrize(
+        "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
+    def test_invalid_bond_type_function4(
+            self, data_path, request, integrator):
+        """Test expection for invalid is_bond_type function."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = integrator(dt=1e-3)
+
+        def invalid_bond_type_function(x, y):
             if x[0] == 0.0:
                 return 0
             elif x[0] == 1.0:
@@ -453,7 +550,7 @@ class TestBondTypes:
                 critical_stretch=[[0.05], [0.05]],
                 bond_stiffness=[[1.0], [2.0]],
                 is_bond_type=invalid_bond_type_function)
-            assert(str("number of bond types must be equal to the")
+            assert(str("nbond_types = 2, got is_bond_type = 2 for")
                    in exception.value)
 
     def test_bond_type_support(self, data_path):
@@ -501,7 +598,7 @@ class TestDensities:
         "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
     def test_invalid_density_type_function(
             self, data_path, request, integrator):
-        """Test expection for invalid is_density function."""
+        """Test exception for invalid is_density function."""
         mesh_file = data_path / "example_mesh.vtk"
         integrator = integrator(dt=1e-3)
         invalid_density_function = 1
@@ -518,7 +615,7 @@ class TestDensities:
         "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
     def test_invalid_density_function2(
             self, data_path, request, integrator):
-        """Test invalid _set_bond_types function."""
+        """Test exception for invalid is_density function."""
         mesh_file = data_path / "example_mesh.vtk"
         integrator = integrator(dt=1e-3)
 
@@ -569,7 +666,7 @@ class TestDensities:
                    in exception.value)
 
     def test_density_support_euler(self, data_path):
-        """Test _set_bond_types support for the Euler integrator."""
+        """Test densities support for the Euler integrator."""
         mesh_file = data_path / "example_mesh.vtk"
         integrator = Euler(dt=1e-3)
 
@@ -588,7 +685,7 @@ class TestDensities:
 
     @context_available
     def test_density_support_euler_cl(self, data_path):
-        """Test _set_bond_types support for the EulerCL integrator."""
+        """Test densities support for the EulerCL integrator."""
         mesh_file = data_path / "example_mesh.vtk"
         integrator = EulerCL(dt=1e-3)
 
@@ -607,7 +704,7 @@ class TestDensities:
 
     @context_available
     def test_density_support_euler_cromer_cl(self, data_path):
-        """Test _set_bond_types support for the EulerCromerCL integrator."""
+        """Test densities support for the EulerCromerCL integrator."""
         mesh_file = data_path / "example_mesh.vtk"
         integrator = EulerCromerCL(dt=1e-3, damping=1.0)
         expected_densities = np.load(
@@ -627,8 +724,28 @@ class TestDensities:
         assert np.all(actual_densities == expected_densities)
 
     @context_available
+    def test_density_read_cl(self, data_path):
+        """Test reading density from file behaves as expected."""
+        mesh_file = data_path / "example_mesh.vtk"
+        integrator = EulerCromerCL(dt=1e-3, damping=1.0)
+        expected_densities = np.load(
+            data_path / "expected_densities.npy")
+
+        density = expected_densities[:, 0]
+
+        with pytest.warns(UserWarning):
+            warnings.warn("Reading density from argument", UserWarning)
+            model = Model(mesh_file, integrator=integrator, horizon=0.1,
+                          critical_stretch=1.0,
+                          bond_stiffness=1.0,
+                          density=density)
+            actual_densities = model.densities
+
+            assert np.all(actual_densities == expected_densities)
+
+    @context_available
     def test_density_support_euler_cromer_cl2(self, data_path):
-        """Test _set_bond_types support for the EulerCromerCL integrator."""
+        """Test exception no densities supplied EulerCromerCL integrator."""
         mesh_file = data_path / "example_mesh.vtk"
         integrator = EulerCromerCL(dt=1e-3, damping=1.0)
 
