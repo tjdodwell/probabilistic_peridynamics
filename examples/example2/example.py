@@ -32,18 +32,19 @@ def is_tip(x):
     """
     Return a boolean list of tip types for each cartesian direction.
 
-    Returns a boolean list, whose elements are True when the particle is to
-    be measured for some displacement, velocity, force or acceleration
-    in that cartesian direction.
+    Returns a boolean list, whose elements are True (not None) when the
+    particle is to be measured for some displacement, velocity, force or
+    acceleration in that cartesian direction.
 
     :arg x: Particle coordinate array of size (3,).
     :type x: :class:`numpy.ndarray`
     """
-    # Particle does not live on tip
+    # Particle does not live on a tip
     tip = [None, None, None]
-    # Particle does live on tip
+    # Particle does live on a tip to be measured
     if x[0] > 1.55:
-        tip[2] = 1
+        # Right hand side, in the positive z direction.
+        tip[2] = 'rhs'
     return tip
 
 
@@ -204,15 +205,13 @@ def main():
 
     # Run the simulation
     # Use e.g. paraview to view the output .vtk files of simulate
-    (u, damage, connectivity, force, ud, damage_sum_data,
-     tip_displacement_data, tip_velocity_data, tip_acceleration_data,
-     tip_force_data, tip_body_force_data) = model.simulate(
+    (u, damage, connectivity, force, ud, data) = model.simulate(
         steps=5000,
         force_bc_magnitudes=force_bc_array,
         write=200
         )
-    # Try plotting tip_body_force_data against tip_displacement_data
-
+    # Try plotting data['rhs'][body_force] against data['rhs'][displacement]
+    print(data)
     # Note that bond_stiffness and critical_stretch can be changed without
     # re-initialising :class `Model`:, e.g.
     # >>> _* = model.simulate(

@@ -223,15 +223,14 @@ class Model(object):
             conditions.
         :type is_force_boundary: function
         :arg is_tip: A function to determine if a node is to be measured for
-            its reaction force or state variables over time, and if it is,
-            which direction the measurements are made
-            (positive or negative cartesian direction). It has the form
-            is_tip(:class:`numpy.ndarray`). The argument is the initial
+            its state variables or reaction force over time, and if it is,
+            which cartesian direction the measurements are made. It has the
+            form is_tip(:class:`numpy.ndarray`). The argument is the initial
             coordinates of a particle being simulated. `is_tip` returns a
-            (3,) list of the measurement types in each cartesian direction.
-            A tip type has a value of None if the particle is not on
-            the 'tip', and a value of 1 if is is on the `tip`
-            to be measured.
+            (3) list of the tip types in each cartesian direction:
+            A value of None if the particle is not on the `tip`, and a value
+            of not None (e.g. a string or an int) if it is on the `tip`
+            and to be measured.
         :type is_tip: function
         :arg density: An (nnodes, ) array of node density values, each
             corresponding to a material
@@ -518,7 +517,8 @@ class Model(object):
          self.bc_values,
          self.force_bc_types,
          self.force_bc_values,
-         self.tip_types) = self._set_boundary_conditions(
+         self.tip_types,
+         self.ntips) = self._set_boundary_conditions(
             is_displacement_boundary, is_force_boundary, is_tip)
 
         # Build the integrator
@@ -540,7 +540,7 @@ class Model(object):
         mesh = meshio.read(filename)
 
         if transfinite:
-            # In this case, only need coordinates, encoded as mesh points
+            # Only need coordinates, encoded as mesh points
             self.coords = np.array(mesh.points, dtype=np.float64)
             self.nnodes = self.coords.shape[0]
         else:
@@ -739,26 +739,39 @@ class Model(object):
             if not callable(is_bond_type):
                 raise TypeError(
                     "is_bond_type must be a *function*.")
-            if type(is_bond_type(self.coords[0], self.coords[1])) is not int:
-                raise TypeError(
-                    "is_bond_type must be a function that returns an *int* "
-                    "(expected {}, got {})".format(
-                        int, type(
-                            is_bond_type(self.coords[0], self.coords[1]))))
             nlist, n_neigh = connectivity
             bond_types = np.zeros(
                 (self.nnodes, self.max_neighbours))
             for i in range(self.nnodes):
                 for neigh in range(n_neigh[i]):
                     j = nlist[i][neigh]
-                    bond_types[i][neigh] = is_bond_type(
+                    bond_type = is_bond_type(
                         self.coords[i, :], self.coords[j, :])
+                    if type(bond_type) is not int:
+                        raise TypeError(
+                            "is_bond_type must be a function that returns an "
+                            "*int* (expected {}, got {})".format(
+                                int, type(is_bond_type(
+                                    self.coords[0], self.coords[1]))))
+                    if bond_type < 0:
+                        raise ValueError(
+                            "is_bond_type must be a function that returns a "
+                            "*positive* int or 0 (got {})".format(
+                                is_bond_type(self.coords[0], self.coords[1])))
+                    if bond_type > nbond_types - 1:
+                        raise ValueError(
+                            "is_bond_type must be a function that returns a "
+                            "positive int or 0 which is *less* than "
+                            "nbond_types (the number of different bonds, "
+                            "nbond_types = {}, got is_bond_type = {} for "
+                            "particle coordinate pair {}, {})".format(
+                                nbond_types,
+                                is_bond_type(self.coords[0], self.coords[1]),
+                                self.coords[0],
+                                self.coords[1]
+                                ))
+                    bond_types[i][neigh] = bond_type
             bond_types = bond_types.astype(np.intc)
-            if np.any(bond_types > (nbond_types-1)):
-                raise ValueError("number of bond types must be equal to the"
-                                 " number of bond_stiffness values (expected"
-                                 " {}, got {})".format(
-                                     nbond_types, np.max(bond_types)))
             if write_path is not None:
                 write_array(write_path, "bond_types", bond_types)
         elif nregimes != 1:
@@ -842,7 +855,7 @@ class Model(object):
                         stiffness_correction_factor)
         else:
             raise ValueError("precise_stiffness_correction value is wrong "
-                             "(expected 0 or 1 or None, got {})".format(
+                             "(expected 0, 1 or None, got {})".format(
                                  precise_stiffness_correction))
         stiffness_corrections = stiffness_corrections.astype(np.float64)
         if write_path is not None:
@@ -1027,22 +1040,22 @@ class Model(object):
             conditions.
         :type is_force_boundary: function
         :arg is_tip: A function to determine if a node is to be measured for
-            its reaction force or displacement over time, and if it is, which
-            direction the measurements are made
-            (positive or negative cartesian direction). It has the form
-            is_tip(:class:`numpy.ndarray`). The argument is the initial
+            its state variables or reaction force over time, and if it is,
+            which cartesian direction the measurements are made. It has the
+            form is_tip(:class:`numpy.ndarray`). The argument is the initial
             coordinates of a particle being simulated. `is_tip` returns a
-            (3) list of the measurement types in each cartesian direction.
-            A boundary type with an int value of None if the particle is not on
-            the `tip` to be measured, a value of 1 if is is on the `tip` and
-            to be measured.
+            (3) list of the tip types in each cartesian direction:
+            A value of None if the particle is not on the `tip`, and a value
+            of not None (e.g. a string or an int) if it is on the `tip`
+            and to be measured.
         :type is_tip: function
 
         :returns: A tuple of the displacement and foce boundary condition types
-            and values, and the tip types.
+            and values, and the list (nnodes, 3) of tip types, and a dictionary
+            of the number of particles residing on each tip.
         :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
                       :class:`numpy.ndarray`, :class:`numpy.ndarray`,
-                      :class:`numpy.ndarray`)
+                      list, dict)
         """
         functions = {'is_displacement_boundary': is_displacement_boundary,
                      'is_force_boundary': is_force_boundary,
@@ -1066,14 +1079,15 @@ class Model(object):
             (self.nnodes, self.degrees_freedom), dtype=np.intc)
         force_bc_values = np.zeros(
             (self.nnodes, self.degrees_freedom), dtype=np.float64)
-        tip_types = np.zeros(
-            (self.nnodes, self.degrees_freedom), dtype=np.intc)
+        tip_types = []
         num_force_bc_nodes = 0
+        ntips = {'model': self.nnodes}
         for i in range(self.nnodes):
             bnd = is_displacement_boundary(self.coords[i][:])
             forces_bnd = is_force_boundary(self.coords[i][:])
             tip = is_tip(self.coords[i][:])
             is_force_node = 0
+            tip_types.append([])
             for j in range(self.degrees_freedom):
                 forces_bnd_j = forces_bnd[j]
                 bnd_j = bnd[j]
@@ -1089,15 +1103,22 @@ class Model(object):
                     force_bc_values[i, j] = np.float64(
                         forces_bnd_j / self.volume[i])
                 # Define tip
+                tip_types[i].append(tip_j)
                 if tip_j is not None:
-                    tip_types[i, j] = 1
+                    if str(tip_j) not in ntips:
+                        # Initiate container for number of particles
+                        # residing on this tip
+                        ntips[str(tip_j)] = 0
+                    # Increase the number of particles residing
+                    # on this tip by one
+                    ntips[str(tip_j)] += 1
             num_force_bc_nodes += is_force_node
         if num_force_bc_nodes != 0:
             force_bc_values = np.float64(
                 np.divide(force_bc_values, num_force_bc_nodes))
 
         return (bc_types, bc_values, force_bc_types, force_bc_values,
-                tip_types)
+                tip_types, ntips)
 
     def simulate(self, steps, u=None, ud=None, connectivity=None,
                  regimes=None, critical_stretch=None, bond_stiffness=None,
@@ -1150,16 +1171,19 @@ class Model(object):
             written.
         :type write_path: path-like or str
 
-        :returns: A tuple of the final displacements (`u`), damage,
-            the final velocities (`ud`) connectivity, a (steps, ) list of the
-            total sum of all damage over the time steps, a (steps, 3) array of
-            the tip displacements over the time-steps and a (steps, 3) array of
-            the tip resultant force over the time-steps.
-            the current value of ease_off
+        :returns: A tuple of the final displacements (`u`); damage,
+            a tuple of the connectivity; the final particle forces (`force`);
+            the final particle velocities (`ud`) and a dictionary object
+            containing the displacement, velocity and acceleration
+            (average of), and the forces and body forces
+            for each of the writes (read 'over time'), for each unique
+            tip_type (read 'for each of the set of particles the user has
+            chosen to measure datum for, as defined by the `is_tip` function).
         :rtype: tuple(
             :class:`numpy.ndarray`, :class:`numpy.ndarray`,
-            :class:`numpy.ndarray`, tuple(:class:`numpy.ndarray`,
-            :class:`numpy.ndarray`))
+            tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`),
+            :class:`numpy.ndarray`, :class:`numpy.ndarray`,
+            dict)
         """
         (u,
          ud,
@@ -1171,16 +1195,12 @@ class Model(object):
          displacement_bc_magnitudes,
          force_bc_magnitudes,
          damage,
-         damage_sum_data,
-         tip_displacement_data,
-         tip_velocity_data,
-         tip_acceleration_data,
-         tip_force_data,
-         tip_body_force_data,
+         data,
+         nwrites,
          write_path) = self._simulate_initialise(
-             steps, first_step, regimes, u, ud, displacement_bc_magnitudes,
-             force_bc_magnitudes, connectivity, bond_stiffness,
-             critical_stretch, write_path)
+             steps, first_step, write, regimes, u, ud,
+             displacement_bc_magnitudes, force_bc_magnitudes, connectivity,
+             bond_stiffness, critical_stretch, write_path)
 
         for step in trange(first_step, first_step+steps,
                            desc="Simulation Progress", unit="steps"):
@@ -1204,41 +1224,60 @@ class Model(object):
 
                     self.write_mesh(write_path/f"U_{step}.vtk", damage, u)
 
-                    tip_displacement = 0
-                    tip_velocity = 0
-                    tip_acceleration = 0
-                    tip_force = 0
-                    tip_body_force = 0
-                    tmp = 0
+                    # Write index number
+                    ii = step // write - (first_step - 1) // write - 1
+
                     for i in range(self.nnodes):
                         for j in range(self.degrees_freedom):
-                            if self.tip_types[i][j] == 1:
-                                tmp += 1
-                                tip_displacement += u[i][j]
-                                tip_force += (
-                                    force[i][j] * self.volume[i])
-                                tip_body_force += (
-                                    body_force[i][j] * self.volume[i])
-                                tip_velocity += ud[i][j]
-                                tip_acceleration += udd[i][j]
-                    if tmp != 0:
-                        tip_displacement /= tmp
-                        tip_velocity /= tmp
-                        tip_acceleration /= tmp
-                    else:
-                        tip_force = None
-                        tip_displacement = None
-                        tip_velocity = None
-                        tip_acceleration = None
-                        tip_body_force = None
+                            tip_type = self.tip_types[i][j]
+                            if tip_type is not None:
+                                if str(tip_type) not in data:
+                                    # Build data dict for this tip type
+                                    data[str(tip_type)] = {
+                                        'displacement': np.zeros(
+                                            nwrites, dtype=np.float64),
+                                        'velocity': np.zeros(
+                                            nwrites, dtype=np.float64),
+                                        'acceleration': np.zeros(
+                                            nwrites, dtype=np.float64),
+                                        'force': np.zeros(
+                                            nwrites, dtype=np.float64),
+                                        'body_force': np.zeros(
+                                            nwrites, dtype=np.float64)
+                                        }
 
-                    tip_displacement_data.append(tip_displacement)
-                    tip_velocity_data.append(tip_velocity)
-                    tip_body_force_data.append(tip_body_force)
-                    tip_acceleration_data.append(tip_acceleration)
-                    tip_force_data.append(tip_force)
+                                # Add to tip data for the write index, ii
+                                data[str(tip_type)]['displacement'][ii] += (
+                                    u[i, j])
+                                data[str(tip_type)]['velocity'][ii] += (
+                                    ud[i, j])
+                                data[str(tip_type)]['acceleration'][ii] += (
+                                    udd[i, j])
+                                data[str(tip_type)]['force'][ii] += (
+                                    force[i, j] * self.volume[i])
+                                data[str(tip_type)]['body_force'][ii] += (
+                                    body_force[i, j] * self.volume[i])
+
+                    # Add to model data for the write index, ii
+                    data['model']['displacement'][ii] = np.sum(u)
+                    data['model']['velocity'][ii] = np.sum(ud)
+                    data['model']['acceleration'][ii] = np.sum(udd)
+                    data['model']['force'][ii] = np.sum(
+                        force * self.volume[:, np.newaxis])
+                    data['model']['body_force'][ii] = np.sum(
+                        body_force * self.volume[:, np.newaxis])
+
+                    for tip_type_str in data:
+                        # Average the nodal displacements, velocities and
+                        # accelerations
+                        ntip = self.ntips[tip_type_str]
+                        if ntip != 0:
+                            data[tip_type_str]['displacement'] /= ntip
+                            data[tip_type_str]['velocity'] /= ntip
+                            data[tip_type_str]['acceleration'] /= ntip
+
                     damage_sum = np.sum(damage)
-                    damage_sum_data.append(damage_sum)
+                    data['model']['damage_sum'][ii] = damage_sum
                     if damage_sum > 0.05*self.nnodes:
                         warnings.warn('Over 5% of bonds have broken!\
                                       peridynamics simulation continuing')
@@ -1255,18 +1294,21 @@ class Model(object):
          n_neigh) = self.integrator.write(
              u, ud, udd, force, body_force, damage, nlist, n_neigh)
 
-        return (u, damage, (nlist, n_neigh), force, ud, damage_sum_data,
-                tip_displacement_data, tip_velocity_data,
-                tip_acceleration_data, tip_force_data, tip_body_force_data)
+        return (u, damage, (nlist, n_neigh), force, ud, data)
 
     def _simulate_initialise(
-            self, steps, first_step, regimes, u, ud,
+            self, steps, first_step, write, regimes, u, ud,
             displacement_bc_magnitudes, force_bc_magnitudes, connectivity,
             bond_stiffness, critical_stretch, write_path):
         """
         Initialise simulation variables.
 
         :arg int steps: The number of simulation steps to conduct.
+        :arg int first_step: The starting step number. This is useful when
+            restarting a simulation.
+        :arg int write: The frequency, in number of steps, to write the system
+            to a mesh file by calling :meth:`Model.write_mesh`. If `None` then
+            no output is written. Default `None`.
         :arg regimes: The initial regimes for the simulation. A
             (`nodes`, `max_neighbours`) array of type
             :class:`numpy.ndarray` of the regimes of the bonds
@@ -1305,9 +1347,8 @@ class Model(object):
                      :class:`numpy.ndarray`, :class:`numpy.ndarray`,
                      :class:`numpy.ndarray`, :class:`numpy.ndarray`,
                      :class:`numpy.ndarray`, :class:`numpy.ndarray`,
-                     :class:`numpy.ndarray`, :class:`numpy.ndarray`,
-                     :class:`numpy.ndarray`, :class:`numpy.ndarray`,
-                     :class:`numpy.ndarray`, :class`pathlib.Path`)
+                     :class:`numpy.ndarray`, dict,
+                     int, :class`pathlib.Path`)
         """
         # Create initial displacements and velocities if none is provided
         if u is None:
@@ -1418,12 +1459,20 @@ class Model(object):
             write_path = pathlib.Path(write_path)
 
         # Container for plotting data
-        damage_sum_data = []
-        tip_displacement_data = []
-        tip_velocity_data = []
-        tip_acceleration_data = []
-        tip_force_data = []
-        tip_body_force_data = []
+        data = {}
+        nwrites = None
+        if write:
+            nwrites = (
+                (first_step + steps - 1) // write - (first_step - 1) // write)
+            if write is not None:
+                data['model'] = {
+                    'displacement': np.zeros(nwrites, dtype=np.float64),
+                    'velocity': np.zeros(nwrites, dtype=np.float64),
+                    'acceleration': np.zeros(nwrites, dtype=np.float64),
+                    'force': np.zeros(nwrites, dtype=np.float64),
+                    'body_force': np.zeros(nwrites, dtype=np.float64),
+                    'damage_sum': np.zeros(nwrites, dtype=np.float64)
+                    }
 
         # Initialise the OpenCL buffers
         self.integrator.set_buffers(
@@ -1431,10 +1480,8 @@ class Model(object):
             udd, force, body_force, damage, regimes, nregimes, nbond_types)
 
         return (u, ud, udd, force, body_force, nlist, n_neigh,
-                displacement_bc_magnitudes, force_bc_magnitudes, damage,
-                damage_sum_data, tip_displacement_data, tip_acceleration_data,
-                tip_velocity_data, tip_force_data, tip_body_force_data,
-                write_path)
+                displacement_bc_magnitudes, force_bc_magnitudes, damage, data,
+                nwrites, write_path)
 
 
 def initial_crack_helper(crack_function):
