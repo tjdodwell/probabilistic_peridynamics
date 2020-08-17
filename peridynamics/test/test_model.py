@@ -1071,6 +1071,10 @@ class TestBoundaryConditions:
             bnd = [None, None, None]
             if x[0] < 0.1:
                 bnd[0] = 1
+                bnd[1] = 2
+            else:
+                bnd[0] = 'otherwise'
+                bnd[1] = 2
             return bnd
 
         model = Model(
@@ -1081,11 +1085,12 @@ class TestBoundaryConditions:
             is_force_boundary=is_force_boundary,
             is_tip=is_tip)
 
-        (bc_types,
-         bc_values,
-         force_bc_types,
-         force_bc_values,
-         tip_types) = model._set_boundary_conditions(
+        (actual_bc_types,
+         actual_bc_values,
+         actual_force_bc_types,
+         actual_force_bc_values,
+         _,
+         ntips) = model._set_boundary_conditions(
             is_displacement_boundary=is_displacement_boundary,
             is_force_boundary=is_force_boundary,
             is_tip=is_tip)
@@ -1096,13 +1101,15 @@ class TestBoundaryConditions:
             data_path/"expected_force_bc_types.npy")
         expected_force_bc_values = np.load(
             data_path/"expected_force_bc_values.npy")
-        expected_tip_types = np.load(data_path/"expected_tip_types.npy")
 
-        assert np.allclose(bc_types, expected_bc_types)
-        assert np.allclose(bc_values, expected_bc_values)
-        assert np.allclose(force_bc_types, expected_force_bc_types)
-        assert np.allclose(force_bc_values, expected_force_bc_values)
-        assert np.allclose(tip_types, expected_tip_types)
+        assert ntips['model'] == 2113
+        assert ntips['1'] == 228
+        assert ntips['otherwise'] == 2113 - 228
+        assert ntips['2'] == 2113
+        assert np.allclose(actual_bc_types, expected_bc_types)
+        assert np.allclose(actual_bc_values, expected_bc_values)
+        assert np.allclose(actual_force_bc_types, expected_force_bc_types)
+        assert np.allclose(actual_force_bc_values, expected_force_bc_values)
 
 
 class TestIntegrator:
