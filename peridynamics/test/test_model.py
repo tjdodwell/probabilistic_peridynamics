@@ -7,7 +7,6 @@ import pyopencl as cl
 from ..integrators import Euler, EulerCL, EulerCromerCL
 import meshio
 import numpy as np
-import warnings
 import pytest
 
 
@@ -104,34 +103,6 @@ def basic_models_transfinite(data_path, request, simple_displacement_boundary):
                   transfinite=1,
                   volume_total=1.0)
     return model
-
-
-@pytest.fixture()
-def basic_model_transfinite(data_path, simple_displacement_boundary):
-    """Create a basic 2D transfinite model object using a cython integrator."""
-    mesh_file = data_path / "example_mesh_transfinite.msh"
-    euler = Euler(dt=1e-3)
-    model = Model(mesh_file, integrator=euler, horizon=0.1,
-                  critical_stretch=0.05,
-                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
-                  is_displacement_boundary=simple_displacement_boundary,
-                  transfinite=1,
-                  volume_total=1.0)
-    return model, euler
-
-
-@pytest.fixture()
-def basic_model_transfinite_cl(data_path, simple_displacement_boundary):
-    """Create a basic 2D transfinite model object using OpenCL integrator."""
-    mesh_file = data_path / "example_mesh_transfinite.msh"
-    euler = EulerCL(dt=1e-3)
-    model = Model(mesh_file, integrator=euler, horizon=0.1,
-                  critical_stretch=0.05,
-                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
-                  is_displacement_boundary=simple_displacement_boundary,
-                  transfinite=1,
-                  volume_total=1.0)
-    return model, euler
 
 
 class TestDimension:
@@ -322,9 +293,8 @@ class TestVolume:
         mesh_file = data_path / "example_mesh_3d.vtk"
         expected_volume = np.load(data_path/"expected_volume_3d.npy")
 
-        with pytest.warns(UserWarning):
+        with pytest.warns(UserWarning, match='Reading volume from argument'):
             integrator = integrator(1)
-            warnings.warn("Reading volume from argument", UserWarning)
             model = Model(mesh_file, integrator=integrator, horizon=0.1,
                           critical_stretch=1.0,
                           bond_stiffness=1.0,
@@ -469,6 +439,18 @@ def test_family_error(data_path, integrator):
               dimensions=3)
 
 
+@pytest.mark.parametrize(
+    "integrator", [Euler, pytest.param(EulerCL, marks=context_available)])
+def test_take_a_while_warning(data_path, integrator):
+    """Test warning when nnodes is large."""
+    with pytest.warns(UserWarning, match='this may take a while'):
+        integrator = integrator(1)
+        mesh_file = data_path / "example_mesh_large.msh"
+        Model(mesh_file, integrator=integrator, horizon=0.1,
+              critical_stretch=1.0,
+              bond_stiffness=1.0)
+
+
 class TestBondTypes:
     """Test _set_bond_types."""
 
@@ -605,7 +587,6 @@ class TestBondTypes:
                 bond_stiffness=1.0)
         actual_bond_types = model.bond_types
         assert actual_bond_types is None
-
 
     def test_bond_type_support(self, data_path):
         """Test _set_bond_types support for the Euler integrator."""
@@ -796,8 +777,7 @@ class TestDensities:
 
         density = expected_densities[:, 0]
 
-        with pytest.warns(UserWarning):
-            warnings.warn("Reading density from argument", UserWarning)
+        with pytest.warns(UserWarning, match='Reading density from argument'):
             model = Model(mesh_file, integrator=integrator, horizon=0.1,
                           critical_stretch=1.0,
                           bond_stiffness=1.0,
@@ -930,9 +910,8 @@ class TestStiffnessCorrections:
                       critical_stretch=0.05,
                       bond_stiffness=18.0 * 0.05 / (np.pi * 0.0001**4),
                       dimensions=3)
-        expected_stiffness_corrections = None
         actual_stiffness_corrections = model.stiffness_corrections
-        assert expected_stiffness_corrections == actual_stiffness_corrections
+        assert actual_stiffness_corrections is None
 
 
 class TestDamageModel:
@@ -974,7 +953,7 @@ class TestDamageModel:
         critical_stretch_expected = np.array(
             critical_stretch, dtype=np.float64)
         plus_cs_expected = np.array([[0.0, 2.0, 1.25],
-                                     [0.0, 1.0, 1.0]])
+                                     [0.0, 1.0, 1.0]], dtype=np.float64)
         nregimes_expected = np.intc(3)
         nbond_types_expected = np.intc(2)
 
@@ -996,6 +975,32 @@ class TestDamageModel:
         """Test for damage model parameters as float array."""
         bond_stiffness = np.array(1.0)
         critical_stretch = np.array(1.0)
+
+        bond_stiffness_expected = np.array(bond_stiffness, dtype=np.float64)
+        critical_stretch_expected = np.array(
+            critical_stretch, dtype=np.float64)
+        plus_cs_expected = None
+        nregimes_expected = np.intc(1)
+        nbond_types_expected = np.intc(1)
+
+        model = basic_models_2d
+        (bond_stiffness_actual,
+         critical_stretch_actual,
+         plus_cs_actual,
+         nbond_types_actual,
+         nregimes_actual) = model._set_damage_model(bond_stiffness,
+                                                    critical_stretch)
+
+        assert np.all(bond_stiffness_actual == bond_stiffness_expected)
+        assert np.all(critical_stretch_actual == critical_stretch_expected)
+        assert nregimes_actual == nregimes_expected
+        assert nbond_types_actual == nbond_types_expected
+        assert np.all(plus_cs_actual == plus_cs_expected)
+
+    def test_plus_cs_float_list(self, basic_models_2d):
+        """Test for damage model parameters as float array."""
+        bond_stiffness = [1.0]
+        critical_stretch = [1.0]
 
         bond_stiffness_expected = np.array(bond_stiffness, dtype=np.float64)
         critical_stretch_expected = np.array(
@@ -1084,6 +1089,16 @@ class TestDamageModel:
         """Test for damage model parameters with negative critical stretch."""
         bond_stiffness = np.array([[1.0, 1.0, -0.5], [1.0, 0.0, 0.0]])
         critical_stretch = np.array([[1.0, 0.9, 2.5], [1.0, 1000.0, 1001.0]])
+        model = basic_models_2d
+        with pytest.raises(DamageModelError) as exception:
+            model._set_damage_model(bond_stiffness, critical_stretch)
+            assert(str("must be in ascending order")
+                   in exception.values)
+
+    def test_plus_cs_unordered_array2(self, basic_models_2d):
+        """Test for damage model parameters with negative critical stretch."""
+        bond_stiffness = np.array([1.0, 1.0, -0.5])
+        critical_stretch = np.array([1.0, 0.9, 2.5])
         model = basic_models_2d
         with pytest.raises(DamageModelError) as exception:
             model._set_damage_model(bond_stiffness, critical_stretch)
@@ -1459,6 +1474,189 @@ class TestSimulate:
         model.write_mesh(expected_mesh, damage, u)
 
         assert mesh.read_bytes() == expected_mesh.read_bytes()
+
+
+class TestSimulateInitialise:
+    """Tests for the _simulate_initialise function."""
+
+    def test_data(self, cython_model):
+        """Ensure data dict contains the correct sized containers."""
+        model = cython_model
+        steps = 20
+        write = 10
+        (_, _, _, _, _, _, _, _, _, _,
+         actual_data, actual_nwrites, *_) = model._simulate_initialise(
+            steps, 1, write, None, None, None,
+            None, None, None, None, None, None)
+        expected_data_model = {'step': np.zeros(2, dtype=int),
+                               'displacement': np.zeros(2, dtype=np.float64),
+                               'velocity': np.zeros(2, dtype=np.float64),
+                               'acceleration': np.zeros(2, dtype=np.float64),
+                               'force': np.zeros(2, dtype=np.float64),
+                               'body_force': np.zeros(2, dtype=np.float64),
+                               'damage_sum': np.zeros(2, dtype=np.float64)}
+        actual_data_model = actual_data['model']
+
+        assert actual_data_model.keys() == expected_data_model.keys()
+        assert all(
+            np.array_equal(actual_data_model[key], expected_data_model[key])
+            for key in actual_data_model)
+        assert actual_nwrites == 2
+
+    def test_data_first_step(self, cython_model):
+        """Ensure data dict contains the correct sized containers."""
+        model = cython_model
+        steps = 5
+        first_step = 6
+        write = 10
+        (_, _, _, _, _, _, _, _, _, _,
+         actual_data, actual_nwrites, *_) = model._simulate_initialise(
+            steps, first_step, write, None, None, None,
+            None, None, None, None, None, None)
+        expected_data_model = {'step': np.zeros(1, dtype=int),
+                               'displacement': np.zeros(1, dtype=np.float64),
+                               'velocity': np.zeros(1, dtype=np.float64),
+                               'acceleration': np.zeros(1, dtype=np.float64),
+                               'force': np.zeros(1, dtype=np.float64),
+                               'body_force': np.zeros(1, dtype=np.float64),
+                               'damage_sum': np.zeros(1, dtype=np.float64)}
+        actual_data_model = actual_data['model']
+
+        assert actual_data_model.keys() == expected_data_model.keys()
+        assert all(
+            np.array_equal(actual_data_model[key], expected_data_model[key])
+            for key in actual_data_model)
+        assert actual_nwrites == 1
+
+    def test_none_initalise(self, cython_model):
+        """Ensure simulate values are initialised correctly given None."""
+        model = cython_model
+        nlist_expected, n_neigh_expected = model.initial_connectivity
+        steps = 10
+        (u, ud, udd, force, body_force, nlist, n_neigh,
+         displacement_bc_magnitudes, force_bc_magnitudes, damage, data,
+         nwrites, write_path) = model._simulate_initialise(
+            steps, 1, None, None, None, None,
+            None, None, None, None, None, None)
+        nnodes_dof_zeros = np.zeros((model.nnodes, 3), dtype=np.float64)
+        nnodes_zeros = np.zeros((model.nnodes), dtype=np.float64)
+        steps_zeros = np.zeros(steps, dtype=np.float64)
+        assert np.all(u == nnodes_dof_zeros)
+        assert np.all(ud == nnodes_dof_zeros)
+        assert np.all(udd == nnodes_dof_zeros)
+        assert np.all(force == nnodes_dof_zeros)
+        assert np.all(body_force == nnodes_dof_zeros)
+        assert np.all(nlist == nlist_expected)
+        assert np.all(n_neigh == n_neigh_expected)
+        assert np.all(displacement_bc_magnitudes == steps_zeros)
+        assert np.all(force_bc_magnitudes == steps_zeros)
+        assert np.all(damage == nnodes_zeros)
+        assert data == {}
+        assert nwrites is None
+
+    def test_displacement_bc_magnitudes_length(self, cython_model):
+        """Test exception when displacement_bc_magnitudes length is wrong."""
+        model = cython_model
+        nlist_expected, n_neigh_expected = model.initial_connectivity
+        steps = 10
+        displacement_bc_magnitudes = np.zeros(9)
+        with pytest.raises(ValueError) as exception:
+            model._simulate_initialise(
+                steps, 1, None, None, None, None,
+                displacement_bc_magnitudes, None, None, None, None, None)
+            assert (
+                str("displacement_bc_magnitudes length") in exception.value)
+
+    def test_displacement_bc_magnitudes_type(self, cython_model):
+        """Test exception when displacement_bc_magnitudes type is wrong."""
+        model = cython_model
+        nlist_expected, n_neigh_expected = model.initial_connectivity
+        steps = 10
+        displacement_bc_magnitudes = 1.0
+        with pytest.raises(TypeError) as exception:
+            model._simulate_initialise(
+                steps, 1, None, None, None, None,
+                displacement_bc_magnitudes, None, None, None, None, None)
+            assert (
+                str("displacement_bc_magnitudes type") in exception.value)
+
+    def test_force_bc_magnitudes_length(self, cython_model):
+        """Test exception when force_bc_magnitudes length is wrong."""
+        model = cython_model
+        nlist_expected, n_neigh_expected = model.initial_connectivity
+        steps = 10
+        force_bc_magnitudes = np.zeros(9)
+        with pytest.raises(ValueError) as exception:
+            model._simulate_initialise(
+                steps, 1, None, None, None, None,
+                None, force_bc_magnitudes, None, None, None, None)
+            assert (
+                str("force_bc_magnitudes length") in exception.value)
+
+    def test_force_bc_magnitudes_type(self, cython_model):
+        """Test exception when force_bc_magnitudes type is wrong."""
+        model = cython_model
+        nlist_expected, n_neigh_expected = model.initial_connectivity
+        steps = 10
+        force_bc_magnitudes = 1.0
+        with pytest.raises(TypeError) as exception:
+            model._simulate_initialise(
+                steps, 1, None, None, None, None,
+                None, force_bc_magnitudes, None, None, None, None)
+            assert (
+                str("force_bc_magnitudes type") in exception.value)
+
+    def test_connectivity_size(self, cython_model):
+        """Test exception when connectivity size is wrong."""
+        model = cython_model
+        nlist_expected, n_neigh_expected = model.initial_connectivity
+        steps = 10
+        connectivity = (1, 2, 3)
+        with pytest.raises(ValueError) as exception:
+            model._simulate_initialise(
+                steps, 1, None, None, None, None,
+                None, None, connectivity, None, None, None)
+            assert (
+                str("connectivity size is wrong") in exception.value)
+
+    def test_connectivity_type(self, cython_model):
+        """Test exception when connectivity type is wrong."""
+        model = cython_model
+        nlist_expected, n_neigh_expected = model.initial_connectivity
+        steps = 10
+        connectivity = 1
+        with pytest.raises(TypeError) as exception:
+            model._simulate_initialise(
+                steps, 1, None, None, None, None,
+                None, None, connectivity, None, None, None)
+            assert (
+                str("connectivity type") in exception.value)
+
+    def test_regimes_size(self, cython_model):
+        """Test exception when regimes shape is wrong."""
+        model = cython_model
+        nlist_expected, n_neigh_expected = model.initial_connectivity
+        steps = 10
+        regimes = np.zeros((model.nnodes, model.max_neighbours - 1))
+        with pytest.raises(ValueError) as exception:
+            model._simulate_initialise(
+                steps, 1, None, regimes, None, None,
+                None, None, None, None, None, None)
+            assert (
+                str("regimes shape is wrong") in exception.value)
+
+    def test_regimes_type(self, cython_model):
+        """Test exception when regimes type is wrong."""
+        model = cython_model
+        nlist_expected, n_neigh_expected = model.initial_connectivity
+        steps = 10
+        regimes = 1
+        with pytest.raises(TypeError) as exception:
+            model._simulate_initialise(
+                steps, 1, None, regimes, None, None,
+                None, None, None, None, None, None)
+            assert (
+                str("regimes type") in exception.value)
 
 
 class TestInitialCrackHelper:

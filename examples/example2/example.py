@@ -33,17 +33,18 @@ def is_tip(x):
     Return a boolean list of tip types for each cartesian direction.
 
     Returns a boolean list, whose elements are True (not None) when the
-    particle is to be measured for some displacement, velocity, force or
-    acceleration in that cartesian direction.
+    particle is to be measured for some displacement, velocity, acceleration,
+    force or body_force in that cartesian direction.
 
     :arg x: Particle coordinate array of size (3,).
     :type x: :class:`numpy.ndarray`
     """
     # Particle does not live on a tip
     tip = [None, None, None]
-    # Particle does live on a tip to be measured
+    # Particle does live on a tip to be measured, on the right hand side
+    # (unconstrained end) of the beam
     if x[0] > 1.55:
-        # Right hand side, in the positive z direction.
+        # Measurments are in the z direction
         tip[2] = 'rhs'
     return tip
 
@@ -140,10 +141,12 @@ def main():
         profile.enable()
 
     # Increasing the dynamic relaxation damping constant to a critical value
-    # will help the system to converge to the equilibrium steady-state solution
-    damping = 0.0
-    # Stable time step (What happens if you increase or decrease it?)
-    dt = 1.5e-5
+    # will help the system to converge to the quasi-static steady-state.
+    # Try 0 damping
+    # >>> damping = 0.0
+    damping = 2.5e6
+    # Stable time step. Try increasing or decreasing it.
+    dt = 1.3e-5
     integrator = VelocityVerletCL(dt=dt, damping=damping)
 
     # Try reading connectivity, bond_types and stiffness_correction files from
@@ -210,8 +213,27 @@ def main():
         force_bc_magnitudes=force_bc_array,
         write=200
         )
-    # Try plotting data['rhs'][body_force] against data['rhs'][displacement]
+
+    # Print the data dict
     print(data)
+    # Try plotting data['rhs']['body_force'] vs data['rhs']['displacement']
+    # Try plotting data['model']['damage'] vs data['model']['step']
+    # >>> import matplotlib.pyplot as plt
+    # >>> plt.plot(
+    # >>>     dt * np.array(data['model']['step']),
+    # >>>     data['model']['damage_sum'])
+    # >>> plt.title('Total model damage over time')
+    # >>> plt.xlabel('time (s)')
+    # >>> plt.ylabel('damage')
+    # >>> plt.show()
+    # >>> plt.plot(
+    # >>>     -1000. * np.array(data['rhs']['displacement']),
+    # >>>     np.array(data['rhs']['body_force']) / 1000.)
+    # >>> plt.title('Tip shear force vs displacement')
+    # >>> plt.xlabel('displacement (mm)')
+    # >>> plt.ylabel('shear force (kN)')
+    # >>> plt.xlim(0.0, 1.0)
+    # >>> plt.show()
     # Note that bond_stiffness and critical_stretch can be changed without
     # re-initialising :class `Model`:, e.g.
     # >>> _* = model.simulate(

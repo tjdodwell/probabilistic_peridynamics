@@ -289,9 +289,7 @@ class Model(object):
         # Calculate the volume for each node, if None is provided
         if volume is None:
             # Calculate the volume for each node
-            if self.nnodes > 70000:
-                warnings.warn(
-                        "Calculating volume... this may take a while.")
+            this_may_take_a_while(self.nnodes, 'volume')
             self.volume, self.sum_total_volume = self._volume(
                 transfinite, volume_total)
             if write_path is not None:
@@ -314,9 +312,7 @@ class Model(object):
         # for each node, if None is provided
         if family is None:
             # Calculate family
-            if self.nnodes > 70000:
-                warnings.warn(
-                        "Calculating family... this may take a while.")
+            this_may_take_a_while(self.nnodes, 'family')
             self.family = set_family(self.coords, horizon)
             if write_path is not None:
                 write_array(write_path, "family", self.family)
@@ -339,9 +335,7 @@ class Model(object):
         if integrator.context is None:
             if connectivity is None:
                 # Create the neighbourlist for the cython implementation
-                if self.nnodes > 70000:
-                    warnings.warn(
-                        "Calculating connectivity... this may take a while.")
+                this_may_take_a_while(self.nnodes, 'connectivity')
                 self.max_neighbours = self.family.max()
                 nlist, n_neigh = create_neighbour_list_cython(
                     self.coords, horizon, self.max_neighbours
@@ -382,9 +376,7 @@ class Model(object):
         else:
             if connectivity is None:
                 # Create the neighbourlist for the OpenCL implementation
-                if self.nnodes > 70000:
-                    warnings.warn(
-                        "Calculating connectivity... this may take a while.")
+                this_may_take_a_while(self.nnodes, 'connectivity')
                 self.max_neighbours = np.intc(
                             1 << (int(self.family.max() - 1)).bit_length()
                         )
@@ -1258,6 +1250,7 @@ class Model(object):
                                     body_force[i, j] * self.volume[i])
 
                     # Add to model data for the write index, ii
+                    data['model']['step'][ii] = step
                     data['model']['displacement'][ii] = np.sum(u)
                     data['model']['velocity'][ii] = np.sum(ud)
                     data['model']['acceleration'][ii] = np.sum(udd)
@@ -1265,15 +1258,6 @@ class Model(object):
                         force * self.volume[:, np.newaxis])
                     data['model']['body_force'][ii] = np.sum(
                         body_force * self.volume[:, np.newaxis])
-
-                    for tip_type_str in data:
-                        # Average the nodal displacements, velocities and
-                        # accelerations
-                        ntip = self.ntips[tip_type_str]
-                        if ntip != 0:
-                            data[tip_type_str]['displacement'] /= ntip
-                            data[tip_type_str]['velocity'] /= ntip
-                            data[tip_type_str]['acceleration'] /= ntip
 
                     damage_sum = np.sum(damage)
                     data['model']['damage_sum'][ii] = damage_sum
@@ -1283,6 +1267,14 @@ class Model(object):
                     elif damage_sum > 0.7*self.nnodes:
                         warnings.warn('Over 7% of bonds have broken!\
                                       peridynamics simulation continuing')
+        for tip_type_str in data:
+            # Average the nodal displacements, velocities and
+            # accelerations
+            ntip = self.ntips[tip_type_str]
+            if ntip != 0:
+                data[tip_type_str]['displacement'] /= ntip
+                data[tip_type_str]['velocity'] /= ntip
+                data[tip_type_str]['acceleration'] /= ntip
         (u,
          ud,
          udd,
@@ -1465,6 +1457,7 @@ class Model(object):
                 (first_step + steps - 1) // write - (first_step - 1) // write)
             if write is not None:
                 data['model'] = {
+                    'step': np.zeros(nwrites, dtype=int),
                     'displacement': np.zeros(nwrites, dtype=np.float64),
                     'velocity': np.zeros(nwrites, dtype=np.float64),
                     'acceleration': np.zeros(nwrites, dtype=np.float64),
@@ -1518,6 +1511,24 @@ def initial_crack_helper(crack_function):
                 crack.append((i, j))
         return crack
     return initial_crack
+
+
+def this_may_take_a_while(nnodes, calculation):
+    """
+    Raise a UserWarning if nnodes is more than an arbritrarily large value.
+
+    :arg int nnodes: The number of nodes.
+    :arg str calculation: A string message of the calculation being performed.
+
+    :rtype: :class:`UserWarning` or None
+    """
+    message = (
+        f"Calculating {calculation} for {nnodes} nodes... "
+        "this may take a while."
+        )
+
+    if nnodes > 4000:
+        warnings.warn(message)
 
 
 class DimensionalityError(Exception):

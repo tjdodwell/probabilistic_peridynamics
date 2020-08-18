@@ -67,7 +67,7 @@ def is_crack(x, y):
     scope="session"
     )
 def cython_model(data_path, request, simple_displacement_boundary):
-    """Create a simple peridynamics Model and ModelCL object."""
+    """Create a simple peridynamics Model object."""
     path = data_path
     mesh_file = path / "example_mesh.vtk"
 
@@ -88,7 +88,7 @@ def cython_model(data_path, request, simple_displacement_boundary):
     scope="session"
     )
 def cl_model(data_path, request, simple_displacement_boundary):
-    """Create a simple peridynamics Model and ModelCL object."""
+    """Create a simple peridynamics Model object."""
     path = data_path
     mesh_file = path / "example_mesh.vtk"
 
@@ -110,7 +110,7 @@ def cl_model(data_path, request, simple_displacement_boundary):
     params=[Euler, pytest.param(EulerCL, marks=context_available)]
     )
 def simple_model(data_path, request, simple_displacement_boundary):
-    """Create a simple peridynamics Model and ModelCL object."""
+    """Create a simple peridynamics Model object."""
     path = data_path
     mesh_file = path / "example_mesh.vtk"
 

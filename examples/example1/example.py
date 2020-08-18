@@ -71,6 +71,7 @@ def is_displacement_boundary(x):
 def main():
     """Conduct a peridynamics simulation."""
     parser = argparse.ArgumentParser()
+    # The --profile argument generates profiling information for the example
     parser.add_argument('--profile', action='store_const', const=True)
     # The --opencl argument toggles between OpenCL and cython implementations
     parser.add_argument('--opencl', action='store_const', const=True)
