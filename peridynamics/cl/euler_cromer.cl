@@ -19,12 +19,13 @@ __kernel void
      * force - An (n,3) array of the forces of each node.
      * u - An (n,3) array of the current displacements of each node.
      * ud - An (n,3) array of the current velocities of each node.
+     * udd - An (n,3) array of the accelerations of each node.
      * bc_types - An (n,3) array of the boundary condition types.
      * bc_values - An (n,3) array of the boundary condition values applied to the nodes.
      * densties - An (n,3) array of the density values of the nodes.
      * bc_scale - The scalar value applied to the displacement BCs.
-     * dt - The time step in [s].
-     * damping - The dynamics relaxation damping constant in [kg/(m^3 s)] */
+     * damping - The dynamics relaxation damping constant in [kg/(m^3 s)].
+     * dt - The time step in [s]. */
 	const int i = get_global_id(0);
 
     double uddi = (force[i] - damping * ud[i]) / densities[i];

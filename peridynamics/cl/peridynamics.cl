@@ -23,16 +23,17 @@ __kernel void
     double fc_scale,
     int nregimes
 	) {
-    /* Calculate the force due to bonds on each node and update node velocities.
+    /* Calculate the force due to bonds on each node.
      *
      * This bond_force function is for the simple case of no stiffness corrections and no bond types.
      *
      * u - An (n,3) array of the current displacements of the particles.
      * force - An (n,3) array of the current forces on the particles.
+     * body_force - An (n,3) array of the current internal body forces of the particles.
+     * r0 - An (n,3) array of the coordinates of the nodes in the initial state.
      * vols - the volumes of each of the nodes.
      * nlist - An (n, local_size) array containing the neighbour lists,
      *     a value of -1 corresponds to a broken bond.
-     * r0 - An (n,3) array of the coordinates of the nodes in the initial state.
      * fc_types - An (n,3) array of force boundary condition types,
      *     a value of 0 denotes a particle that is not externally loaded.
      * fc_values - An (n,3) array of the force boundary condition values applied to particles.
@@ -43,9 +44,9 @@ __kernel void
      * local_cache_x - local (local_size) array to store the x components of the bond forces.
      * local_cache_y - local (local_size) array to store the y components of the bond forces.
      * local_cache_z - local (local_size) array to store the z components of the bond forces.
-     * fc_scale - scale factor appied to the force bondary conditions.
      * bond_stiffness - The bond stiffness.
      * critical_stretch - The critical stretch, at and above which bonds will be broken.
+     * fc_scale - scale factor appied to the force bondary conditions.
      * nregimes - Not applied in this bond_force kernel. Placeholder argument. */
     // global_id is the bond number
     const int global_id = get_global_id(0);
@@ -133,6 +134,7 @@ __kernel void
     }
 }
 
+
 __kernel void
 	bond_force2(
     __global double const* u,
@@ -155,17 +157,18 @@ __kernel void
     double fc_scale,
     int nregimes
 	) {
-    /* Calculate the force due to bonds on each node and update node velocities.
+    /* Calculate the force due to bonds on each node.
      *
-     * This bond_force function is for the case of stiffness corrections and no bond types.
+     * This bond_force function is for the simple case of no stiffness corrections and no bond types.
      *
      * u - An (n,3) array of the current displacements of the particles.
      * force - An (n,3) array of the current forces on the particles.
+     * body_force - An (n,3) array of the current internal body forces of the particles.
+     * r0 - An (n,3) array of the coordinates of the nodes in the initial state.
      * vols - the volumes of each of the nodes.
      * nlist - An (n, local_size) array containing the neighbour lists,
      *     a value of -1 corresponds to a broken bond.
-     * r0 - An (n,3) array of the coordinates of the nodes in the initial state.
-     * fc_types - An (n,3) array of force boundary condition types...
+     * fc_types - An (n,3) array of force boundary condition types,
      *     a value of 0 denotes a particle that is not externally loaded.
      * fc_values - An (n,3) array of the force boundary condition values applied to particles.
      * stiffness_corrections - An (n, local_size) array of bond stiffness correction factors.
@@ -175,9 +178,9 @@ __kernel void
      * local_cache_x - local (local_size) array to store the x components of the bond forces.
      * local_cache_y - local (local_size) array to store the y components of the bond forces.
      * local_cache_z - local (local_size) array to store the z components of the bond forces.
-     * fc_scale - scale factor applied to the force boundary conditions.
      * bond_stiffness - The bond stiffness.
      * critical_stretch - The critical stretch, at and above which bonds will be broken.
+     * fc_scale - scale factor appied to the force bondary conditions.
      * nregimes - Not applied in this bond_force kernel. Placeholder argument. */
     // global_id is the bond number
     const int global_id = get_global_id(0);
@@ -288,17 +291,18 @@ __kernel void
     double fc_scale,
     int nregimes
 	) {
-    /* Calculate the force due to bonds on each node and update node velocities.
+    /* Calculate the force due to bonds on each node.
      *
-     * This bond_force function is for the case of stiffness corrections and no bond types.
+     * This bond_force function is for the simple case of no stiffness corrections and no bond types.
      *
      * u - An (n,3) array of the current displacements of the particles.
      * force - An (n,3) array of the current forces on the particles.
+     * body_force - An (n,3) array of the current internal body forces of the particles.
+     * r0 - An (n,3) array of the coordinates of the nodes in the initial state.
      * vols - the volumes of each of the nodes.
      * nlist - An (n, local_size) array containing the neighbour lists,
      *     a value of -1 corresponds to a broken bond.
-     * r0 - An (n,3) array of the coordinates of the nodes in the initial state.
-     * fc_types - An (n,3) array of force boundary condition types...
+     * fc_types - An (n,3) array of force boundary condition types,
      *     a value of 0 denotes a particle that is not externally loaded.
      * fc_values - An (n,3) array of the force boundary condition values applied to particles.
      * stiffness_corrections - Not applied in this bond_force kernel. Placeholder argument.
@@ -308,9 +312,9 @@ __kernel void
      * local_cache_x - local (local_size) array to store the x components of the bond forces.
      * local_cache_y - local (local_size) array to store the y components of the bond forces.
      * local_cache_z - local (local_size) array to store the z components of the bond forces.
-     * fc_scale - scale factor applied to the force boundary conditions.
      * bond_stiffness - The bond stiffness.
      * critical_stretch - The critical stretch, at and above which bonds will be broken.
+     * fc_scale - scale factor appied to the force bondary conditions.
      * nregimes - Total number of regimes in the damage model. */
     // global_id is the bond number
     const int global_id = get_global_id(0);
@@ -435,17 +439,18 @@ __kernel void
     double fc_scale,
     int nregimes
 	) {
-    /* Calculate the force due to bonds on each node and update node velocities.
+    /* Calculate the force due to bonds on each node.
      *
-     * This bond_force function is for the case of stiffness corrections and no bond types.
+     * This bond_force function is for the simple case of no stiffness corrections and no bond types.
      *
      * u - An (n,3) array of the current displacements of the particles.
      * force - An (n,3) array of the current forces on the particles.
+     * body_force - An (n,3) array of the current internal body forces of the particles.
+     * r0 - An (n,3) array of the coordinates of the nodes in the initial state.
      * vols - the volumes of each of the nodes.
      * nlist - An (n, local_size) array containing the neighbour lists,
      *     a value of -1 corresponds to a broken bond.
-     * r0 - An (n,3) array of the coordinates of the nodes in the initial state.
-     * fc_types - An (n,3) array of force boundary condition types...
+     * fc_types - An (n,3) array of force boundary condition types,
      *     a value of 0 denotes a particle that is not externally loaded.
      * fc_values - An (n,3) array of the force boundary condition values applied to particles.
      * stiffness_corrections - An (n, local_size) array of bond stiffness correction factors.
@@ -455,9 +460,9 @@ __kernel void
      * local_cache_x - local (local_size) array to store the x components of the bond forces.
      * local_cache_y - local (local_size) array to store the y components of the bond forces.
      * local_cache_z - local (local_size) array to store the z components of the bond forces.
-     * fc_scale - scale factor applied to the force boundary conditions.
      * bond_stiffness - The bond stiffness.
      * critical_stretch - The critical stretch, at and above which bonds will be broken.
+     * fc_scale - scale factor appied to the force bondary conditions.
      * nregimes - Total number of regimes in the damage model. */
     // global_id is the bond number
     const int global_id = get_global_id(0);

@@ -53,7 +53,7 @@ def output_device_info(device_id):
     elif device_id.type == cl.device_type.CPU:
         sys.stdout.write("CPU from ")
     else:
-        sys.stdout.write("non CPU of GPU processor from ")
+        sys.stdout.write("non CPU or GPU processor from ")
     sys.stdout.write(device_id.vendor)
     sys.stdout.write(" with a max of ")
     sys.stdout.write(str(device_id.max_compute_units))
