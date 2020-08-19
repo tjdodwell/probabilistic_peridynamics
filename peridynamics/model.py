@@ -172,7 +172,8 @@ class Model(object):
             transfinite mode (transfinite=1) is used.
         :arg write_path: The path where the model arrays, (volume, family,
             connectivity, stiffness_corrections, bond_types) should be
-            written to file to avoid overhead.
+            written to file to avoid doing time expensive calculations each
+            time that the model is initiated.
         :type write_path: path-like or str
         :arg connectivity: The initial connectivity for the model. A tuple
             of a neighbour list and the number of neighbours for each node. If
