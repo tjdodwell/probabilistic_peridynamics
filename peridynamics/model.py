@@ -35,7 +35,7 @@ class Model(object):
     simulation time when compared to using the cython implementation,
     :class:`peridynamics.integrators.Euler`. OpenCL is 'heterogeneous' which
     means the 'CL' integrator classes will work on a CPU device as well as a
-    GPU device. This implementation automatically choses the preferable
+    GPU device. This implementation automatically chooses the preferable
     (faster) device.
 
         >>> from peridynamics import Model
@@ -142,9 +142,9 @@ class Model(object):
         there might be a damage model for each material and interface
         in a composite). nregimes is the number of linear splines that define
         the damage model (e.g. An n-linear damage model has nregimes = n. The
-        bond-based prototype microelastic brittle (PMB) model has nregimes = 1.
-        Note that nregimes and nbond_types are defined by the size of the
-        critical_stretch and bond_stiffness positional arguments.
+        bond-based prototype microelastic brittle (PMB) model has
+        nregimes = 1). Note that nregimes and nbond_types are defined by the
+        size of the critical_stretch and bond_stiffness positional arguments.
 
         :arg str mesh_file: Path of the mesh file defining the systems nodes
             and connectivity.
@@ -582,7 +582,7 @@ class Model(object):
 
     def _volume(self, transfinite, volume_total):
         """
-        Calculate the value of each node.
+        Calculate the volume (or area) of each node.
 
         :arg bool transfinite: Set to 1 for Cartesian cubic (tensor grid) mesh.
             Set to 0 for a tetrahedral mesh (default). If set to 1, the
@@ -1011,7 +1011,7 @@ class Model(object):
     def _set_boundary_conditions(
             self, is_displacement_boundary, is_force_boundary, is_tip):
         """
-        Set the boundary conditions of the model.
+        Build the boundary conditions of the model.
 
         :arg is_displacement_boundary: A function to determine if a node is on
             the boundary for a displacement boundary condition, and if it is,
@@ -1055,13 +1055,31 @@ class Model(object):
         for function in functions:
             if not callable(functions[function]):
                 raise TypeError("{} must be a *function*.".format(function))
-            if type(functions[function]([0, 0, 0])) is not list:
+            if type(functions[function](self.coords[0][:])) is not list:
                 raise TypeError(
                     "{} must be a function that returns a *list*.".format(
                         function))
-            if len(functions[function]([0, 0, 0])) != 3:
-                raise TypeError("{} must return a function that returns a list"
+            if len(functions[function](self.coords[0][:])) != 3:
+                if function == 'is_tip':
+                    raise TypeError("{} must be a function that returns a list"
+                                    " of length *3* of ints or strings or "
+                                    "tuples of ints or strings")
+                raise TypeError("{} must be a function that returns a list"
                                 " of length *3* of floats or None")
+
+        def set_tip(tip, i, j, tip_types, ntips):
+            """Set tip_types dict and ntips dict for this tip."""
+            if str(tip) not in ntips:
+                # Initiate container for number of particles
+                # residing on this tip and list for tuples of particles
+                ntips[str(tip)] = 0
+                tip_types[str(tip)] = []
+            # Increase the number of particles residing
+            # on this tip by one
+            ntips[str(tip)] += 1
+            # Add particle and direction to tip types dict
+            tip_types[str(tip)].append((i, j))
+            return tip_types, ntips
 
         bc_types = np.zeros(
             (self.nnodes, self.degrees_freedom), dtype=np.intc)
@@ -1071,7 +1089,7 @@ class Model(object):
             (self.nnodes, self.degrees_freedom), dtype=np.intc)
         force_bc_values = np.zeros(
             (self.nnodes, self.degrees_freedom), dtype=np.float64)
-        tip_types = []
+        tip_types = {}
         num_force_bc_nodes = 0
         ntips = {'model': self.nnodes}
         for i in range(self.nnodes):
@@ -1079,7 +1097,6 @@ class Model(object):
             forces_bnd = is_force_boundary(self.coords[i][:])
             tip = is_tip(self.coords[i][:])
             is_force_node = 0
-            tip_types.append([])
             for j in range(self.degrees_freedom):
                 forces_bnd_j = forces_bnd[j]
                 bnd_j = bnd[j]
@@ -1094,16 +1111,16 @@ class Model(object):
                     force_bc_types[i, j] = np.intc(1)
                     force_bc_values[i, j] = np.float64(
                         forces_bnd_j / self.volume[i])
-                # Define tip
-                tip_types[i].append(tip_j)
+
                 if tip_j is not None:
-                    if str(tip_j) not in ntips:
-                        # Initiate container for number of particles
-                        # residing on this tip
-                        ntips[str(tip_j)] = 0
-                    # Increase the number of particles residing
-                    # on this tip by one
-                    ntips[str(tip_j)] += 1
+                    if type(tip_j) is tuple:
+                        for tip_jk in tip_j:
+                            tip_types, ntips = set_tip(
+                                tip_jk, i, j, tip_types, ntips)
+                    else:
+                        tip_types, ntips = set_tip(
+                            tip_j, i, j, tip_types, ntips)
+
             num_force_bc_nodes += is_force_node
         if num_force_bc_nodes != 0:
             force_bc_values = np.float64(
@@ -1219,36 +1236,34 @@ class Model(object):
                     # Write index number
                     ii = step // write - (first_step - 1) // write - 1
 
-                    for i in range(self.nnodes):
-                        for j in range(self.degrees_freedom):
-                            tip_type = self.tip_types[i][j]
-                            if tip_type is not None:
-                                if str(tip_type) not in data:
-                                    # Build data dict for this tip type
-                                    data[str(tip_type)] = {
-                                        'displacement': np.zeros(
-                                            nwrites, dtype=np.float64),
-                                        'velocity': np.zeros(
-                                            nwrites, dtype=np.float64),
-                                        'acceleration': np.zeros(
-                                            nwrites, dtype=np.float64),
-                                        'force': np.zeros(
-                                            nwrites, dtype=np.float64),
-                                        'body_force': np.zeros(
-                                            nwrites, dtype=np.float64)
-                                        }
-
-                                # Add to tip data for the write index, ii
-                                data[str(tip_type)]['displacement'][ii] += (
-                                    u[i, j])
-                                data[str(tip_type)]['velocity'][ii] += (
-                                    ud[i, j])
-                                data[str(tip_type)]['acceleration'][ii] += (
-                                    udd[i, j])
-                                data[str(tip_type)]['force'][ii] += (
-                                    force[i, j] * self.volume[i])
-                                data[str(tip_type)]['body_force'][ii] += (
-                                    body_force[i, j] * self.volume[i])
+                    for tip_type, node_list in self.tip_types.items():
+                        if tip_type not in data:
+                            # Build data dict for this tip type
+                            data[tip_type] = {
+                                'displacement': np.zeros(
+                                    nwrites, dtype=np.float64),
+                                'velocity': np.zeros(
+                                    nwrites, dtype=np.float64),
+                                'acceleration': np.zeros(
+                                    nwrites, dtype=np.float64),
+                                'force': np.zeros(
+                                    nwrites, dtype=np.float64),
+                                'body_force': np.zeros(
+                                    nwrites, dtype=np.float64)
+                                }
+                        for node in node_list:
+                            i, j = node
+                            # Add to tip data for the write index, ii
+                            data[tip_type]['displacement'][ii] += (
+                                u[i, j])
+                            data[tip_type]['velocity'][ii] += (
+                                ud[i, j])
+                            data[tip_type]['acceleration'][ii] += (
+                                udd[i, j])
+                            data[tip_type]['force'][ii] += (
+                                force[i, j] * self.volume[i])
+                            data[tip_type]['body_force'][ii] += (
+                                body_force[i, j] * self.volume[i])
 
                     # Add to model data for the write index, ii
                     data['model']['step'][ii] = step
