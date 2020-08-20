@@ -24,7 +24,7 @@ from pstats import SortKey, Stats
 
 # The .msh file is a finite element mesh generated with  a finite
 # element mesh generator. '1650beam5153.msh' was generated with gmsh and
-# contains 13539 nodes
+# contains 13539 particles
 mesh_file = pathlib.Path(__file__).parent.absolute() / '1650beam13539.msh'
 
 
@@ -32,20 +32,29 @@ def is_tip(x):
     """
     Return a boolean list of tip types for each cartesian direction.
 
-    Returns a boolean list, whose elements are True (not None) when the
-    particle is to be measured for some displacement, velocity, acceleration,
-    force or body_force in that cartesian direction.
+    Returns a boolean list, whose elements are not None when the particle
+    resides on a 'tip' to be measured for some displacement, velocity,
+    acceleration, force or body_force in that cartesian direction. The value
+    of the element of the list can be a string or an int, which is a flag for
+    the tip type that the particle resides on. If a particle resides on more
+    than one tip, then any of the list elements can be a tuple of tip types**.
 
     :arg x: Particle coordinate array of size (3,).
     :type x: :class:`numpy.ndarray`
+
+    :returns: A (3,) list of tip types.
+    :rtype: List of (tuples of) None, int or string.
     """
     # Particle does not live on a tip
     tip = [None, None, None]
-    # Particle does live on a tip to be measured, on the right hand side
+    # Particle does live on a tip to be measured, on the right-hand-side
     # (unconstrained end) of the beam
     if x[0] > 1.55:
-        # Measurments are in the z direction
+        # Measurements are made in the z direction
         tip[2] = 'rhs'
+    # **e.g. if a particle resides on the top-right-hand-side
+    # >>> if x[2] > 0.5 and x[0] > 1.55:
+    # >>>     tip[2] = ('rhs', 'top_rhs')
     return tip
 
 
@@ -117,10 +126,10 @@ def main():
         "1650beam13539_model.h5"))
 
     # Constants
-    # The average one-dimensional grid separation between nodes along an axis
+    # The average one-dimensional grid separation between particles along an axis
     dx = 0.025
     # Following convention, the horizon distance is taken as just over 3
-    # times the grid separation between nodes
+    # times the grid separation between particles
     horizon = dx * np.pi
     # Youngs modulus of concrete
     youngs_modulus = 1. * 22e9
@@ -151,20 +160,20 @@ def main():
 
     # Try reading connectivity, bond_types and stiffness_correction files from
     # the file ./1650beam13539_model.h5
-    # volume is an (nnodes, ) :class:`np.ndarray` of nodal volumes, where
-    # nnodes is the number of nodes in the .msh file
+    # volume is an (nnodes, ) :class:`np.ndarray` of particle volumes, where
+    # nnodes is the number of particles in the .msh file
     volume = read_model(write_path_model, "volume")
-    # density is an (nnodes, ) :class:`np.ndarray` of nodal densities
+    # density is an (nnodes, ) :class:`np.ndarray` of particle densities
     density = read_model(write_path_model, "density")
     # family is an (nnodes, ) :class:`np.ndarray` of initial number of
-    # neighbours for each node
+    # neighbours for each particle
     family = read_model(write_path_model, "family")
     # nlist is an (nnodes, max_neigh) :class:`np.ndarray` of the neighbours
-    # for each node. Each neigbour is given an integer i.d. in the range
+    # for each particle. Each neigbour is given an integer i.d. in the range
     # [0, nnodes). max_neigh is atleast as large as np.max(family)
     nlist = read_model(write_path_model, "nlist")
     # n_neigh is an (nnodes, ) :class:`np.ndarray` of current number of
-    # neighbours for each node.
+    # neighbours for each particle.
     n_neigh = read_model(write_path_model, "n_neigh")
     # The connectivity of the model is the tuple (nlist, n_neigh)
     if ((nlist is not None) and (n_neigh is not None)):

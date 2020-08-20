@@ -42,9 +42,9 @@ class Model(object):
         >>> from peridynamics.integrators import EulerCL
         >>>
         >>> def is_displacement_boundary(x):
-        >>>     # Particle does not live on a boundary
+        >>>     # Node does not live on a boundary
         >>>     bnd = [None, None, None]
-        >>>     # Particle does live on a boundary
+        >>>     # Node does live on a boundary
         >>>     if x[0] < 1.5 * 0.1:
         >>>         # Displacements BCs are applied in negative x direction
         >>>         bnd[0] = -1
@@ -66,7 +66,7 @@ class Model(object):
         >>>     )
 
     To define a crack in the inital configuration, you may supply a list of
-    pairs of particles between which the crack is.
+    pairs of nodes between which the crack is.
 
         >>> initial_crack = [(1,2), (5,7), (3,9)]
         >>> model = Model(
@@ -210,10 +210,10 @@ class Model(object):
             which direction and magnitude the boundary conditions are applied
             (positive or negative cartesian direction). It has the form
             is_displacement_boundary(:class:`numpy.ndarray`). The argument is
-            the initial coordinates of a particle being simulated.
+            the initial coordinates of a node being simulated.
             `is_displacement_boundary` returns a (3) list of the boundary types
             in each cartesian direction.
-            A boundary type with an int value of None if the particle is not
+            A boundary type with an int value of None if the node is not
             on a displacement controlled boundary, a value of 1 if is is on a
             boundary and displaced in the positive cartesian direction, a
             value of -1 if it is on the boundary and displaced in the negative
@@ -227,9 +227,9 @@ class Model(object):
             its state variables or reaction force over time, and if it is,
             which cartesian direction the measurements are made. It has the
             form is_tip(:class:`numpy.ndarray`). The argument is the initial
-            coordinates of a particle being simulated. `is_tip` returns a
+            coordinates of a node being simulated. `is_tip` returns a
             (3) list of the tip types in each cartesian direction:
-            A value of None if the particle is not on the `tip`, and a value
+            A value of None if the node is not on the `tip`, and a value
             of not None (e.g. a string or an int) if it is on the `tip`
             and to be measured.
         :type is_tip: function
@@ -491,17 +491,17 @@ class Model(object):
         # Create dummy boundary conditions functions if none is provided
         if is_force_boundary is None:
             def is_force_boundary(x):
-                # Particle does not live on forces boundary
+                # Node does not live on forces boundary
                 bnd = [None, None, None]
                 return bnd
         if is_displacement_boundary is None:
             def is_displacement_boundary(x):
-                # Particle does not live on displacement boundary
+                # Node does not live on displacement boundary
                 bnd = [None, None, None]
                 return bnd
         if is_tip is None:
             def is_tip(x):
-                # Particle does not live on tip
+                # Node does not live on tip
                 bnd = [None, None, None]
                 return bnd
 
@@ -756,7 +756,7 @@ class Model(object):
                             "positive int or 0 which is *less* than "
                             "nbond_types (the number of different bonds, "
                             "nbond_types = {}, got is_bond_type = {} for "
-                            "particle coordinate pair {}, {})".format(
+                            "node coordinate pair {}, {})".format(
                                 nbond_types,
                                 bond_type,
                                 self.coords[i, :],
@@ -1018,10 +1018,10 @@ class Model(object):
             which direction and magnitude the boundary conditions are applied
             (positive or negative cartesian direction). It has the form
             is_displacement_boundary(:class:`numpy.ndarray`). The argument is
-            the initial coordinates of a particle being simulated.
+            the initial coordinates of a node being simulated.
             `is_displacement_boundary` returns a (3) list of the boundary types
             in each cartesian direction.
-            A boundary type with an int value of None if the particle is not
+            A boundary type with an int value of None if the node is not
             on a displacement controlled boundary, a value of 1 if is is on a
             boundary and loaded in the positive cartesian direction, and a
             value of -1 if it is on the boundary and loaded in the negative
@@ -1035,16 +1035,16 @@ class Model(object):
             its state variables or reaction force over time, and if it is,
             which cartesian direction the measurements are made. It has the
             form is_tip(:class:`numpy.ndarray`). The argument is the initial
-            coordinates of a particle being simulated. `is_tip` returns a
+            coordinates of a node being simulated. `is_tip` returns a
             (3) list of the tip types in each cartesian direction:
-            A value of None if the particle is not on the `tip`, and a value
+            A value of None if the node is not on the `tip`, and a value
             of not None (e.g. a string or an int) if it is on the `tip`
             and to be measured.
         :type is_tip: function
 
         :returns: A tuple of the displacement and foce boundary condition types
             and values, and the list (nnodes, 3) of tip types, and a dictionary
-            of the number of particles residing on each tip.
+            of the number of nodes residing on each tip.
         :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
                       :class:`numpy.ndarray`, :class:`numpy.ndarray`,
                       list, dict)
@@ -1070,14 +1070,14 @@ class Model(object):
         def set_tip(tip, i, j, tip_types, ntips):
             """Set tip_types dict and ntips dict for this tip."""
             if str(tip) not in ntips:
-                # Initiate container for number of particles
-                # residing on this tip and list for tuples of particles
+                # Initiate container for number of nodes
+                # residing on this tip and list for tuples of nodes
                 ntips[str(tip)] = 0
                 tip_types[str(tip)] = []
-            # Increase the number of particles residing
+            # Increase the number of nodes residing
             # on this tip by one
             ntips[str(tip)] += 1
-            # Add particle and direction to tip types dict
+            # Add node and direction to tip types dict
             tip_types[str(tip)].append((i, j))
             return tip_types, ntips
 
@@ -1181,12 +1181,12 @@ class Model(object):
         :type write_path: path-like or str
 
         :returns: A tuple of the final displacements (`u`); damage,
-            a tuple of the connectivity; the final particle forces (`force`);
-            the final particle velocities (`ud`) and a dictionary object
+            a tuple of the connectivity; the final node forces (`force`);
+            the final node velocities (`ud`) and a dictionary object
             containing the displacement, velocity and acceleration
             (average of), and the forces and body forces
             for each of the writes (read 'over time'), for each unique
-            tip_type (read 'for each of the set of particles the user has
+            tip_type (read 'for each of the set of nodes the user has
             chosen to measure datum for, as defined by the `is_tip` function).
         :rtype: tuple(
             :class:`numpy.ndarray`, :class:`numpy.ndarray`,
@@ -1516,7 +1516,7 @@ def initial_crack_helper(crack_function):
     def initial_crack(coords, nlist, n_neigh):
         crack = []
 
-        # Get all pairs of bonded particles
+        # Get all pairs of bonded nodes
         nnodes = nlist.shape[0]
         pairs = [(i, j) for i in range(nnodes) for j in nlist[i][0:n_neigh[i]]
                  if i < j]

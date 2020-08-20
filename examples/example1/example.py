@@ -18,7 +18,7 @@ from pstats import SortKey, Stats
 
 # The .msh file is a finite element mesh generated with a finite
 # element mesh generator. 'test.vtk' was generated with gmsh and
-# contains 2113 nodes.
+# contains 2113 particles.
 mesh_file = pathlib.Path(__file__).parent.absolute() / "test.vtk"
 
 
