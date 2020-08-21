@@ -126,7 +126,7 @@ def main():
         "1650beam13539_model.h5"))
 
     # Constants
-    # The average one-dimensional grid separation between particles along an axis
+    # Average one-dimensional grid separation between particles along an axis
     dx = 0.025
     # Following convention, the horizon distance is taken as just over 3
     # times the grid separation between particles
@@ -223,26 +223,9 @@ def main():
         write=200
         )
 
-    # Print the data dict
-    print(data)
     # Try plotting data['rhs']['body_force'] vs data['rhs']['displacement']
     # Try plotting data['model']['damage'] vs data['model']['step']
-    # >>> import matplotlib.pyplot as plt
-    # >>> plt.plot(
-    # >>>     dt * np.array(data['model']['step']),
-    # >>>     data['model']['damage_sum'])
-    # >>> plt.title('Total model damage over time')
-    # >>> plt.xlabel('time (s)')
-    # >>> plt.ylabel('damage')
-    # >>> plt.show()
-    # >>> plt.plot(
-    # >>>     -1000. * np.array(data['rhs']['displacement']),
-    # >>>     np.array(data['rhs']['body_force']) / 1000.)
-    # >>> plt.title('Tip shear force vs displacement')
-    # >>> plt.xlabel('displacement (mm)')
-    # >>> plt.ylabel('shear force (kN)')
-    # >>> plt.xlim(0.0, 1.0)
-    # >>> plt.show()
+
     # Note that bond_stiffness and critical_stretch can be changed without
     # re-initialising :class `Model`:, e.g.
     # >>> _* = model.simulate(
@@ -254,8 +237,7 @@ def main():
     # >>>     )
     # Try experimenting with different values of the peridynamics parameters
     # The horizon distance cannot be changed without re-initialising
-    # :class:`Model`, since it controls the connectivity and family of the
-    # model
+    # :class:`Model`, since it controls the connectivity of the model
 
     if args.profile:
         profile.disable()
