@@ -13,7 +13,7 @@ Welcome to Probabilistic Peridynamics's documentation!
    model
    integrators
    spatial
-   neighbour_list
+   create_crack
    peridynamics
 
 
