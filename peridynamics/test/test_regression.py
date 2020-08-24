@@ -57,13 +57,12 @@ class TestRegression:
         """Ensure connectivity is correct."""
         _, _, _, connectivity, *_ = regression_cython
         path = data_path
-
+        actual_nlist = connectivity[0]
+        actual_n_neigh = connectivity[1]
         expected_connectivity = np.load(path/"expected_connectivity.npz")
         expected_nlist = expected_connectivity["nlist"]
         expected_n_neigh = expected_connectivity["n_neigh"]
 
-        actual_nlist = connectivity[0]
-        actual_n_neigh = connectivity[1]
         assert np.all(expected_nlist == actual_nlist)
         assert np.all(expected_n_neigh == actual_n_neigh)
 
@@ -75,7 +74,7 @@ class TestRegression:
         expected_force = np.load(path/"expected_force.npy")
 
         actual_force = force
-        assert np.all(expected_force == actual_force)
+        assert np.allclose(expected_force, actual_force)
 
     def test_mesh_cython(self, regression_cython, data_path, tmp_path):
         """Ensure mesh file is identical."""
@@ -83,26 +82,40 @@ class TestRegression:
         path = data_path
 
         mesh = tmp_path / "mesh.vtk"
-        model.write_mesh(mesh, damage, displacements)
-
         expected_mesh = path / "expected_mesh.vtk"
+        model.write_mesh(mesh, damage, displacements)
 
         assert(
             mesh.read_bytes().split(b"\n")[2:] ==
             expected_mesh.read_bytes().split(b"\n")[2:]
             )
 
+    def test_displacements_cl(self, regression_cl, data_path):
+        """Ensure displacements are correct."""
+        _, displacements, *_ = regression_cl
+        path = data_path
+
+        expected_displacements = np.load(path/"expected_displacements.npy")
+        assert np.allclose(displacements, expected_displacements)
+
+    def test_damage_cl(self, regression_cl, data_path):
+        """Ensure damage is correct."""
+        _, _, damage, *_ = regression_cl
+        path = data_path
+        expected_damage = np.load(path/"expected_damage.npy")
+        assert np.allclose(damage, expected_damage)
+
     def test_connectivity_cl(self, regression_cl, data_path):
         """Ensure connectivity is correct."""
         _, _, _, connectivity, *_ = regression_cl
         path = data_path
 
+        actual_nlist = connectivity[0]
+        actual_n_neigh = connectivity[1]
         expected_connectivity = np.load(path/"expected_connectivity_cl.npz")
         expected_nlist = expected_connectivity["nlist"]
         expected_n_neigh = expected_connectivity["n_neigh"]
 
-        actual_nlist = connectivity[0]
-        actual_n_neigh = connectivity[1]
         assert np.all(expected_nlist == actual_nlist)
         assert np.all(expected_n_neigh == actual_n_neigh)
 
@@ -122,9 +135,8 @@ class TestRegression:
         path = data_path
 
         mesh = tmp_path / "mesh.vtk"
-        model.write_mesh(mesh, damage, displacements)
-
         expected_mesh = path / "expected_mesh_cl.vtk"
+        model.write_mesh(mesh, damage, displacements)
 
         assert(
             mesh.read_bytes().split(b"\n")[2:] ==

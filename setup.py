@@ -7,8 +7,8 @@ extra_link_args = []
 
 ext_modules = [
     Extension(
-        "peridynamics.neighbour_list",
-        ["peridynamics/neighbour_list.pyx"],
+        "peridynamics.create_crack",
+        ["peridynamics/create_crack.pyx"],
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args
         ),

@@ -1,15 +1,14 @@
 """Peridynamics model."""
 from .integrators import Integrator
 from .utilities import write_array
-from .neighbour_list import (set_family, create_neighbour_list_cl,
-                             create_neighbour_list_cython, create_crack_cython,
-                             create_crack_cl)
+from .create_crack import (create_crack_cython, create_crack_cl)
 from collections import namedtuple
 import numpy as np
 import pathlib
 from tqdm import trange
 import warnings
 import meshio
+import sklearn.neighbors as neighbors
 
 _MeshElements = namedtuple("MeshElements", ["connectivity", "boundary"])
 _mesh_elements_2d = _MeshElements(connectivity="triangle",
@@ -128,7 +127,7 @@ class Model(object):
     def __init__(self, mesh_file, integrator, horizon, critical_stretch,
                  bond_stiffness, transfinite=0,
                  volume_total=None, write_path=None, connectivity=None,
-                 family=None, volume=None, initial_crack=[], dimensions=2,
+                 family=None, volume=None, initial_crack=None, dimensions=2,
                  is_density=None, is_bond_type=None,
                  is_displacement_boundary=None, is_force_boundary=None,
                  is_tip=None, density=None, bond_types=None,
@@ -195,7 +194,7 @@ class Model(object):
             representing nodes between which to create a crack. Alternatively,
             the arugment may be a function which takes the (nnodes, 3)
             :class:`numpy.ndarray` of coordinates as an argument, and returns a
-            list of tuples defining the initial crack. Default is []
+            list of tuples defining the initial crack. Default is None
         :type initial_crack: list(tuple(int, int)) or function
         :arg int dimensions: The dimensionality of the model. The
             default is 2.
@@ -293,8 +292,8 @@ class Model(object):
             this_may_take_a_while(self.nnodes, 'volume')
             self.volume, self.sum_total_volume = self._volume(
                 transfinite, volume_total)
-            if write_path is not None:
-                write_array(write_path, "volume", self.volume)
+            if self.write_path is not None:
+                write_array(self.write_path, "volume", self.volume)
         elif type(volume) == np.ndarray:
             if np.shape(volume) != (self.nnodes, ):
                 raise ValueError("volume shape is wrong, and must be "
@@ -310,38 +309,37 @@ class Model(object):
                                          np.ndarray))
 
         # Calculate the family (number of bonds in the initial configuration)
-        # for each node, if None is provided
-        if family is None:
-            # Calculate family
-            this_may_take_a_while(self.nnodes, 'family')
-            self.family = set_family(self.coords, horizon)
-            if write_path is not None:
-                write_array(write_path, "family", self.family)
-        elif type(family) == np.ndarray:
-            if np.shape(family) != (self.nnodes, ):
-                raise ValueError("family shape is wrong, and must be "
-                                 "(nnodes, ) (expected {}, got {})".format(
-                                     (self.nnodes, ),
-                                     np.shape(family)))
-            warnings.warn(
-                    "Reading family from argument.")
-            self.family = family.astype(np.intc)
+        # and connectivity for each node, if None is provided
+        if family is None or connectivity is None:
+            # Calculate neighbour list
+            this_may_take_a_while(self.nnodes, 'family, connectivity')
+            (self.family,
+             nlist,
+             n_neigh,
+             self.max_neighbours) = self._set_neighbour_list(
+                 self.coords, self.horizon, self.nnodes,
+                 initial_crack, integrator.context)
+            if self.write_path is not None:
+                write_array(self.write_path, "family", self.family)
+                write_array(self.write_path, "nlist", nlist)
+                write_array(self.write_path, "n_neigh", n_neigh)
         else:
-            raise TypeError("family type is wrong (expected {}, got "
-                            "{})".format(type(family),
-                                         np.ndarray))
-        if np.any(self.family == 0):
-            raise FamilyError(self.family)
 
-        if integrator.context is None:
-            if connectivity is None:
-                # Create the neighbourlist for the cython implementation
-                this_may_take_a_while(self.nnodes, 'connectivity')
-                self.max_neighbours = self.family.max()
-                nlist, n_neigh = create_neighbour_list_cython(
-                    self.coords, horizon, self.max_neighbours
-                    )
-            elif type(connectivity) == tuple:
+            if type(family) == np.ndarray:
+                if np.shape(family) != (self.nnodes, ):
+                    raise ValueError("family shape is wrong, and must be "
+                                     "(nnodes, ) (expected {}, got {})".format(
+                                         (self.nnodes, ),
+                                         np.shape(family)))
+                warnings.warn(
+                        "Reading family from argument.")
+                self.family = family.astype(np.intc)
+            elif type(family) != np.ndarray:
+                raise TypeError("family type is wrong (expected {}, got "
+                                "{})".format(type(family),
+                                             np.ndarray))
+
+            if type(connectivity) == tuple:
                 if len(connectivity) != 2:
                     raise ValueError("connectivity size is wrong (expected 2,"
                                      " got {})".format(len(connectivity)))
@@ -350,77 +348,37 @@ class Model(object):
                 nlist, n_neigh = connectivity
                 nlist = nlist.astype(np.intc)
                 n_neigh = n_neigh.astype(np.intc)
-                self.max_neighbours = np.intc(
-                            np.shape(nlist)[1]
+                if integrator.context is None:
+                    self.max_neighbours = np.intc(
+                                np.shape(nlist)[1]
+                            )
+                    if self.max_neighbours != self.family.max():
+                        raise ValueError(
+                            "max_neighbours, which is equal to the"
+                            " size of axis 1 of nlist is wrong (expected "
+                            " max_neighbours = np.shape(nlist)[1] = "
+                            "family.max() = {}, got {})".format(
+                                self.family.max(), self.max_neighbours))
+                else:
+                    self.max_neighbours = np.intc(
+                        np.shape(nlist)[1]
                         )
-                if self.max_neighbours != self.family.max():
-                    raise ValueError(
-                        "max_neighbours, which is equal to the"
-                        " size of axis 1 of nlist is wrong (expected "
-                        " max_neighbours = np.shape(nlist)[1] = family.max()"
-                        " = {}, got {})".format(
-                            self.family.max(), self.max_neighbours))
+                    test = self.max_neighbours - 1
+                    if self.max_neighbours & test:
+                        raise ValueError(
+                            "max_neighbours, which is equal to the"
+                            " size of axis 1 of nlist is wrong (expected "
+                            " max_neighbours = np.shape(nlist)[1] = {},"
+                            " got {})".format(
+                                1 << (int(self.family.max() - 1)).bit_length(),
+                                self.max_neighbours))
             else:
                 raise TypeError("connectivity type is wrong (expected {} or"
                                 " {}, got {})".format(
                                     tuple, type(None), type(connectivity)))
-            # Initialise initial crack for cython
-            if initial_crack:
-                if callable(initial_crack):
-                    initial_crack = initial_crack(
-                        self.coords, nlist, n_neigh)
-                create_crack_cython(
-                    np.array(initial_crack, dtype=np.int32),
-                    nlist, n_neigh
-                    )
 
-        else:
-            if connectivity is None:
-                # Create the neighbourlist for the OpenCL implementation
-                this_may_take_a_while(self.nnodes, 'connectivity')
-                self.max_neighbours = np.intc(
-                            1 << (int(self.family.max() - 1)).bit_length()
-                        )
-                nlist, n_neigh = create_neighbour_list_cl(
-                    self.coords, horizon, self.max_neighbours
-                    )
-                if write_path is not None:
-                    write_array(self.write_path, "nlist", nlist)
-                    write_array(self.write_path, "n_neigh", n_neigh)
-            elif type(connectivity) == tuple:
-                if len(connectivity) != 2:
-                    raise ValueError("connectivity size is wrong (expected 2, "
-                                     " got {})".format(len(connectivity)))
-                warnings.warn(
-                    "Reading connectivity from argument.")
-                nlist, n_neigh = connectivity
-                nlist = nlist.astype(np.intc)
-                n_neigh = n_neigh.astype(np.intc)
-                self.max_neighbours = np.intc(
-                            np.shape(nlist)[1]
-                        )
-                test = self.max_neighbours - 1
-                if self.max_neighbours & test:
-                    raise ValueError(
-                        "max_neighbours, which is equal to the"
-                        " size of axis 1 of nlist is wrong (expected "
-                        " max_neighbours = np.shape(nlist)[1] = {},"
-                        " got {})".format(
-                            1 << (int(self.family.max() - 1)).bit_length(),
-                            self.max_neighbours))
-            else:
-                raise TypeError("connectivity type is wrong (expected {} or"
-                                " {}, got {})".format(
-                                    tuple, type(None), type(connectivity)))
-            # Initialise initial crack for OpenCL
-            if initial_crack:
-                if callable(initial_crack):
-                    initial_crack = initial_crack(
-                        self.coords, nlist, n_neigh)
-                create_crack_cl(
-                    np.array(initial_crack, dtype=np.int32),
-                    nlist, n_neigh, self.family
-                    )
+        if np.any(self.family == 0):
+            raise FamilyError(self.family)
 
         self.initial_connectivity = (nlist, n_neigh)
         self.degrees_freedom = 3
@@ -431,7 +389,7 @@ class Model(object):
             else:
                 # Calculate stiffness correction factors and write to file
                 self.stiffness_corrections = self._set_stiffness_corrections(
-                    precise_stiffness_correction, self.write_path)
+                    precise_stiffness_correction)
         elif type(stiffness_corrections) == np.ndarray:
             if np.shape(stiffness_corrections) != (
                     self.nnodes, self.max_neighbours):
@@ -467,7 +425,7 @@ class Model(object):
             # Calculate bond types and write to file
             self.bond_types = self._set_bond_types(
                 self.initial_connectivity, is_bond_type,
-                self.nbond_types, self.nregimes, self.write_path)
+                self.nbond_types, self.nregimes)
 
         elif type(bond_types) == np.ndarray:
             if np.shape(bond_types) != (self.nnodes, self.max_neighbours):
@@ -485,8 +443,7 @@ class Model(object):
                                     np.ndarray, type(bond_types)))
 
         # Set densities of the model
-        self.densities = self._set_densities(
-            density, is_density, self.write_path)
+        self.densities = self._set_densities(density, is_density)
 
         # Create dummy boundary conditions functions if none is provided
         if is_force_boundary is None:
@@ -580,6 +537,77 @@ class Model(object):
             file_format=file_format
             )
 
+    def _set_neighbour_list(self, coords, horizon, nnodes,
+                            initial_crack=None, context=None):
+        """
+        Build the connectivity and family using a neighbour list.
+
+        Determine the number of nodes within the horizon distance of each node,
+        and the neighbour list as a fixed length array. The crack, if it
+        exists, is also initiated here. This implementation makes use of
+        :meth:`sklearn.neighbors.KDTree`. In preliminary tests, the
+        time-expense optimal leaf_size=~160 for 10e5 < nnodes < 10e7.
+
+        :arg coords: The coordinates of all nodes.
+        :type coords: :class:`numpy.ndarray`
+        :arg float horizon: The horizon distance.
+        :arg int nnodes: The number of nodes.
+        :arg func initial_crack: The initial crack function, default is None.
+        :arg context: The OpenCL context with a single suitable device,
+            default is None.
+        :type context: :class:`pyopencl._cl.Context` or `NoneType`
+
+        :returns: An (nnodes,) array of the number of nodes
+            within the horizon of each node, the neighbour list as a fixed
+            length (nnodes, max_neighbours) array, an (nnodes,) array of the
+            number of neighbours of each node at the current time step and
+            max_neighbours, the number of columns in nlist.
+        :rtype: tuple(:class:`numpy.ndarray`, :class:`numpy.ndarray`,
+                      :class:`numpy.ndarray`, int)
+        """
+        tree = neighbors.KDTree(coords, leaf_size=160)
+        neighbour_list = tree.query_radius(
+            coords, r=horizon)
+        # Remove identity values, as there is no bond between a node and itself
+        neighbour_list = [
+            neighbour_list[i][neighbour_list[i] != i]
+            for i in range(nnodes)]
+
+        family = [len(neighbour_list[i]) for i in range(nnodes)]
+        family = np.array(family, dtype=np.intc)
+
+        if context:
+            max_neighbours = np.intc(
+                1 << (int(family.max() - 1)).bit_length())
+            nlist = -1.*np.ones((nnodes, max_neighbours),
+                                dtype=np.intc)
+        else:
+            max_neighbours = family.max()
+            nlist = np.zeros((nnodes, max_neighbours), dtype=np.intc)
+        for i in range(nnodes):
+            nlist[i][:family[i]] = neighbour_list[i]
+        nlist = nlist.astype(np.intc)
+        n_neigh = family.copy()
+
+        if initial_crack is not None:
+            if callable(initial_crack):
+                initial_crack = initial_crack(
+                        coords, nlist, n_neigh)
+            if context:
+                # Initialise initial crack for OpenCL
+                create_crack_cl(
+                    np.array(initial_crack, dtype=np.int32),
+                    nlist, n_neigh, family
+                    )
+            else:
+                # Initialise initial crack for cython
+                create_crack_cython(
+                    np.array(initial_crack, dtype=np.int32),
+                    nlist, n_neigh
+                    )
+
+        return (family, nlist, n_neigh, max_neighbours)
+
     def _volume(self, transfinite, volume_total):
         """
         Calculate the volume (or area) of each node.
@@ -647,7 +675,7 @@ class Model(object):
         sum_total_volume = np.float64(sum_total_volume)
         return (volume, sum_total_volume)
 
-    def _set_densities(self, density, is_density, write_path):
+    def _set_densities(self, density, is_density):
         """
         Build densities array.
 
@@ -658,8 +686,6 @@ class Model(object):
         :arg is_density: A function that returns a float of the material
             density, given a node coordinate as input.
         :type is_density: function
-        :arg write_path: The path where the vtk files should be written.
-        :type write_path: path-like or str
 
         :returns: A (nnodes, degrees_freedom) array of nodal densities, or
             None if no is_density function or density array is supplied.
@@ -681,8 +707,8 @@ class Model(object):
                 density = np.ones(self.nnodes)
                 for i in range(self.nnodes):
                     density[i] = is_density(self.coords[i])
-                if write_path is not None:
-                    write_array(write_path, "density", density)
+                if self.write_path is not None:
+                    write_array(self.write_path, "density", density)
                 densities = np.transpose(
                     np.tile(density, (self.degrees_freedom, 1))).astype(
                         np.float64)
@@ -702,7 +728,7 @@ class Model(object):
         return densities
 
     def _set_bond_types(self, connectivity, is_bond_type, nbond_types,
-                        nregimes, write_path):
+                        nregimes):
         """
         Build bond_types array.
 
@@ -720,8 +746,6 @@ class Model(object):
         material and interface in a composite.
         :arg int nbond_types: The expected number of regimes in the damage
             model.
-        :arg write_path: The path where the vtk files should be written.
-        :type write_path: path-like or str
 
         :returns: A (`nnodes`, `max_neighbours`) array of the bond types,
             which are used to index into the bond_stiffness and
@@ -764,20 +788,20 @@ class Model(object):
                                 ))
                     bond_types[i][neigh] = bond_type
             bond_types = bond_types.astype(np.intc)
-            if write_path is not None:
-                write_array(write_path, "bond_types", bond_types)
+            if self.write_path is not None:
+                write_array(self.write_path, "bond_types", bond_types)
         elif nregimes != 1:
             bond_types = np.zeros(
                 (self.nnodes, self.max_neighbours))
             bond_types = bond_types.astype(np.intc)
-            if write_path is not None:
-                write_array(write_path, "bond_types", bond_types)
+            if self.write_path is not None:
+                write_array(self.write_path, "bond_types", bond_types)
         else:
             bond_types = None
         return bond_types
 
     def _set_stiffness_corrections(
-            self, precise_stiffness_correction, write_path):
+            self, precise_stiffness_correction):
         """
         Calculate an array of stiffness correction factors.
 
@@ -800,8 +824,6 @@ class Model(object):
             using an average nodal volume. Set to None: All stiffness
             corrections are set to 1.0, i.e. no stiffness correction is
             applied.
-        :arg write_path: The path where the vtk files should be written.
-        :type write_path: path-like or str
 
         :returns: An (`nnodes`, `max_neighbours`) array of the stiffness
             correction factor of each bond for each node.
@@ -819,9 +841,9 @@ class Model(object):
             family_volumes = np.zeros(self.nnodes)
             for i in range(0, self.nnodes):
                 tmp = 0.0
-                neighbour_list = nlist[i][:self.family[i]]
-                for j in range(self.family[i]):
-                    tmp += self.volume[neighbour_list[j]]
+                neighbour_list_i = nlist[i][:n_neigh[i]]
+                for j in range(n_neigh[i]):
+                    tmp += self.volume[neighbour_list_i[j]]
                 family_volumes[i] = tmp
             for i in range(0, self.nnodes):
                 family_volume_i = family_volumes[i]
@@ -850,9 +872,9 @@ class Model(object):
                              "(expected 0, 1 or None, got {})".format(
                                  precise_stiffness_correction))
         stiffness_corrections = stiffness_corrections.astype(np.float64)
-        if write_path is not None:
+        if self.write_path is not None:
             write_array(
-                write_path,
+                self.write_path,
                 "stiffness_corrections", stiffness_corrections)
         return stiffness_corrections
 
@@ -1531,7 +1553,7 @@ def initial_crack_helper(crack_function):
 
 def this_may_take_a_while(nnodes, calculation):
     """
-    Raise a UserWarning if nnodes is more than an arbritrarily large value.
+    Raise a UserWarning if nnodes is over 9000! (an arbritrarily large value).
 
     :arg int nnodes: The number of nodes.
     :arg str calculation: A string message of the calculation being performed.
@@ -1543,7 +1565,7 @@ def this_may_take_a_while(nnodes, calculation):
         "this may take a while."
         )
 
-    if nnodes > 4000:
+    if nnodes > 9000:
         warnings.warn(message)
 
 

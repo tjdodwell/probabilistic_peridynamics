@@ -580,12 +580,6 @@ class TestEulerCromerCL:
          n_neigh_actual
          ) = integrator.write(
              u, ud, udd, force, body_force, damage, nlist, n_neigh)
-        np.save(path/"expected_displacements_euler_cromer", u_actual)
-        np.save(path/"expected_velocities_euler_cromer", ud_actual)
-        np.save(path/"expected_force_euler_cromer", force_actual)
-        np.save(path/"expected_damage_euler_cromer", damage_actual)
-        np.savez(path/"expected_connectivity_euler_cromer_cl",
-                 nlist=nlist_actual, n_neigh=n_neigh_actual)
 
         u_expected = np.load(path/"expected_displacements_euler_cromer.npy")
         force_expected = np.load(path/"expected_force_euler_cromer.npy")

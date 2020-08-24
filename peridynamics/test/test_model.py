@@ -312,49 +312,51 @@ class TestConnectivity:
 
     def test_basic_connectivity(self, basic_model_2d, data_path):
         """Test connectivity calculation with no initial crack."""
+        model, integrator = basic_model_2d
+        actual_nlist, actual_n_neigh = model.initial_connectivity
         npz_file = np.load(
             data_path/"expected_connectivity_basic.npz"
             )
         expected_nlist = npz_file["nlist"]
         expected_n_neigh = npz_file["n_neigh"]
-        model, integrator = basic_model_2d
-        actual_nlist, actual_n_neigh = model.initial_connectivity
+
         assert np.all(expected_nlist == actual_nlist)
         assert np.all(expected_n_neigh == actual_n_neigh)
 
     def test_basic_connectivity_cl(self, basic_model_2d_cl, data_path):
         """Test connectivity calculation with no initial crack."""
+        model, integrator = basic_model_2d_cl
+        actual_nlist, actual_n_neigh = model.initial_connectivity
         npz_file = np.load(
             data_path/"expected_connectivity_basic_cl.npz"
             )
         expected_nlist = npz_file["nlist"]
         expected_n_neigh = npz_file["n_neigh"]
-        model, integrator = basic_model_2d_cl
-        actual_nlist, actual_n_neigh = model.initial_connectivity
+
         assert np.all(expected_nlist == actual_nlist)
         assert np.all(expected_n_neigh == actual_n_neigh)
 
     def test_connectivity(self, cython_model, data_path):
         """Test connectivity calculation with initial crack."""
+        actual_nlist, actual_n_neigh = cython_model.initial_connectivity
         npz_file = np.load(
             data_path/"expected_connectivity_crack.npz"
             )
         expected_nlist = npz_file["nlist"]
         expected_n_neigh = npz_file["n_neigh"]
 
-        actual_nlist, actual_n_neigh = cython_model.initial_connectivity
         assert np.all(expected_nlist == actual_nlist)
         assert np.all(expected_n_neigh == actual_n_neigh)
 
     def test_connectivity_cl(self, cl_model, data_path):
         """Test connectivity calculation with initial crack."""
+        actual_nlist, actual_n_neigh = cl_model.initial_connectivity
         npz_file = np.load(
             data_path/"expected_connectivity_crack_cl.npz"
             )
         expected_nlist = npz_file["nlist"]
         expected_n_neigh = npz_file["n_neigh"]
 
-        actual_nlist, actual_n_neigh = cl_model.initial_connectivity
         assert np.all(expected_nlist == actual_nlist)
         assert np.all(expected_n_neigh == actual_n_neigh)
 
@@ -819,7 +821,7 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_2d
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=0, write_path=None)
+            precise_stiffness_correction=0)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d.npy")
         assert np.allclose(
@@ -831,7 +833,7 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using precise nodal volumes."""
         model, integrator = basic_model_2d
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=1, write_path=None)
+            precise_stiffness_correction=1)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d_precise.npy")
         assert np.allclose(
@@ -843,7 +845,7 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_3d
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=0, write_path=None)
+            precise_stiffness_correction=0)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d.npy")
         assert np.allclose(
@@ -856,7 +858,7 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_2d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=0, write_path=None)
+            precise_stiffness_correction=0)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d_cl.npy")
         assert np.allclose(
@@ -869,7 +871,7 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using precise nodal volumes."""
         model, integrator = basic_model_2d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=1, write_path=None)
+            precise_stiffness_correction=1)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d_precise_cl.npy")
         assert np.allclose(
@@ -882,7 +884,7 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_3d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=0, write_path=None)
+            precise_stiffness_correction=0)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d_cl.npy")
         assert np.allclose(
@@ -895,7 +897,7 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using precise nodal volumes."""
         model, integrator = basic_model_3d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=1, write_path=None)
+            precise_stiffness_correction=1)
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d_precise_cl.npy")
         assert np.allclose(
