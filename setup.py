@@ -40,6 +40,6 @@ setup(
         'scipy',
         'tqdm',
         'h5py',
-	'sklearn'
+        'sklearn'
         ]
     )
