@@ -31,8 +31,8 @@ def test_break_bonds():
         [0, 0, 0],
         [1, 0, 0],
         [0, 0, 0]
-        ])
-    n_neigh = np.array([3, 2, 1, 1, 1])
+        ], dtype=np.intc)
+    n_neigh = np.array([3, 2, 1, 1, 1], dtype=np.intc)
 
     r = np.array([
         [0.0, 0.0, 0.0],
@@ -75,8 +75,8 @@ class TestForce:
             [0, 0, 0],
             [1, 0, 0],
             [0, 0, 0]
-            ])
-        n_neigh = np.array([3, 2, 1, 1, 1])
+            ], dtype=np.intc)
+        n_neigh = np.array([3, 2, 1, 1, 1], dtype=np.intc)
         nnodes = 5
         volume = np.ones(nnodes)
         bond_stiffness = 1.0
@@ -106,8 +106,8 @@ class TestForce:
             [1, 0],
             [0, 2],
             [2, 0]
-            ])
-        n_neigh = np.array([1, 2, 1])
+            ], dtype=np.intc)
+        n_neigh = np.array([1, 2, 1], dtype=np.intc)
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.int32)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
