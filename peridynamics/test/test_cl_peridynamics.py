@@ -2,7 +2,6 @@
 from .conftest import context_available
 from ..cl import get_context
 import numpy as np
-from peridynamics.neighbour_list import (create_neighbour_list_cl, set_family)
 import pyopencl as cl
 from pyopencl import mem_flags as mf
 import pathlib
@@ -45,8 +44,6 @@ class TestBondForce:
             [2.0, 0.0, 0.0],
             [0.0, 0.0, 1.0],
             ], dtype=np.float64)
-
-        horizon = 1.1
         nnodes = 5
         u = np.zeros((nnodes, 3), dtype=np.float64)
         body_force = np.zeros((nnodes, 3), dtype=np.float64)
@@ -55,7 +52,13 @@ class TestBondForce:
         bond_stiffness = 1.0
         critical_stretch = 1000.0
         max_neigh = 4
-        nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
+        nlist = np.array([
+            [1, 2, 4, -1],
+            [0, 3, -1, -1],
+            [0, -1, -1, -1],
+            [1, -1, -1, -1],
+            [0, -1, -1, -1]
+            ], dtype=np.intc)
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
@@ -139,7 +142,11 @@ class TestBondForce:
         nregimes = 1
         max_neigh = 4
         volume = np.full(nnodes, 0.16666667, dtype=np.float64)
-        nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
+        nlist = np.array([
+            [1, -1, -1, -1],
+            [0, 2, -1, -1],
+            [1, -1, -1, -1]
+            ], dtype=np.intc)
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
@@ -237,8 +244,15 @@ class TestBondForce:
         bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
         nregimes = 1
         volume = np.full(nnodes, 0.16666667, dtype=np.float64)
-        family = set_family(r0, horizon)
-        nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
+        nlist = np.array([
+            [1, 2, 4, -1],
+            [0, 3, -1, -1],
+            [0, -1, -1, -1],
+            [1, -1, -1, -1],
+            [0, -1, -1, -1]
+            ], dtype=np.intc)
+        n_neigh = np.array([3, 2, 1, 1, 1], dtype=np.intc)
+        family = np.array([3, 2, 1, 1, 1], dtype=np.intc)
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
@@ -347,7 +361,7 @@ class TestBondForce:
             [0, -1, -1, -1],
             [1, -1, -1, -1],
             [-1, -1, -1, -1]
-            ])
+            ], dtype=np.intc)
         n_neigh_expected = np.array([1, 1, 1, 1, 0])
         damage_expected = np.array([2./3, 1./2, 0.0, 0.0, 1.0])
 
@@ -375,7 +389,11 @@ class TestBondForce2:
         nregimes = 1
         max_neigh = 4
         volume = np.full(nnodes, 0.16666667, dtype=np.float64)
-        nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
+        nlist = np.array([
+            [1, -1, -1, -1],
+            [0, 2, -1, -1],
+            [1, -1, -1, -1]
+            ], dtype=np.intc)
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
@@ -472,7 +490,11 @@ class TestBondForce2:
         nregimes = 1
         max_neigh = 4
         volume = np.full(nnodes, 0.16666667, dtype=np.float64)
-        nlist, n_neigh = create_neighbour_list_cl(r0, horizon, max_neigh)
+        nlist = np.array([
+            [1, -1, -1, -1],
+            [0, 2, -1, -1],
+            [1, -1, -1, -1]
+            ], dtype=np.intc)
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.float64)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)

@@ -1,6 +1,5 @@
 """Tests for the peridynamics modules."""
 import numpy as np
-from peridynamics.neighbour_list import create_neighbour_list_cython
 from peridynamics.peridynamics import (damage, bond_force, break_bonds,
                                        update_displacement)
 
@@ -25,20 +24,15 @@ def test_break_bonds():
         [2.0, 0.0, 0.0],
         [0.0, 0.0, 1.0],
         ])
-    horizon = 1.1
-    nl, n_neigh = create_neighbour_list_cython(r0, horizon, 3)
 
-    nl_expected = np.array([
+    nl = np.array([
         [1, 2, 4],
         [0, 3, 0],
         [0, 0, 0],
         [1, 0, 0],
         [0, 0, 0]
         ])
-    n_neigh_expected = np.array([3, 2, 1, 1, 1])
-
-    assert np.all(nl == nl_expected)
-    assert np.all(n_neigh == n_neigh_expected)
+    n_neigh = np.array([3, 2, 1, 1, 1])
 
     r = np.array([
         [0.0, 0.0, 0.0],
@@ -75,11 +69,17 @@ class TestForce:
             [2.0, 0.0, 0.0],
             [0.0, 0.0, 1.0],
             ])
-        horizon = 1.1
+        nl = np.array([
+            [1, 2, 4],
+            [0, 3, 0],
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 0, 0]
+            ])
+        n_neigh = np.array([3, 2, 1, 1, 1])
         nnodes = 5
         volume = np.ones(nnodes)
         bond_stiffness = 1.0
-        nl, n_neigh = create_neighbour_list_cython(r0, horizon, 3)
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.int32)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
@@ -102,7 +102,12 @@ class TestForce:
         elastic_modulus = 0.05
         bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
         volume = np.full(nnodes, 0.16666667)
-        nl, n_neigh = create_neighbour_list_cython(r0, horizon, 3)
+        nl = np.array([
+            [1, 0],
+            [0, 2],
+            [2, 0]
+            ])
+        n_neigh = np.array([1, 2, 1])
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.int32)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
