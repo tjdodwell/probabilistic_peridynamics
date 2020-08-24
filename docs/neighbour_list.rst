@@ -1,5 +1,5 @@
-Neighbour list documentation
+Create crack documentation
 ============================
 
-.. automodule:: peridynamics.neighbour_list
+.. automodule:: peridynamics.create_crack
    :members:
