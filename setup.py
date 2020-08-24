@@ -39,6 +39,7 @@ setup(
         'pyopencl==2020.1',
         'scipy',
         'tqdm',
-        'h5py'
+        'h5py',
+	'sklearn'
         ]
     )
