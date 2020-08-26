@@ -290,7 +290,7 @@ class Model(object):
         if volume is None:
             # Calculate the volume for each node
             this_may_take_a_while(self.nnodes, 'volume')
-            self.volume, self.sum_total_volume = self._volume(
+            self.volume = self._volume(
                 transfinite, volume_total)
             if self.write_path is not None:
                 write_array(self.write_path, "volume", self.volume)
@@ -621,10 +621,8 @@ class Model(object):
             input volume for simple prismatic problems. In the case where no
             expected total volume is provided, the check is not done.
 
-        :returns: Tuple containing an array of volumes for each node and the
-            sum total of all the nodal volumes, which is equal to the total
-            mesh volume.
-        :rtype: tuple(:class:`numpy.ndarray`, float)
+        :returns: Tuple containing an array of volumes for each node.
+        :rtype: :class:`numpy.ndarray`
         """
         if transfinite:
             if volume_total is None:
@@ -634,12 +632,10 @@ class Model(object):
                                      float, type(volume_total)))
         volume = np.zeros(self.nnodes)
         dimensions = self.dimensions
-        sum_total_volume = 0.0
 
         if transfinite:
             tmp = volume_total / self.nnodes
             volume = tmp * np.ones(self.nnodes)
-            sum_total_volume = volume_total
         else:
             if dimensions == 2:
                 # element is a triangle
@@ -657,7 +653,6 @@ class Model(object):
                     i = b - a
                     j = c - a
                     element_volume = 0.5 * np.linalg.norm(np.cross(i, j))
-                    sum_total_volume += element_volume
                 elif dimensions == 3:
                     a, b, c, d = self.coords[nodes]
 
@@ -666,14 +661,12 @@ class Model(object):
                     j = b - d
                     k = c - d
                     element_volume = abs(np.dot(i, np.cross(j, k))) / 6
-                    sum_total_volume += element_volume
 
                 # Add fraction element volume to all nodes belonging to that
                 # element
                 volume[nodes] += element_volume / element_nodes
         volume = volume.astype(np.float64)
-        sum_total_volume = np.float64(sum_total_volume)
-        return (volume, sum_total_volume)
+        return volume
 
     def _set_densities(self, density, is_density):
         """
@@ -855,7 +848,7 @@ class Model(object):
                         stiffness_correction_factor)
 
         elif precise_stiffness_correction == 0:
-            average_node_volume = self.sum_total_volume / self.nnodes
+            average_node_volume = np.sum(self.volume) / self.nnodes
             for i in range(0, self.nnodes):
                 nnodes_i_family = n_neigh[i]
                 nodei_family_volume = nnodes_i_family * average_node_volume
