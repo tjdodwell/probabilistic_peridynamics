@@ -14,7 +14,7 @@ __kernel void
         double dt
 	){
     /* Calculate the dispalcement and velocity of each node using an
-     * Euler Cromer integrator.
+     * Velocity Verlet integrator.
      *
      * force - An (n,3) array of the forces of each node.
      * u - An (n,3) array of the current displacements of each node.
@@ -28,8 +28,9 @@ __kernel void
      * dt - The time step in [s]. */
 	const int i = get_global_id(0);
 
-    double const udd1 = (force[i] - damping * ud[i]) / densities[i];
-    ud[i] += (dt / 2) * (udd1 + udd[i]);
+    double const ud1 = ud[i] + (dt / 2) * udd[i]; // Half-step velocity
+    double const udd1 = (force[i] - damping * ud1) / densities[i];
+    ud[i] = ud1 + (dt / 2) * udd1; // Full-step velocity
     udd[i] = udd1;
-    u[i] = (bc_types[i] == 0 ? (u[i] + dt * (ud[i] + (dt / 2) * udd[i])) : (bc_scale * bc_values[i]));
+    u[i] = (bc_types[i] == 0 ? (u[i] + dt * (ud[i] + (dt / 2) * udd1)) : (bc_scale * bc_values[i]));
 }

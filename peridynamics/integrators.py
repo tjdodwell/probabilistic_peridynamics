@@ -312,7 +312,7 @@ class Euler(Integrator):
         u(t + \delta t) = u(t) + \delta t f(t)
 
     where :math:`u(t)` is the displacement at time :math:`t`, :math:`f(t)` is
-    the force at time :math:`t`, :math:`\delta t` is the time step.
+    the force density at time :math:`t`, :math:`\delta t` is the time step.
     """
 
     def __init__(self, dt):
@@ -455,7 +455,7 @@ class EulerCL(Integrator):
         u(t + \delta t) = u(t) + \delta t f(t) d
 
     where :math:`u(t)` is the displacement at time :math:`t`, :math:`f(t)` is
-    the force at time :math:`t`, :math:`\delta t` is the time step.
+    the force density at time :math:`t`, :math:`\delta t` is the time step.
     """
 
     def __init__(self, *args, **kwargs):
@@ -533,16 +533,21 @@ class EulerCromerCL(Integrator):
     the velocity at time :math:`t`, :math:`udd(t)` is the acceleration at time
     :math:`t`, and :math:`\delta t` is the time step
 
-    A dynamic relaxation damping term is added for the solution to quickly
-    converge to a steady state solution, so that the equation of motion is
-    given by,
+    A dynamic relaxation damping term is added to the equation of motion
+    so that the solution to quickly converges to a steady state solution in
+    quasi-static problems,
 
     .. math::
-        udd(t) = (f(t) - \eta ud(t)) / \rho
+         \eta ud(t) + \rho udd(t) = f(t)
 
-    where :math:`udd(t)` is the acceleration at time :math:`t`, :math:`f(t)`
-    is the force at time :math:`t`, :math:`\eta` is the dynamic relaxation
-    damping and :math:`\rho` is the density.
+    where :math:`f(t)` is the force density at time :math:`t`, :math:`\eta` is
+    the dynamic relaxation damping constant and :math:`\rho` is the density.
+
+    Given the velocity and displacement vectors of each node at time step
+    t, the acceleration at time step t is given by the equation of motion,
+
+    .. math::
+        udd(t) = (f(u(t)) - \eta ud(t)) / \rho
     """
 
     def __init__(self, damping, *args, **kwargs):
@@ -618,34 +623,37 @@ class VelocityVerletCL(Integrator):
     Velocity-Verlet integrator for OpenCL.
 
     The Velocity-Verlet method is a second-order numerical integration method.
-    The integration is given by,
+    The 2nd order accurate displacements of the next time step t + \delta t are
+    given as,
 
     .. math::
-        ud(t + \delta t / 2) = ud(t + \delta t) + (\delta t / 2) udd(t)
-        u(t + \delta t) = u(t) + \delta t ud(t + \delta t / 2)
-        ud(t + \delta t) = ud(t + \delta t / 2) + \delta t ud(t + \delta t / 2)
+        ud(t + \delta t / 2) = ud(t) + (\delta t / 2) udd(t)
+        u(t + \delta t) = (u(t) + \delta t ud(t) + (\delta t / 2) udd(t)
+        ud(t + \delta t) = (ud(t + \delta t / 2)
+                            + (\delta t / 2) udd(t + \delta t))
 
     where :math:`u(t)` is the displacement at time :math:`t`, :math:`ud(t)` is
     the velocity at time :math:`t`, :math:`udd(t)` is the acceleration at time
     :math:`t` and :math:`\delta t` is the time step.
 
-    Given the displacement and velocity vectors of each node at time step n,
-    and by calculating the vector of acceleration from the equation of motion,
-
-    A dynamic relaxation damping term is added for the solution to quickly
-    converge to a steady state solution. By calculating the acceleration
-    which is given by the equation of motion,
+    A dynamic relaxation damping term is added to the equation of motion
+    so that the solution to quickly converges to a steady state solution in
+    quasi-static problems,
 
     .. math::
-        udd(t) = (f(t) - \eta ud(t)) / \rho
+         \eta ud(t) + \rho udd(t) = f(t)
 
-    where :math:`f(t)` is the force at time :math:`t`, :math:`\eta` is the
-    dynamic relaxation damping and :math:`\rho` is the density, the 2nd order
-    accurate displacements of the next time step are given as,
+    where :math:`f(u(t))` is the force density at time :math:`t`, :math:`\eta`
+    is the dynamic relaxation damping constant and :math:`\rho` is the density.
+
+    Given the displacement vectors of each node at time step t, and half-step
+    velocity vectors of each node at time step t + \delta t / 2, the
+    acceleration at time step t + \delta t is given by the equation of
+    motion,
 
     .. math::
-        u(t + \delta t) = (u(t) + \delta t ud(t + \delta t)
-                           + (\delta t / 2) udd(t))
+        udd(t + \delta t) = (f(u(t + delta t))
+                             - \eta ud(t + \delta t / 2)) / \rho
     """
 
     def __init__(self, damping, *args, **kwargs):
