@@ -2,6 +2,12 @@ def create_crack_cython(int[:, :] crack, int[:, :] nlist, int[:] n_neigh):
     """
     Create a crack by removing selected pairs from the neighbour list.
 
+    This method is special to the cython integrators, such as
+    :class:`peridynamics.integrators.Euler`. The key difference between this
+    method and :meth:`peridynamics.create_crack.create_crack_cl` is that it
+    will remove the broken bond by replacing a neighbour with the last
+    neighbour on the list, as opposed to replacing it with a flag of -1.
+
     :arg crack: An array giving the pairs between which to create the crack.
         Each row of this array should be the index of two nodes.
     :type crack: :class:`numpy.ndarray`
@@ -41,6 +47,13 @@ def create_crack_cl(int[:, :] crack, int[:, :] nlist, int[:] n_neigh,
                     int[:] family):
     """
     Create a crack by removing selected pairs from the neighbour list.
+
+    This method is special to the OpenCL integrators, such as
+    :class:`peridynamics.integrators.EulerCL`. The key difference between this
+    method and :meth:`peridynamics.create_crack.create_crack_cython` is that it
+    will remove the broken bond by replacing a neighbour with a flag of -1, as
+    opposed to replacing it with the last neighbour on the list. This is due to
+    the slightly different data structure of nlist for the OpenCL integrators.
 
     :arg crack: An array giving the pairs between which to create the crack.
         Each row of this array should be the index of two nodes.
