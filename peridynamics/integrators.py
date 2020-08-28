@@ -12,13 +12,13 @@ class Integrator(ABC):
     """
     Base class for integrators.
 
-    All integrators must define an init method, which may or may not
-    use inherit Integrator as a parent class using `super()`. All integrators
-    that inherit Integrator are OpenCL implementations that can use GPU or CPU.
-    All integrators must also define a call method which performs one
-    integration step, a build_special method which builds the OpenCL programs
-    which are special to the integrator, and a set_special_buffers method which
-    sets the OpenCL buffers which are special to the integrator.
+    All integrators must define an init method, which may or may not inherit
+    Integrator as a parent class using `super()`. All integrators that inherit
+    Integrator are OpenCL implementations that can use GPU or CPU. All
+    integrators must also define a call method which performs one integration
+    step, a `_build_special` method which builds the OpenCL programs which are
+    special to the integrator, and a `_set_special_buffers` method which sets
+    the OpenCL buffers which are special to the integrator.
     """
 
     @abstractmethod
@@ -89,7 +89,8 @@ class Integrator(ABC):
         Build OpenCL programs.
 
         Builds the programs that are common to all integrators and the
-        buffers which are independent of :class:`Model`.simulation parameters.
+        buffers which are independent of
+        :method:`peridynamics.model.Model.simulate` parameters.
         """
         self.nnodes = nnodes
         self.degrees_freedom = degrees_freedom
@@ -193,8 +194,8 @@ class Integrator(ABC):
         """
         Initialise the OpenCL buffers.
 
-        Initialises just the buffers which are dependent on
-        :class:`Model`.simulation parameters.
+        Initialises only the buffers which are dependent on
+        :method:`peridynamics.model.Model.simulate` parameters.
         """
         if (nbond_types == 1) and (nregimes == 1):
             self.bond_stiffness_d = np.float64(bond_stiffness)
@@ -226,7 +227,7 @@ class Integrator(ABC):
         self.nbond_types = np.intc(nbond_types)
 
         # Build OpenCL data structures that are dependent on
-        # :class: Model.simulation parameters
+        # :method:`peridynamics.model.Model.simulate` parameters.
         # Read and write
         self.force_d = cl.Buffer(
             self.context, mf.READ_WRITE, force.nbytes)
@@ -309,7 +310,7 @@ class Euler(Integrator):
     integration is given by,
 
     .. math::
-        u(t + \delta t) = u(t) + \delta t f(t)
+        u(t + \delta t) = u(t) + \delta t f(t),
 
     where :math:`u(t)` is the displacement at time :math:`t`, :math:`f(t)` is
     the force density at time :math:`t`, :math:`\delta t` is the time step.
@@ -355,8 +356,10 @@ class Euler(Integrator):
         """
         Initiate arrays that are dependent on simulation parameters.
 
-        Since :class:`Euler` uses cython in place of OpenCL, there are no
-        buffers to be set, just python objects that can be used as arguments
+        Initiates arrays that are dependent on
+        :method:`peridynamics.model.Model.simulate` parameters. Since
+        :class:`Euler` uses cython in place of OpenCL, there are no
+        buffers to be set, just python objects that are used as arguments
         of the cython functions.
         """
         if nregimes != 1:
@@ -387,8 +390,8 @@ class Euler(Integrator):
         Since :class:`Euler` uses cython in place of OpenCL, there are no
         OpenCL programs or buffers to be built. Instead, this method
         instantiates the arrays and variables that are independent of
-        :method:`Model.simulation` parameters as python objects that can be
-        used as arguments of the cython functions.
+        :method:`peridynamics.model.Model.simulate` parameters as python
+        objects that are used as arguments of the cython functions.
         """
         self.nnodes = nnodes
         self.coords = coords
@@ -463,7 +466,7 @@ class EulerCL(Integrator):
     integration is given by,
 
     .. math::
-        u(t + \delta t) = u(t) + \delta t f(t)
+        u(t + \delta t) = u(t) + \delta t f(t),
 
     where :math:`u(t)` is the displacement at time :math:`t`, :math:`f(t)` is
     the force density at time :math:`t`, :math:`\delta t` is the time step.
@@ -544,31 +547,26 @@ class EulerCromerCL(Integrator):
     integration is given by,
 
     .. math::
-        \dot{u}(t + \delta t) = \dot{u}(t) + \delta t \ddot{u}(t)
+        \dot{u}(t + \delta t) = \dot{u}(t) + \delta t \ddot{u}(t),
     .. math::
-        u(t + \delta t) = u(t) + \delta t \dot{u}(t + \delta t)
+        u(t + \delta t) = u(t) + \delta t \dot{u}(t + \delta t),
 
     where :math:`u(t)` is the displacement at time :math:`t`,
     :math:`\dot{u}(t)` is the velocity at time :math:`t`, :math:`\ddot{u}(t)`
     is the acceleration at time :math:`t`, and :math:`\delta t` is the time
     step.
 
-    A dynamic relaxation damping term is added to the equation of motion
-    so that the solution to quickly converges to a steady state solution in
-    quasi-static problems,
+    A dynamic relaxation damping term :math:`\eta \dot{u}(t)` is added to the
+    equation of motion so that the solution to quickly converges to a steady
+    state solution in quasi-static problems. Given the velocity and
+    displacement vectors of each node at time step :math:`t`, the acceleration
+    at time step :math:`t` is given by the equation of motion,
 
     .. math::
-         \eta \dot{u}(t) + \rho \ddot{u}(t) = f(t)
+        \ddot{u}(t) = \frac{f(t) - \eta \dot{u}(t)}{\rho},
 
     where :math:`f(t)` is the force density at time :math:`t`, :math:`\eta` is
     the dynamic relaxation damping constant and :math:`\rho` is the density.
-
-    Given the velocity and displacement vectors of each node at time step
-    :math:`t`, the acceleration at time step :math:`t` is given by the equation
-    of motion,
-
-    .. math::
-        \ddot{u}(t) = \frac{f(t) - \eta \dot{u}(t)}{\rho}
     """
 
     def __init__(self, damping, *args, **kwargs):
@@ -652,43 +650,36 @@ class VelocityVerletCL(Integrator):
     Velocity-Verlet integrator for OpenCL.
 
     The Velocity-Verlet method is a second-order numerical integration method.
-    The 2nd order accurate displacements of the next time step t + \delta t are
-    given as,
+    The integration is given by,
 
     .. math::
         \dot{u}(t + \frac{\delta t}{2}) = \dot{u}(t) +
-        \frac{\delta t}{2}\ddot{u}(t)
+        \frac{\delta t}{2}\ddot{u}(t),
     .. math::
         u(t + \delta t) = u(t) + \delta t \dot{u}(t)
-                            + \frac{\delta t}{2} \ddot{u}(t)
+                            + \frac{\delta t}{2} \ddot{u}(t),
     .. math::
         \dot{u}(t + \delta t) = \dot{u}(t + \frac{\delta t}{2})
-                            + \frac{\delta t}{2} \ddot{u}(t + \delta t)
+                            + \frac{\delta t}{2} \ddot{u}(t + \delta t),
 
     where :math:`u(t)` is the displacement at time :math:`t`,
     :math:`\dot{u}(t)` is the velocity at time :math:`t`, :math:`\ddot{u}(t)`
     is the acceleration at time :math:`t` and :math:`\delta t` is the time
     step.
 
-    A dynamic relaxation damping term is added to the equation of motion
-    so that the solution to quickly converges to a steady state solution in
-    quasi-static problems,
+    A dynamic relaxation damping term :math:`\eta \dot{u}(t)` is added to the
+    equation of motion so that the solution to quickly converges to a steady
+    state solution in quasi-static problems. Given the displacement vectors of
+    each node at time step t, and half-step velocity vectors of each node at
+    time step :math:`t + \frac{\delta t}{2}`, the acceleration at time step
+    :math:`t + \delta t` is given by the equation of motion,
 
     .. math::
-         \eta \dot{u}(t) + \rho \ddot{u}(t) = f(t)
+        \ddot{u}(t + \delta t) = \frac{f(t + \delta t)
+                             - \eta \dot{u}(t + \frac{\delta t}{2})}{\rho},
 
     where :math:`f(t)` is the force density at time :math:`t`, :math:`\eta`
     is the dynamic relaxation damping constant and :math:`\rho` is the density.
-
-    Given the displacement vectors of each node at time step t, and half-step
-    velocity vectors of each node at time step :math:`t + \frac{\delta t}{2}`,
-    the
-    acceleration at time step :math:`t + \delta t` is given by the equation of
-    motion,
-
-    .. math::
-        \ddot{u}(t + \delta t) = \frac{f(t + delta t)
-                             - \eta \dot{u}(t + \frac{\delta t}{2})}{\rho}
     """
 
     def __init__(self, damping, *args, **kwargs):
