@@ -133,3 +133,7 @@ dmypy.json
 
 # cython
 *.c
+
+# Ben's files
+examples/example3/
+post_processing/

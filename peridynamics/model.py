@@ -22,107 +22,17 @@ class Model(object):
     A peridynamics model.
 
     This class allows users to define a bond-based peridynamics model for
-    composite materials with non-linear micromodulus functions and, optionally,
-    stiffness correction factors. The model is defined by parameters and a set
+    composite materials with non-linear micromodulus functions and stiffness
+    correction factors. The model is defined by parameters and a set
     of initial conditions (coordinates, connectivity and optionally bond_types
     and stiffness_corrections). For this an
     :class:`peridynamics.integrators.Integrator` is required, and optionally
-    functions implementing the boundarys.
+    functions implementing the boundarys. The :meth:`Model.simulate` method can
+    be used to conduct a peridynamics simulation.
 
-    The :class:`peridynamics.integrators.Integrator` is the explicit time
-    integration method, see :mod:`peridynamics.integrators` for options.
-    Any integrator with the suffix 'CL' uses OpenCL kernels to calculate the
-    bond force and displacement update, resulting in orders of magnitude faster
-    simulation time when compared to using the cython implementation,
-    :class:`peridynamics.integrators.Euler`. OpenCL is 'heterogeneous' which
-    means the 'CL' integrator classes will work on a CPU device as well as a
-    GPU device. The preferable (faster) CL device will be chosen automatically.
-
-        >>> from peridynamics import Model
-        >>> from peridynamics.integrators import EulerCL
-        >>>
-        >>> def is_displacement_boundary(x):
-        >>>     # Node does not live on a boundary
-        >>>     bnd = [None, None, None]
-        >>>     # Node does live on a boundary
-        >>>     if x[0] < 1.5 * 0.1:
-        >>>         # Displacements BCs are applied in negative x direction
-        >>>         bnd[0] = -1
-        >>>     elif x[0] > 1.0 - 1.5 * 0.1:
-        >>>         # Displacement BCs are applied in positive x direction
-        >>>         bnd[0] = 1
-        >>>     return bnd
-        >>>
-        >>> # for the cython implementation, use euler = Euler(dt)
-        >>> euler = EulerCL(dt=1e-3)
-        >>>
-        >>> model = Model(
-        >>>     mesh_file,
-        >>>     integrator=euler,
-        >>>     horizon=0.1,
-        >>>     critical_stretch=0.005,
-        >>>     bond_stiffness=18.00 * 0.05 / (np.pi * 0.1**4),
-        >>>     is_displacement_boundary=is_displacement_boundary,
-        >>>     )
-
-    To define a crack in the inital configuration, you may supply a list of
-    pairs of nodes between which the crack is.
-
-        >>> initial_crack = [(1,2), (5,7), (3,9)]
-        >>> model = Model(
-        >>>     mesh_file,
-        >>>     integrator=euler,
-        >>>     horizon=0.1,
-        >>>     critical_stretch=0.005,
-        >>>     bond_stiffness=18.00 * 0.05 / (np.pi * 0.1**4),
-        >>>     is_displacement_boundary=is_displacement_boundary,
-        >>>     initial_crack=initial_crack
-        >>>     )
-
-    If it is more convenient to define the crack as a function you may also
-    pass a function to the constructor which takes the array of coordinates as
-    its only argument and returns a list of tuples as described above. The
-    :func:`peridynamics.model.initial_crack_helper` decorator has been provided
-    to easily create a function of the correct form from one which tests a
-    single pair of node coordinates and returns `True` or `False`.
-
-        >>> from peridynamics import initial_crack_helper
-        >>>
-        >>> @initial_crack_helper
-        >>> def initial_crack(x, y):
-        >>>     ...
-        >>>     if crack:
-        >>>         return True
-        >>>     else:
-        >>>         return False
-        >>>
-        >>> model = Model(
-        >>>     mesh_file,
-        >>>     integrator=euler,
-        >>>     horizon=0.1,
-        >>>     critical_stretch=0.005,
-        >>>     bond_stiffness=18.00 * 0.05 / (np.pi * 0.1**4),
-        >>>     is_displacement_boundary=is_displacement_boundary,
-        >>>     initial_crack=initial_crack
-        >>>     )
-
-    The :meth:`Model.simulate` method can be used to conduct a peridynamics
-    simulation. Here it is possible to define the boundary condition magnitude
-    throughout the simulation.
-
-        >>> model = Model(...)
-        >>>
-        >>> # Number of time-steps
-        >>> steps = 1000
-        >>>
-        >>> # Boundary condition magnitude throughout the simulation
-        >>> displacement_bc_array = np.linspace(2.5e-6, 2.5e-3, steps)
-        >>>
-        >>> u, damage, *_ = model.simulate(
-        >>>     steps=steps,
-        >>>     displacement_bc_magnitudes=displacement_bc_array,
-        >>>     write=100
-        >>>     )
+    For learning how to use PeriPy, see
+    :ref:`complete documentation <peripy_docs_mainpage>`, and for getting
+    started, please see :ref:`quickstart <peripy_docs_user_quickstart>`.
     """
 
     def __init__(self, mesh_file, integrator, horizon, critical_stretch,
