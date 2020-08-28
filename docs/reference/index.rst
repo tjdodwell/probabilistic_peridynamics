@@ -23,7 +23,6 @@ For learning how to use PeriPy, see the :ref:`complete documentation <peripy_doc
    spatial
    create_crack
    peridynamics
-   cl
 
 
 
