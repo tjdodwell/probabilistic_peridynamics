@@ -21,11 +21,13 @@ class Model(object):
     """
     A peridynamics model.
 
-    This class allows users to define a composite, non-linear peridynamics
-    system from parameters and a set of initial conditions (coordinates,
-    connectivity and optionally bond_types and stiffness_corrections). For
-    this an :class:`peridynamics.integrators.Integrator` is required, and
-    optionally functions implementing the boundarys.
+    This class allows users to define a bond-based peridynamics model for
+    composite materials with non-linear micromodulus functions and, optionally,
+    stiffness correction factors. The model is defined by parameters and a set
+    of initial conditions (coordinates, connectivity and optionally bond_types
+    and stiffness_corrections). For this an
+    :class:`peridynamics.integrators.Integrator` is required, and optionally
+    functions implementing the boundarys.
 
     The :class:`peridynamics.integrators.Integrator` is the explicit time
     integration method, see :mod:`peridynamics.integrators` for options.
@@ -34,8 +36,7 @@ class Model(object):
     simulation time when compared to using the cython implementation,
     :class:`peridynamics.integrators.Euler`. OpenCL is 'heterogeneous' which
     means the 'CL' integrator classes will work on a CPU device as well as a
-    GPU device. This implementation automatically chooses the preferable
-    (faster) device.
+    GPU device. The preferable (faster) CL device will be chosen automatically.
 
         >>> from peridynamics import Model
         >>> from peridynamics.integrators import EulerCL
