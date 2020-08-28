@@ -547,7 +547,7 @@ class EulerCromerCL(Integrator):
     t, the acceleration at time step t is given by the equation of motion,
 
     .. math::
-        udd(t) = (f(u(t)) - \eta ud(t)) / \rho
+        udd(t) = (f(t) - \eta ud(t)) / \rho
     """
 
     def __init__(self, damping, *args, **kwargs):
@@ -643,7 +643,7 @@ class VelocityVerletCL(Integrator):
     .. math::
          \eta ud(t) + \rho udd(t) = f(t)
 
-    where :math:`f(u(t))` is the force density at time :math:`t`, :math:`\eta`
+    where :math:`f(t)` is the force density at time :math:`t`, :math:`\eta`
     is the dynamic relaxation damping constant and :math:`\rho` is the density.
 
     Given the displacement vectors of each node at time step t, and half-step
@@ -652,7 +652,7 @@ class VelocityVerletCL(Integrator):
     motion,
 
     .. math::
-        udd(t + \delta t) = (f(u(t + delta t))
+        udd(t + \delta t) = (f(t + delta t)
                              - \eta ud(t + \delta t / 2)) / \rho
     """
 
