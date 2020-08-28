@@ -176,18 +176,18 @@ class Model(object):
         :type write_path: path-like or str
         :arg connectivity: The initial connectivity for the model. A tuple
             of a neighbour list and the number of neighbours for each node. If
-            `None` the connectivity at the time of construction of the
-            :class:`Model` object will be used. Default `None`.
+            None the connectivity at the time of construction of the
+            :class:`Model` object will be used. Default None.
         :type connectivity: tuple(:class:`numpy.ndarray`,
             :class:`numpy.ndarray`)
         :arg family: The family array. An array of the intial number of nodes
-            within the horizon of each node. If `None` the family at the
+            within the horizon of each node. If None the family at the
             time of construction of the :class:`Model` object will be used.
-            Default `None`.
+            Default None.
         :type family: :class:`numpy.ndarray`
-        :arg volume: Array of volumes for each node. If `None` the volume
+        :arg volume: Array of volumes for each node. If None the volume
             at the time of construction of the :class:`Model` object will be
-            used. Default `None`.
+            used. Default None.
         :type volume: :class:`numpy.ndarray`
         :arg initial_crack: The initial crack of the system. The argument may
             be a list of tuples where each tuple is a pair of integers
@@ -212,7 +212,7 @@ class Model(object):
             the initial coordinates of a node being simulated.
             `is_displacement_boundary` returns a (3) list of the boundary types
             in each cartesian direction.
-            A boundary type with an int value of `None` if the node is not
+            A boundary type with an int value of None if the node is not
             on a displacement controlled boundary, a value of 1 if is is on a
             boundary and displaced in the positive cartesian direction, a
             value of -1 if it is on the boundary and displaced in the negative
@@ -236,13 +236,13 @@ class Model(object):
             corresponding to a material
         :type density: :class:`numpy.ndarray`
         :arg bond_types: The bond_types for the model.
-            If `None` the bond_types at the time of construction of the
-            :class:`Model` object will be used. Default `None`.
+            If None the bond_types at the time of construction of the
+            :class:`Model` object will be used. Default None.
         :type bond_types: :class:`numpy.ndarray`
         :arg stiffness_corrections: The stiffness_corrections for
-            the model. If `None` the stiffness_corrections at the time
+            the model. If None the stiffness_corrections at the time
             of construction of the :class:`Model` object will be used. Default
-            `None`.
+            None.
         :type stiffness_corrections: :class:`numpy.ndarray`
         :arg int precise_stiffness_correction: A switch variable. Set to 1:
             Stiffness corrections are calculated more accurately using
@@ -555,7 +555,7 @@ class Model(object):
         :arg func initial_crack: The initial crack function, default is None.
         :arg context: The OpenCL context with a single suitable device,
             default is None.
-        :type context: :class:`pyopencl._cl.Context` or `NoneType`
+        :type context: :class:`pyopencl._cl.Context` or NoneType
 
         :returns: An (nnodes,) array of the number of nodes
             within the horizon of each node, the neighbour list as a fixed
@@ -681,7 +681,7 @@ class Model(object):
         :type is_density: function
 
         :returns: A (nnodes, degrees_freedom) array of nodal densities, or
-            `None` if no is_density function or density array is supplied.
+            None if no is_density function or density array is supplied.
         :rtype: :class:`numpy.ndarray` or None
         """
         if density is None:
@@ -727,8 +727,8 @@ class Model(object):
 
         :arg connectivity: The initial connectivity for the simulation. A tuple
             of a neighbour list and the number of neighbours for each node. If
-            `None` the connectivity at the time of construction of the
-            :class:`Model` object will be used. Default `None`.
+            None the connectivity at the time of construction of the
+            :class:`Model` object will be used. Default None.
         :type connectivity: tuple(:class:`numpy.ndarray`,
             :class:`numpy.ndarray`)
         :arg is_bond_type: A function that returns an integer value (a
@@ -807,8 +807,8 @@ class Model(object):
         :arg float horizon: The horizon distance.
         :arg connectivity: The initial connectivity for the simulation. A tuple
             of a neighbour list and the number of neighbours for each node. If
-            `None` the connectivity at the time of construction of the
-            :class:`Model` object will be used. Default `None`.
+            None the connectivity at the time of construction of the
+            :class:`Model` object will be used. Default None.
         :type connectivity: tuple(:class:`numpy.ndarray`,
             :class:`numpy.ndarray`)
         :arg int precise_stiffness_correction: A flag variable. Set to 1:
@@ -899,7 +899,7 @@ class Model(object):
                 linear has n_regimes = 1, bi-linear has n_regimes = 2, etc;
             plus_cs, an (`nregimes`, `nbond_types`) array of the `+cs` for each
                 linear part of the bond damage models for each bond type. Takes
-                a value of `None` if the PMB (Prototype Micro-elastic Brittle)
+                a value of None if the PMB (Prototype Micro-elastic Brittle)
                 model is used, i.e. n_regimes = 1.
         :rtype: tuple(:class:`numpy.ndarray` or :class:`numpy.float64`,
                       :class:`numpy.ndarray` or :class:`numpy.float64`,
@@ -1036,7 +1036,7 @@ class Model(object):
             the initial coordinates of a node being simulated.
             `is_displacement_boundary` returns a (3) list of the boundary types
             in each cartesian direction.
-            A boundary type with an int value of `None` if the node is not
+            A boundary type with an int value of None if the node is not
             on a displacement controlled boundary, a value of 1 if is is on a
             boundary and loaded in the positive cartesian direction, and a
             value of -1 if it is on the boundary and loaded in the negative
@@ -1052,8 +1052,8 @@ class Model(object):
             form is_tip(:class:`numpy.ndarray`). The argument is the initial
             coordinates of a node being simulated. `is_tip` returns a
             (3) list of the tip types in each cartesian direction:
-            A value of `None` if the node is not on the `tip`, and a value
-            of not `None` (e.g. a string or an int) if it is on the `tip`
+            A value of None if the node is not on the `tip`, and a value
+            of not None (e.g. a string or an int) if it is on the `tip`
             and to be measured.
         :type is_tip: function
 
@@ -1153,16 +1153,16 @@ class Model(object):
         Simulate the peridynamics model.
 
         :arg int steps: The number of simulation steps to conduct.
-        :arg u: The initial displacements for the simulation. If `None` the
-            displacements will be initialised to zero. Default `None`.
+        :arg u: The initial displacements for the simulation. If None the
+            displacements will be initialised to zero. Default None.
         :type u: :class:`numpy.ndarray`
-        :arg ud: The initial velocities for the simulation. If `None` the
-            velocities will be initialised to zero. Default `None`.
+        :arg ud: The initial velocities for the simulation. If None the
+            velocities will be initialised to zero. Default None.
         :type ud: :class:`numpy.ndarray`
         :arg connectivity: The initial connectivity for the simulation. A tuple
             of a neighbour list and the number of neighbours for each node. If
-            `None` the connectivity at the time of construction of the
-            :class:`Model` object will be used. Default `None`.
+            None the connectivity at the time of construction of the
+            :class:`Model` object will be used. Default None.
         :type connectivity: tuple(:class:`numpy.ndarray`,
             :class:`numpy.ndarray`)
         :arg regimes: The initial regimes for the simulation. A
@@ -1188,8 +1188,8 @@ class Model(object):
         :arg int first_step: The starting step number. This is useful when
             restarting a simulation.
         :arg int write: The frequency, in number of steps, to write the system
-            to a mesh file by calling :meth:`Model.write_mesh`. If `None` then
-            no output is written. Default `None`.
+            to a mesh file by calling :meth:`Model.write_mesh`. If None then
+            no output is written. Default None.
         :arg write_path: The path where the periodic mesh files should be
             written.
         :type write_path: path-like or str
@@ -1328,17 +1328,17 @@ class Model(object):
         :arg int first_step: The starting step number. This is useful when
             restarting a simulation.
         :arg int write: The frequency, in number of steps, to write the system
-            to a mesh file by calling :meth:`Model.write_mesh`. If `None` then
-            no output is written. Default `None`.
+            to a mesh file by calling :meth:`Model.write_mesh`. If None then
+            no output is written. Default None.
         :arg regimes: The initial regimes for the simulation. A
             (`nodes`, `max_neighbours`) array of type
             :class:`numpy.ndarray` of the regimes of the bonds.
         :type regimes: :class:`numpy.ndarray`
-        :arg u: The initial displacements for the simulation. If `None` the
-            displacements will be initialised to zero. Default `None`.
+        :arg u: The initial displacements for the simulation. If None the
+            displacements will be initialised to zero. Default None.
         :type u: :class:`numpy.ndarray`
-        :arg ud: The initial velocities for the simulation. If `None` the
-            velocities will be initialised to zero. Default `None`.
+        :arg ud: The initial velocities for the simulation. If None the
+            velocities will be initialised to zero. Default None.
         :type ud: :class:`numpy.ndarray`
         :arg displacement_bc_magnitudes: (steps, ) array of the magnitude
             applied to the displacement boundary conditions over time.
@@ -1348,8 +1348,8 @@ class Model(object):
         :type force_bc_magnitudes: :class:`numpy.ndarray`
         :arg connectivity: The initial connectivity for the simulation. A tuple
             of a neighbour list and the number of neighbours for each node. If
-            `None` the connectivity at the time of construction of the
-            :class:`Model` object will be used. Default `None`.
+            None the connectivity at the time of construction of the
+            :class:`Model` object will be used. Default None.
         :type connectivity: tuple(:class:`numpy.ndarray`,
             :class:`numpy.ndarray`)
         :arg bond_stiffness: An (nregimes, nbond_types) array of bond
