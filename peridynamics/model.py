@@ -212,7 +212,7 @@ class Model(object):
             the initial coordinates of a node being simulated.
             `is_displacement_boundary` returns a (3) list of the boundary types
             in each cartesian direction.
-            A boundary type with an int value of None if the node is not
+            A boundary type with an int value of `None` if the node is not
             on a displacement controlled boundary, a value of 1 if is is on a
             boundary and displaced in the positive cartesian direction, a
             value of -1 if it is on the boundary and displaced in the negative
@@ -408,7 +408,7 @@ class Model(object):
                             ", got {})".format(
                                     np.ndarray, type(stiffness_corrections)))
 
-        # Create dummy is_bond_type function is none is provided
+        # Create dummy is_bond_type function if None is provided
         if is_bond_type is None:
             def is_bond_type(x, y):
                 return 0
@@ -445,7 +445,7 @@ class Model(object):
         # Set densities of the model
         self.densities = self._set_densities(density, is_density)
 
-        # Create dummy boundary conditions functions if none is provided
+        # Create dummy boundary conditions functions if None is provided
         if is_force_boundary is None:
             def is_force_boundary(x):
                 # Node does not live on forces boundary
@@ -681,7 +681,7 @@ class Model(object):
         :type is_density: function
 
         :returns: A (nnodes, degrees_freedom) array of nodal densities, or
-            None if no is_density function or density array is supplied.
+            `None` if no is_density function or density array is supplied.
         :rtype: :class:`numpy.ndarray` or None
         """
         if density is None:
@@ -899,7 +899,7 @@ class Model(object):
                 linear has n_regimes = 1, bi-linear has n_regimes = 2, etc;
             plus_cs, an (`nregimes`, `nbond_types`) array of the `+cs` for each
                 linear part of the bond damage models for each bond type. Takes
-                a value of None if the PMB (Prototype Micro-elastic Brittle)
+                a value of `None` if the PMB (Prototype Micro-elastic Brittle)
                 model is used, i.e. n_regimes = 1.
         :rtype: tuple(:class:`numpy.ndarray` or :class:`numpy.float64`,
                       :class:`numpy.ndarray` or :class:`numpy.float64`,
@@ -1036,7 +1036,7 @@ class Model(object):
             the initial coordinates of a node being simulated.
             `is_displacement_boundary` returns a (3) list of the boundary types
             in each cartesian direction.
-            A boundary type with an int value of None if the node is not
+            A boundary type with an int value of `None` if the node is not
             on a displacement controlled boundary, a value of 1 if is is on a
             boundary and loaded in the positive cartesian direction, and a
             value of -1 if it is on the boundary and loaded in the negative
@@ -1052,8 +1052,8 @@ class Model(object):
             form is_tip(:class:`numpy.ndarray`). The argument is the initial
             coordinates of a node being simulated. `is_tip` returns a
             (3) list of the tip types in each cartesian direction:
-            A value of None if the node is not on the `tip`, and a value
-            of not None (e.g. a string or an int) if it is on the `tip`
+            A value of `None` if the node is not on the `tip`, and a value
+            of not `None` (e.g. a string or an int) if it is on the `tip`
             and to be measured.
         :type is_tip: function
 
@@ -1167,8 +1167,7 @@ class Model(object):
             :class:`numpy.ndarray`)
         :arg regimes: The initial regimes for the simulation. A
             (`nodes`, `max_neighbours`) array of type
-            :class:`numpy.ndarray` of the regimes of the bonds
-            of a neighbour list and the number of neighbours for each node.
+            :class:`numpy.ndarray` of the regimes of the bonds.
         :type regimes: :class:`numpy.ndarray`
         :arg critical_stretch: An (nregimes, nbond_types) array of critical
             stretch values, each corresponding to a bond type and a regime,
@@ -1333,8 +1332,7 @@ class Model(object):
             no output is written. Default `None`.
         :arg regimes: The initial regimes for the simulation. A
             (`nodes`, `max_neighbours`) array of type
-            :class:`numpy.ndarray` of the regimes of the bonds
-            of a neighbour list and the number of neighbours for each node.
+            :class:`numpy.ndarray` of the regimes of the bonds.
         :type regimes: :class:`numpy.ndarray`
         :arg u: The initial displacements for the simulation. If `None` the
             displacements will be initialised to zero. Default `None`.
@@ -1372,7 +1370,7 @@ class Model(object):
                      :class:`numpy.ndarray`, dict,
                      int, :class`pathlib.Path`)
         """
-        # Create initial displacements and velocities if none is provided
+        # Create initial displacements and velocities if None is provided
         if u is None:
             u = np.zeros((self.nnodes, 3), dtype=np.float64)
         if ud is None:
@@ -1382,7 +1380,7 @@ class Model(object):
         body_force = np.zeros((self.nnodes, 3), dtype=np.float64)
         damage = np.zeros(self.nnodes, dtype=np.float64)
         udd = np.zeros((self.nnodes, 3), dtype=np.float64)
-        # Create boundary condition magnitudes if none is provided
+        # Create boundary condition magnitudes if None is provided
         if displacement_bc_magnitudes is None:
             displacement_bc_magnitudes = np.zeros(
                 first_step + steps - 1, dtype=np.float64)
@@ -1451,7 +1449,7 @@ class Model(object):
                                 type(regimes)))
 
         # Use the initial damage model
-        # (when the Model was constructed) if none is provided
+        # (when the Model was constructed) if None is provided
         if (bond_stiffness is None) and (critical_stretch is None):
             bond_stiffness = self.bond_stiffness
             critical_stretch = self.critical_stretch
