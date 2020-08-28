@@ -17,8 +17,8 @@ class Integrator(ABC):
     Integrator are OpenCL implementations that can use GPU or CPU. All
     integrators must also define a call method which performs one integration
     step, a `_build_special` method which builds the OpenCL programs which are
-    special to the integrator, and a `_set_special_buffers` method which sets
-    the OpenCL buffers which are special to the integrator.
+    special to the integrator, and a `_create_special_buffers` method which
+    creates the OpenCL buffers which are special to the integrator.
     """
 
     @abstractmethod
@@ -26,7 +26,7 @@ class Integrator(ABC):
         """
         Create an :class:`Integrator` object.
 
-        This method should be implemennted in every concrete integrator.
+        This method should be implemented in every concrete integrator.
 
         :arg float dt: The length of time (in seconds [s]) of one time-step.
         :arg context: Optional argument for the user to provide a context with
@@ -74,9 +74,9 @@ class Integrator(ABC):
         """
 
     @abstractmethod
-    def _set_special_buffers(self):
+    def _create_special_buffers(self):
         """
-        Set buffers that are special to the chosen integrator.
+        Create buffers that are special to the chosen integrator.
 
         This method should be implemented in every concrete integrator.
         """
@@ -90,7 +90,7 @@ class Integrator(ABC):
 
         Builds the programs that are common to all integrators and the
         buffers which are independent of
-        :method:`peridynamics.model.Model.simulate` parameters.
+        :meth:`peridynamics.model.Model.simulate` parameters.
         """
         self.nnodes = nnodes
         self.degrees_freedom = degrees_freedom
@@ -105,7 +105,7 @@ class Integrator(ABC):
         self.program = cl.Program(
             self.context, kernel_source).build()
 
-        # Set bond_force program
+        # Build bond_force program
         if (stiffness_corrections is None) and (bond_types is None):
             self.bond_force_kernel = self.program.bond_force1
             # Placeholder buffers
@@ -149,7 +149,7 @@ class Integrator(ABC):
 
         self.damage_kernel = self.program.damage
 
-        # Build OpenCL data structures that are independent of
+        # Create OpenCL buffers that are independent of
         # :class: Model.simulation parameters
         # Local memory containers for bond forces
         self.local_mem_x = cl.LocalMemory(
@@ -187,7 +187,7 @@ class Integrator(ABC):
         # Build programs that are special to the chosen integrator
         self._build_special()
 
-    def set_buffers(
+    def create_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs, u,
             ud, udd, force, body_force, damage, regimes, nregimes,
             nbond_types):
@@ -195,7 +195,7 @@ class Integrator(ABC):
         Initialise the OpenCL buffers.
 
         Initialises only the buffers which are dependent on
-        :method:`peridynamics.model.Model.simulate` parameters.
+        :meth:`peridynamics.model.Model.simulate` parameters.
         """
         if (nbond_types == 1) and (nregimes == 1):
             self.bond_stiffness_d = np.float64(bond_stiffness)
@@ -226,8 +226,8 @@ class Integrator(ABC):
         self.nregimes = np.intc(nregimes)
         self.nbond_types = np.intc(nbond_types)
 
-        # Build OpenCL data structures that are dependent on
-        # :method:`peridynamics.model.Model.simulate` parameters.
+        # Create OpenCL buffers that are dependent on
+        # :meth:`peridynamics.model.Model.simulate` parameters.
         # Read and write
         self.force_d = cl.Buffer(
             self.context, mf.READ_WRITE, force.nbytes)
@@ -251,7 +251,7 @@ class Integrator(ABC):
         self.n_neigh_d = cl.Buffer(
             self.context, mf.WRITE_ONLY, n_neigh.nbytes)
 
-        self._set_special_buffers()
+        self._create_special_buffers()
 
     def _damage(self, nlist_d, family_d, n_neigh_d, damage_d, local_mem):
         """Calculate bond damage."""
@@ -349,7 +349,7 @@ class Euler(Integrator):
         self._update_displacement(
             self.u, self.force, displacement_bc_magnitude)
 
-    def set_buffers(
+    def create_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
             u, ud, udd, force, body_force, damage, regimes, nregimes,
             nbond_types):
@@ -357,9 +357,9 @@ class Euler(Integrator):
         Initiate arrays that are dependent on simulation parameters.
 
         Initiates arrays that are dependent on
-        :method:`peridynamics.model.Model.simulate` parameters. Since
+        :meth:`peridynamics.model.Model.simulate` parameters. Since
         :class:`Euler` uses cython in place of OpenCL, there are no
-        buffers to be set, just python objects that are used as arguments
+        buffers to be created, just python objects that are used as arguments
         of the cython functions.
         """
         if nregimes != 1:
@@ -388,9 +388,9 @@ class Euler(Integrator):
         Initiate integrator arrays.
 
         Since :class:`Euler` uses cython in place of OpenCL, there are no
-        OpenCL programs or buffers to be built. Instead, this method
+        OpenCL programs or buffers to be built/created. Instead, this method
         instantiates the arrays and variables that are independent of
-        :method:`peridynamics.model.Model.simulate` parameters as python
+        :meth:`peridynamics.model.Model.simulate` parameters as python
         objects that are used as arguments of the cython functions.
         """
         self.nnodes = nnodes
@@ -423,11 +423,13 @@ class Euler(Integrator):
                                  type(None),
                                  type(densities)))
 
-    def _set_special_buffers(self):
-        """Set buffers programs that are special to the Euler integrator."""
+    def _create_special_buffers(self):
+        """Create buffers programs that are special to the Euler integrator."""
+        # There are none
 
     def _build_special(self):
         """Build programs that are special to the Euler integrator."""
+        # There are none
 
     def _update_displacement(self, u, force, displacement_bc_magnitude):
         update_displacement(
@@ -522,8 +524,9 @@ class EulerCL(Integrator):
             self.context, kernel_source).build()
         self.update_displacement_kernel = self.euler.update_displacement
 
-    def _set_special_buffers(self):
-        """Set buffers special to the Euler integrator."""
+    def _create_special_buffers(self):
+        """Create buffers special to the Euler integrator."""
+        # There are none
 
     def _update_displacement(
             self, force_d, u_d, bc_types_d, bc_values_d,
@@ -626,8 +629,9 @@ class EulerCromerCL(Integrator):
             self.context, kernel_source).build()
         self.update_displacement_kernel = self.euler_cromer.update_displacement
 
-    def _set_special_buffers(self):
-        """Set buffers special to the Euler integrator."""
+    def _create_special_buffers(self):
+        """Create buffers special to the Euler integrator."""
+        # There are none
 
     def _update_displacement(
             self, force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
@@ -741,8 +745,9 @@ class VelocityVerletCL(Integrator):
         self.partial_update_displacement_kernel = (
             self.euler_cromer.update_displacement)
 
-    def _set_special_buffers(self):
-        """Set buffers special to the Euler integrator."""
+    def _create_special_buffers(self):
+        """Create buffers special to the Euler integrator."""
+        # There are none
 
     def _update_displacement(
             self, force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
