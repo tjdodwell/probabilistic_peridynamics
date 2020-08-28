@@ -24,14 +24,14 @@ class Integrator(ABC):
     @abstractmethod
     def __init__(self, dt, context=None):
         """
-        Create a :class:`Integrator` object.
+        Create an :class:`Integrator` object.
 
         This method should be implemennted in every concrete integrator.
 
         :arg float dt: The length of time (in seconds [s]) of one time-step.
         :arg context: Optional argument for the user to provide a context with
-            a single suitable device, default is `None`.
-        :type context: :class:`pyopencl._cl.Context` or `NoneType`
+            a single suitable device, default is None.
+        :type context: :class:`pyopencl._cl.Context` or NoneType
 
         :returns: A :class:`Integrator` object
         """
@@ -267,8 +267,8 @@ class Integrator(ABC):
             self, u_d, force_d, body_force_d, r0_d, vols_d, nlist_d,
             force_bc_types_d, force_bc_values_d, stiffness_corrections_d,
             bond_types_d, regimes_d, plus_cs_d, local_mem_x, local_mem_y,
-            local_mem_z, bond_stiffness_d, critical_stretch_d, force_bc_scale,
-            nregimes):
+            local_mem_z, bond_stiffness_d, critical_stretch_d,
+            force_bc_magnitude, nregimes):
         """Calculate the force due to bonds acting on each node."""
         queue = self.queue
         # Call kernel
@@ -278,7 +278,7 @@ class Integrator(ABC):
                 vols_d, nlist_d, force_bc_types_d, force_bc_values_d,
                 stiffness_corrections_d, bond_types_d, regimes_d, plus_cs_d,
                 local_mem_x, local_mem_y, local_mem_z, bond_stiffness_d,
-                critical_stretch_d, np.float64(force_bc_scale),
+                critical_stretch_d, np.float64(force_bc_magnitude),
                 np.intc(nregimes))
         queue.finish()
 
@@ -319,25 +319,34 @@ class Euler(Integrator):
         """
         Create an :class:`Euler` integrator object.
 
-        :returns: A :class:`Euler` object
+        :arg float dt: The length of time (in seconds [s]) of one time-step.
+
+        :returns: An :class:`Euler` object
         """
         self.dt = dt
         # Not an OpenCL integrator
         self.context = None
 
-    def __call__(self, displacement_bc_scale, force_bc_scale):
-        """Conduct one iteration of the integrator."""
+    def __call__(self, displacement_bc_magnitude, force_bc_magnitude):
+        """
+        Conduct one iteration of the integrator.
+
+        :arg float displacement_bc_magnitude: the magnitude applied to the
+             displacement boundary conditions for the current time-step.
+        :arg float force_bc_magnitude: the magnitude applied to the force
+            boundary conditions for the current time-step.
+        """
         # Update neighbour list
         self._break_bonds(
             self.u, self.nlist, self.n_neigh)
 
         # Calculate the force due to bonds on each node
         self.force = self._bond_force(
-            force_bc_scale, self.u, self.nlist, self.n_neigh)
+            force_bc_magnitude, self.u, self.nlist, self.n_neigh)
 
         # Conduct one integration step
         self._update_displacement(
-            self.u, self.force, displacement_bc_scale)
+            self.u, self.force, displacement_bc_magnitude)
 
     def set_buffers(
             self, nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
@@ -347,7 +356,8 @@ class Euler(Integrator):
         Initiate arrays that are dependent on simulation parameters.
 
         Since :class:`Euler` uses cython in place of OpenCL, there are no
-        buffers to be set, just :class:`numpy.ndarray` arrays.
+        buffers to be set, just python objects that can be used as arguments
+        of the cython functions.
         """
         if nregimes != 1:
             raise ValueError("n-linear damage model's are not supported by "
@@ -375,9 +385,10 @@ class Euler(Integrator):
         Initiate integrator arrays.
 
         Since :class:`Euler` uses cython in place of OpenCL, there are no
-        programs to be built. Builds the arrays that are common to all
-        integrators and the buffers which are independent of
-        :class:`Model`.simulation parameters.
+        OpenCL programs or buffers to be built. Instead, this method
+        instantiates the arrays and variables that are independent of
+        :method:`Model.simulation` parameters as python objects that can be
+        used as arguments of the cython functions.
         """
         self.nnodes = nnodes
         self.coords = coords
@@ -415,9 +426,9 @@ class Euler(Integrator):
     def _build_special(self):
         """Build programs that are special to the Euler integrator."""
 
-    def _update_displacement(self, u, force, displacement_bc_scale):
+    def _update_displacement(self, u, force, displacement_bc_magnitude):
         update_displacement(
-            u, self.bc_values, self.bc_types, force, displacement_bc_scale,
+            u, self.bc_values, self.bc_types, force, displacement_bc_magnitude,
             self.dt)
 
     def _break_bonds(self, u, nlist, n_neigh):
@@ -429,12 +440,12 @@ class Euler(Integrator):
         """Calculate bond damage."""
         return damage(n_neigh, self.family)
 
-    def _bond_force(self, force_bc_scale, u, nlist, n_neigh):
+    def _bond_force(self, force_bc_magnitude, u, nlist, n_neigh):
         """Calculate the force due to bonds acting on each node."""
         force = bond_force(
             self.coords+u, self.coords, nlist, n_neigh,
             self.volume, self.bond_stiffness, self.force_bc_values,
-            self.force_bc_types, force_bc_scale)
+            self.force_bc_types, force_bc_magnitude)
         return force
 
     def write(self, damage, u, ud, udd, force, body_force, nlist, n_neigh):
@@ -452,7 +463,7 @@ class EulerCL(Integrator):
     integration is given by,
 
     .. math::
-        u(t + \delta t) = u(t) + \delta t f(t) d
+        u(t + \delta t) = u(t) + \delta t f(t)
 
     where :math:`u(t)` is the displacement at time :math:`t`, :math:`f(t)` is
     the force density at time :math:`t`, :math:`\delta t` is the time step.
@@ -460,25 +471,32 @@ class EulerCL(Integrator):
 
     def __init__(self, *args, **kwargs):
         """
-        Create an :class:`Euler` integrator object.
+        Create an :class:`EulerCL` integrator object.
 
-        :returns: A :class:`Euler` object
+        :returns: An :class:`EulerCL` object
         """
         super().__init__(*args, **kwargs)
 
-    def __call__(self, displacement_bc_scale, force_bc_scale):
-        """Conduct one iteration of the integrator."""
+    def __call__(self, displacement_bc_magnitude, force_bc_magnitude):
+        """
+        Conduct one iteration of the integrator.
+
+        :arg float displacement_bc_magnitude: the magnitude applied to the
+             displacement boundary conditions for the current time-step.
+        :arg float force_bc_magnitude: the magnitude applied to the force
+            boundary conditions for the current time-step.
+        """
         self._bond_force(
             self.u_d, self.force_d, self.body_force_d, self.r0_d, self.vols_d,
             self.nlist_d, self.force_bc_types_d, self.force_bc_values_d,
             self.stiffness_corrections_d, self.bond_types_d, self.regimes_d,
             self.plus_cs_d, self.local_mem_x, self.local_mem_y,
             self.local_mem_z, self.bond_stiffness_d, self.critical_stretch_d,
-            force_bc_scale, self.nregimes)
+            force_bc_magnitude, self.nregimes)
 
         self._update_displacement(
             self.force_d, self.u_d, self.bc_types_d, self.bc_values_d,
-            displacement_bc_scale, self.dt)
+            displacement_bc_magnitude, self.dt)
 
     def _build_special(self):
         """Build OpenCL kernels special to the Euler integrator."""
@@ -506,14 +524,14 @@ class EulerCL(Integrator):
 
     def _update_displacement(
             self, force_d, u_d, bc_types_d, bc_values_d,
-            displacement_bc_scale, dt):
+            displacement_bc_magnitude, dt):
         """Update displacements."""
         queue = self.queue
         # Call kernel
         self.update_displacement_kernel(
                 self.queue, (self.degrees_freedom * self.nnodes,), None,
                 force_d, u_d, bc_types_d, bc_values_d,
-                np.float64(displacement_bc_scale), np.float64(dt))
+                np.float64(displacement_bc_magnitude), np.float64(dt))
         queue.finish()
         return u_d
 
@@ -526,54 +544,65 @@ class EulerCromerCL(Integrator):
     integration is given by,
 
     .. math::
-        ud(t + \delta t) = ud(t) + \delta t udd(t)
-        u(t + \delta t) = u(t) + \delta t ud(t + \delta t)
+        \dot{u}(t + \delta t) = \dot{u}(t) + \delta t \ddot{u}(t)
+    .. math::
+        u(t + \delta t) = u(t) + \delta t \dot{u}(t + \delta t)
 
-    where :math:`u(t)` is the displacement at time :math:`t`, :math:`ud(t)` is
-    the velocity at time :math:`t`, :math:`udd(t)` is the acceleration at time
-    :math:`t`, and :math:`\delta t` is the time step
+    where :math:`u(t)` is the displacement at time :math:`t`,
+    :math:`\dot{u}(t)` is the velocity at time :math:`t`, :math:`\ddot{u}(t)`
+    is the acceleration at time :math:`t`, and :math:`\delta t` is the time
+    step.
 
     A dynamic relaxation damping term is added to the equation of motion
     so that the solution to quickly converges to a steady state solution in
     quasi-static problems,
 
     .. math::
-         \eta ud(t) + \rho udd(t) = f(t)
+         \eta \dot{u}(t) + \rho \ddot{u}(t) = f(t)
 
     where :math:`f(t)` is the force density at time :math:`t`, :math:`\eta` is
     the dynamic relaxation damping constant and :math:`\rho` is the density.
 
     Given the velocity and displacement vectors of each node at time step
-    t, the acceleration at time step t is given by the equation of motion,
+    :math:`t`, the acceleration at time step :math:`t` is given by the equation
+    of motion,
 
     .. math::
-        udd(t) = (f(t) - \eta ud(t)) / \rho
+        \ddot{u}(t) = \frac{f(t) - \eta \dot{u}(t)}{\rho}
     """
 
     def __init__(self, damping, *args, **kwargs):
         """
-        Create an :class:`Euler` integrator object.
+        Create an :class:`EulerCromerCL` integrator object.
 
-        :arg float damping: The damping constant with units [kg/(m^3 s)]
+        :arg float damping: The dynamic relaxation damping constant with units
+            [kg/(m^3 s)]
 
-        :returns: A :class:`Euler` object
+        :returns: An :class:`EulerCromerCL` object
         """
         super().__init__(*args, **kwargs)
         self.damping = damping
 
-    def __call__(self, displacement_bc_scale, force_bc_scale):
-        """Conduct one iteration of the integrator."""
+    def __call__(self, displacement_bc_magnitude, force_bc_magnitude):
+        """
+        Conduct one iteration of the integrator.
+
+        :arg float displacement_bc_magnitude: the magnitude applied to the
+             displacement boundary conditions for the current time-step.
+        :arg float force_bc_magnitude: the magnitude applied to the force
+            boundary conditions for the current time-step.
+        """
         self._bond_force(
             self.u_d, self.force_d, self.body_force_d, self.r0_d, self.vols_d,
             self.nlist_d, self.force_bc_types_d, self.force_bc_values_d,
             self.stiffness_corrections_d, self.bond_types_d, self.regimes_d,
             self.plus_cs_d, self.local_mem_x, self.local_mem_y,
             self.local_mem_z, self.bond_stiffness_d, self.critical_stretch_d,
-            force_bc_scale, self.nregimes)
+            force_bc_magnitude, self.nregimes)
 
         self._update_displacement(
             self.force_d, self.u_d, self.ud_d, self.udd_d, self.bc_types_d,
-            self.bc_values_d, self.densities_d, displacement_bc_scale,
+            self.bc_values_d, self.densities_d, displacement_bc_magnitude,
             self.damping, self.dt)
 
     def _build_special(self):
@@ -604,14 +633,14 @@ class EulerCromerCL(Integrator):
 
     def _update_displacement(
             self, force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
-            densities_d, displacement_bc_scale, damping, dt):
+            densities_d, displacement_bc_magnitude, damping, dt):
         """Update displacements."""
         queue = self.queue
         # Call kernel
         self.update_displacement_kernel(
                 self.queue, (self.degrees_freedom * self.nnodes,), None,
                 force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
-                densities_d, np.float64(displacement_bc_scale),
+                densities_d, np.float64(displacement_bc_magnitude),
                 np.float64(damping), np.float64(dt)
                 )
         queue.finish()
@@ -627,59 +656,73 @@ class VelocityVerletCL(Integrator):
     given as,
 
     .. math::
-        ud(t + \delta t / 2) = ud(t) + (\delta t / 2) udd(t)
-        u(t + \delta t) = (u(t) + \delta t ud(t) + (\delta t / 2) udd(t)
-        ud(t + \delta t) = (ud(t + \delta t / 2)
-                            + (\delta t / 2) udd(t + \delta t))
+        \dot{u}(t + \frac{\delta t}{2}) = \dot{u}(t) +
+        \frac{\delta t}{2}\ddot{u}(t)
+    .. math::
+        u(t + \delta t) = u(t) + \delta t \dot{u}(t)
+                            + \frac{\delta t}{2} \ddot{u}(t)
+    .. math::
+        \dot{u}(t + \delta t) = \dot{u}(t + \frac{\delta t}{2})
+                            + \frac{\delta t}{2} \ddot{u}(t + \delta t)
 
-    where :math:`u(t)` is the displacement at time :math:`t`, :math:`ud(t)` is
-    the velocity at time :math:`t`, :math:`udd(t)` is the acceleration at time
-    :math:`t` and :math:`\delta t` is the time step.
+    where :math:`u(t)` is the displacement at time :math:`t`,
+    :math:`\dot{u}(t)` is the velocity at time :math:`t`, :math:`\ddot{u}(t)`
+    is the acceleration at time :math:`t` and :math:`\delta t` is the time
+    step.
 
     A dynamic relaxation damping term is added to the equation of motion
     so that the solution to quickly converges to a steady state solution in
     quasi-static problems,
 
     .. math::
-         \eta ud(t) + \rho udd(t) = f(t)
+         \eta \dot{u}(t) + \rho \ddot{u}(t) = f(t)
 
     where :math:`f(t)` is the force density at time :math:`t`, :math:`\eta`
     is the dynamic relaxation damping constant and :math:`\rho` is the density.
 
     Given the displacement vectors of each node at time step t, and half-step
-    velocity vectors of each node at time step t + \delta t / 2, the
-    acceleration at time step t + \delta t is given by the equation of
+    velocity vectors of each node at time step :math:`t + \frac{\delta t}{2}`,
+    the
+    acceleration at time step :math:`t + \delta t` is given by the equation of
     motion,
 
     .. math::
-        udd(t + \delta t) = (f(t + delta t)
-                             - \eta ud(t + \delta t / 2)) / \rho
+        \ddot{u}(t + \delta t) = \frac{f(t + delta t)
+                             - \eta \dot{u}(t + \frac{\delta t}{2})}{\rho}
     """
 
     def __init__(self, damping, *args, **kwargs):
         """
-        Create an :class:`Euler` integrator object.
+        Create an :class:`VelocityVerletCL` integrator object.
 
-        :arg float damping: The damping constant with units [kg/(m^3 s)]
+        :arg float damping: The dynamic relaxation damping constant with units
+            [kg/(m^3 s)]
 
-        :returns: A :class:`Euler` object
+        :returns: A :class:`VelocityVerletCL` object
         """
         super().__init__(*args, **kwargs)
         self.damping = damping
 
-    def __call__(self, displacement_bc_scale, force_bc_scale):
-        """Conduct one iteration of the integrator."""
+    def __call__(self, displacement_bc_magnitude, force_bc_magnitude):
+        """
+        Conduct one iteration of the integrator.
+
+        :arg float displacement_bc_magnitude: the magnitude applied to the
+             displacement boundary conditions for the current time-step.
+        :arg float force_bc_magnitude: the magnitude applied to the force
+            boundary conditions for the current time-step.
+        """
         self._bond_force(
             self.u_d, self.force_d, self.body_force_d, self.r0_d, self.vols_d,
             self.nlist_d, self.force_bc_types_d, self.force_bc_values_d,
             self.stiffness_corrections_d, self.bond_types_d, self.regimes_d,
             self.plus_cs_d, self.local_mem_x, self.local_mem_y,
             self.local_mem_z, self.bond_stiffness_d, self.critical_stretch_d,
-            force_bc_scale, self.nregimes)
+            force_bc_magnitude, self.nregimes)
 
         self._update_displacement(
             self.force_d, self.u_d, self.ud_d, self.udd_d, self.bc_types_d,
-            self.bc_values_d, self.densities_d, displacement_bc_scale,
+            self.bc_values_d, self.densities_d, displacement_bc_magnitude,
             self.damping, self.dt)
 
     def _build_special(self):
@@ -712,14 +755,14 @@ class VelocityVerletCL(Integrator):
 
     def _update_displacement(
             self, force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
-            densities_d, displacement_bc_scale, damping, dt):
+            densities_d, displacement_bc_magnitude, damping, dt):
         """Update displacements."""
         queue = self.queue
         # Call kernel
         self.update_displacement_kernel(
                 self.queue, (self.degrees_freedom * self.nnodes,), None,
                 force_d, u_d, ud_d, udd_d, bc_types_d, bc_values_d,
-                densities_d, np.float64(displacement_bc_scale),
+                densities_d, np.float64(displacement_bc_magnitude),
                 np.float64(damping), np.float64(dt)
                 )
         queue.finish()
