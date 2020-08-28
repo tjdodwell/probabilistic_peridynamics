@@ -1407,7 +1407,7 @@ class Model(object):
                     }
 
         # Initialise the OpenCL buffers
-        self.integrator.set_buffers(
+        self.integrator.create_buffers(
             nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs, u, ud,
             udd, force, body_force, damage, regimes, nregimes, nbond_types)
 

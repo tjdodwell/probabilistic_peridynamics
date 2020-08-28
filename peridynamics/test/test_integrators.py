@@ -160,7 +160,7 @@ class TestEuler:
         damage = np.zeros((model.nnodes, 3), dtype=np.float64)
         regimes = None
 
-        integrator.set_buffers(
+        integrator.create_buffers(
             nlist, n_neigh, model.bond_stiffness, model.critical_stretch,
             model.plus_cs, u, ud, udd, force, body_force, damage, regimes,
             model.nregimes, model.nbond_types)
@@ -168,8 +168,8 @@ class TestEuler:
             1, 10, 10)
         for step in range(10):
             integrator.__call__(
-                displacement_bc_scale=displacement_bc_magnitudes[step],
-                force_bc_scale=0.0)
+                displacement_bc_magnitude=displacement_bc_magnitudes[step],
+                force_bc_magnitude=0.0)
 
         u_expected = np.load(path/"expected_displacements.npy")
         force_expected = np.load(path/"expected_force.npy")
@@ -195,7 +195,7 @@ class TestEuler:
         assert np.allclose(nlist_actual, nlist_expected)
         assert np.allclose(n_neigh_actual, n_neigh_expected)
 
-    def test_set_buffers_nregimes(self, euler_integrator):
+    def test_create_buffers_nregimes(self, euler_integrator):
         """Test exception when n_regimes is supplied to Euler."""
         model, integrator = euler_integrator
         nlist, n_neigh = model.initial_connectivity
@@ -213,14 +213,14 @@ class TestEuler:
         nbond_types = 1
 
         with pytest.raises(ValueError) as exception:
-            integrator.set_buffers(
+            integrator.create_buffers(
                 nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
                 u, ud, udd, force, body_force, damage, regimes, nregimes,
                 nbond_types)
             assert (
                 str("n-linear damage model's are not") in exception.value)
 
-    def test_set_buffers_n_bond_types(self, euler_integrator):
+    def test_create_buffers_n_bond_types(self, euler_integrator):
         """Test exception when n_bond_types is supplied to Euler."""
         model, integrator = euler_integrator
         nlist, n_neigh = model.initial_connectivity
@@ -238,14 +238,14 @@ class TestEuler:
         nbond_types = 2
 
         with pytest.raises(ValueError) as exception:
-            integrator.set_buffers(
+            integrator.create_buffers(
                 nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
                 u, ud, udd, force, body_force, damage, regimes, nregimes,
                 nbond_types)
             assert (
                 str("n-material composite models are not") in exception.value)
 
-    def test_set_buffers(self, euler_integrator):
+    def test_create_buffers(self, euler_integrator):
         """Test initiation of arrays that are dependent on simulation."""
         model, integrator = euler_integrator
         nlist, n_neigh = model.initial_connectivity
@@ -262,7 +262,7 @@ class TestEuler:
         nregimes = 1
         nbond_types = 1
 
-        integrator.set_buffers(
+        integrator.create_buffers(
             nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
             u, ud, udd, force, body_force, damage, regimes, nregimes,
             nbond_types)
@@ -388,10 +388,10 @@ class TestEuler:
             assert (
                 str("densities are not supported") in exception.value)
 
-    def test_set_special_buffers(self, euler_integrator):
+    def test_create_special_buffers(self, euler_integrator):
         """Test for no special buffers for this integrator."""
         model, integrator = euler_integrator
-        value = integrator._set_special_buffers()
+        value = integrator._create_special_buffers()
         assert value is None
 
     def test_build_special(self, euler_integrator):
@@ -418,7 +418,7 @@ class TestEulerCL:
         damage = np.zeros((model.nnodes), dtype=np.float64)
         regimes = None
 
-        integrator.set_buffers(
+        integrator.create_buffers(
             nlist, n_neigh, model.bond_stiffness, model.critical_stretch,
             model.plus_cs, u, ud, udd, force, body_force, damage, regimes,
             model.nregimes, model.nbond_types)
@@ -426,8 +426,8 @@ class TestEulerCL:
             1, 10, 10)
         for step in range(10):
             integrator.__call__(
-                displacement_bc_scale=displacement_bc_magnitudes[step],
-                force_bc_scale=0.0)
+                displacement_bc_magnitude=displacement_bc_magnitudes[step],
+                force_bc_magnitude=0.0)
 
         u_expected = np.load(path/"expected_displacements.npy")
         force_expected = np.load(path/"expected_force.npy")
@@ -454,7 +454,7 @@ class TestEulerCL:
         assert np.allclose(n_neigh_actual, n_neigh_expected)
 
     @context_available
-    def test_set_buffers_float(self, euler_cl_integrator):
+    def test_create_buffers_float(self, euler_cl_integrator):
         """Test initiation of arrays that are dependent on simulation."""
         model, integrator = euler_cl_integrator
         nlist, n_neigh = model.initial_connectivity
@@ -471,7 +471,7 @@ class TestEulerCL:
         nregimes = 1
         nbond_types = 1
 
-        integrator.set_buffers(
+        integrator.create_buffers(
             nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
             u, ud, udd, force, body_force, damage, regimes, nregimes,
             nbond_types)
@@ -480,7 +480,7 @@ class TestEulerCL:
         assert(type(integrator.critical_stretch_d) is np.float64)
 
     @context_available
-    def test_set_buffers_array(self, euler_cl_integrator):
+    def test_create_buffers_array(self, euler_cl_integrator):
         """Test initiation of arrays that are dependent on simulation."""
         model, integrator = euler_cl_integrator
         nlist, n_neigh = model.initial_connectivity
@@ -498,7 +498,7 @@ class TestEulerCL:
         nregimes = 2
         nbond_types = 2
 
-        integrator.set_buffers(
+        integrator.create_buffers(
             nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
             u, ud, udd, force, body_force, damage, regimes, nregimes,
             nbond_types)
@@ -535,10 +535,10 @@ class TestEulerCL:
                 str("densities are not supported") in exception.value)
 
     @context_available
-    def test_set_special_buffers(self, euler_cl_integrator):
+    def test_create_special_buffers(self, euler_cl_integrator):
         """There are no special buffers so this method does nothing."""
         model, integrator = euler_cl_integrator
-        value = integrator._set_special_buffers()
+        value = integrator._create_special_buffers()
         assert value is None
 
 
@@ -559,7 +559,7 @@ class TestEulerCromerCL:
         damage = np.zeros((model.nnodes), dtype=np.float64)
         regimes = None
 
-        integrator.set_buffers(
+        integrator.create_buffers(
             nlist, n_neigh, model.bond_stiffness, model.critical_stretch,
             model.plus_cs, u, ud, udd, force, body_force, damage, regimes,
             model.nregimes, model.nbond_types)
@@ -567,8 +567,8 @@ class TestEulerCromerCL:
             1, 10, 10)
         for step in range(10):
             integrator.__call__(
-                displacement_bc_scale=displacement_bc_magnitudes[step],
-                force_bc_scale=0.0)
+                displacement_bc_magnitude=displacement_bc_magnitudes[step],
+                force_bc_magnitude=0.0)
 
         (u_actual,
          ud_actual,
@@ -596,7 +596,7 @@ class TestEulerCromerCL:
         assert np.allclose(n_neigh_actual, n_neigh_expected)
 
     @context_available
-    def test_set_buffers_float(self, euler_cromer_cl_integrator):
+    def test_create_buffers_float(self, euler_cromer_cl_integrator):
         """Test initiation of arrays that are dependent on simulation."""
         model, integrator = euler_cromer_cl_integrator
         nlist, n_neigh = model.initial_connectivity
@@ -613,7 +613,7 @@ class TestEulerCromerCL:
         nregimes = 1
         nbond_types = 1
 
-        integrator.set_buffers(
+        integrator.create_buffers(
             nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
             u, ud, udd, force, body_force, damage, regimes, nregimes,
             nbond_types)
@@ -622,7 +622,7 @@ class TestEulerCromerCL:
         assert(type(integrator.critical_stretch_d) is np.float64)
 
     @context_available
-    def test_set_buffers_array(self, euler_cromer_cl_integrator):
+    def test_create_buffers_array(self, euler_cromer_cl_integrator):
         """Test initiation of arrays that are dependent on simulation."""
         model, integrator = euler_cromer_cl_integrator
         nlist, n_neigh = model.initial_connectivity
@@ -640,7 +640,7 @@ class TestEulerCromerCL:
         nregimes = 2
         nbond_types = 2
 
-        integrator.set_buffers(
+        integrator.create_buffers(
             nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
             u, ud, udd, force, body_force, damage, regimes, nregimes,
             nbond_types)
@@ -677,10 +677,10 @@ class TestEulerCromerCL:
                 str("densities must be supplied") in exception.value)
 
     @context_available
-    def test_set_special_buffers(self, euler_cromer_cl_integrator):
+    def test_create_special_buffers(self, euler_cromer_cl_integrator):
         """There are no special buffers so this method does nothing."""
         model, integrator = euler_cromer_cl_integrator
-        value = integrator._set_special_buffers()
+        value = integrator._create_special_buffers()
         assert value is None
 
 
@@ -701,7 +701,7 @@ class TestVelocityVerletCL:
         damage = np.zeros((model.nnodes), dtype=np.float64)
         regimes = None
 
-        integrator.set_buffers(
+        integrator.create_buffers(
             nlist, n_neigh, model.bond_stiffness, model.critical_stretch,
             model.plus_cs, u, ud, udd, force, body_force, damage, regimes,
             model.nregimes, model.nbond_types)
@@ -709,8 +709,8 @@ class TestVelocityVerletCL:
             1, 10, 10)
         for step in range(10):
             integrator.__call__(
-                displacement_bc_scale=displacement_bc_magnitudes[step],
-                force_bc_scale=0.0)
+                displacement_bc_magnitude=displacement_bc_magnitudes[step],
+                force_bc_magnitude=0.0)
 
         (u_actual,
          ud_actual,
@@ -743,7 +743,7 @@ class TestVelocityVerletCL:
         assert np.allclose(n_neigh_actual, n_neigh_expected)
 
     @context_available
-    def test_set_buffers_float(self, velocity_verlet_cl_integrator):
+    def test_create_buffers_float(self, velocity_verlet_cl_integrator):
         """Test initiation of arrays that are dependent on simulation."""
         model, integrator = velocity_verlet_cl_integrator
         nlist, n_neigh = model.initial_connectivity
@@ -760,7 +760,7 @@ class TestVelocityVerletCL:
         nregimes = 1
         nbond_types = 1
 
-        integrator.set_buffers(
+        integrator.create_buffers(
             nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
             u, ud, udd, force, body_force, damage, regimes, nregimes,
             nbond_types)
@@ -769,7 +769,7 @@ class TestVelocityVerletCL:
         assert(type(integrator.critical_stretch_d) is np.float64)
 
     @context_available
-    def test_set_buffers_array(self, velocity_verlet_cl_integrator):
+    def test_create_buffers_array(self, velocity_verlet_cl_integrator):
         """Test initiation of arrays that are dependent on simulation."""
         model, integrator = velocity_verlet_cl_integrator
         nlist, n_neigh = model.initial_connectivity
@@ -787,7 +787,7 @@ class TestVelocityVerletCL:
         nregimes = 2
         nbond_types = 2
 
-        integrator.set_buffers(
+        integrator.create_buffers(
             nlist, n_neigh, bond_stiffness, critical_stretch, plus_cs,
             u, ud, udd, force, body_force, damage, regimes, nregimes,
             nbond_types)
@@ -824,8 +824,8 @@ class TestVelocityVerletCL:
                 str("densities must be supplied") in exception.value)
 
     @context_available
-    def test_set_special_buffers(self, velocity_verlet_cl_integrator):
+    def test_create_special_buffers(self, velocity_verlet_cl_integrator):
         """There are no special buffers so this method does nothing."""
         model, integrator = velocity_verlet_cl_integrator
-        value = integrator._set_special_buffers()
+        value = integrator._create_special_buffers()
         assert value is None
