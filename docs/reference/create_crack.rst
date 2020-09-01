@@ -1,5 +1,5 @@
 Create crack documentation
 ============================
 
-.. automodule:: peridynamics.create_crack
+.. automodule:: peripy.create_crack
    :members:

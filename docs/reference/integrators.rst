@@ -4,7 +4,7 @@ Integrators documentation
 Integrator Base Class
 ---------------------
 
-.. module:: peridynamics.integrators
+.. module:: peripy.integrators
 
 .. autoclass:: Integrator
    :members:

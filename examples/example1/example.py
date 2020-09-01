@@ -10,9 +10,9 @@ import cProfile
 from io import StringIO
 import numpy as np
 import pathlib
-from peridynamics import Model
-from peridynamics.model import initial_crack_helper
-from peridynamics.integrators import EulerCL, Euler
+from peripy import Model
+from peripy.model import initial_crack_helper
+from peripy.integrators import EulerCL, Euler
 from pstats import SortKey, Stats
 
 
@@ -81,11 +81,11 @@ def main():
         profile.enable()
 
     if args.opencl:
-        # The :class:`peridynamics.integrators.EulerCL` class is the OpenCL
+        # The :class:`peripy.integrators.EulerCL` class is the OpenCL
         # implementation of the explicit Euler integration scheme.
         integrator = EulerCL(dt=1e-3)
     else:
-        # The :class:`peridynamics.integrators.Euler` class is the cython
+        # The :class:`peripy.integrators.Euler` class is the cython
         # implementation of the explicit Euler integration scheme.
         integrator = Euler(dt=1e-3)
 
@@ -95,7 +95,7 @@ def main():
     # An arbritrary value of the critical_stretch = 0.005m is used.
     horizon = 0.1
     bond_stiffness = 18.00 * 0.05 / (np.pi * horizon**4)
-    # The :class:`peridynamics.model.Model` defines and calculates the
+    # The :class:`peripy.model.Model` defines and calculates the
     # connectivity of the model, as well as the boundary conditions and crack.
     model = Model(
         mesh_file, integrator=integrator, horizon=horizon,

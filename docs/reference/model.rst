@@ -4,7 +4,7 @@ Model documentation
 Model Class
 -----------
 
-.. module:: peridynamics.model
+.. module:: peripy.model
 .. autoclass:: Model
    :members:
 
@@ -16,7 +16,7 @@ Decorators
 Warnings
 ----------
 
-.. automethod:: peridynamics.model.this_may_take_a_while
+.. automethod:: peripy.model.this_may_take_a_while
 
 Exceptions
 ----------

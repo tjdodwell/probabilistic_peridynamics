@@ -16,9 +16,9 @@ import cProfile
 from io import StringIO
 import numpy as np
 import pathlib
-from peridynamics import Model
-from peridynamics.integrators import VelocityVerletCL
-from peridynamics.utilities import read_array as read_model
+from peripy import Model
+from peripy.integrators import VelocityVerletCL
+from peripy.utilities import read_array as read_model
 from pstats import SortKey, Stats
 
 

@@ -29,4 +29,4 @@ the tests yourself,
 - Install using pip `pip install -e .` from the root directory of the repository
 - Install pytest using pip `pip install pytest`
 - Run `pytest` from the root directory of the repository
-- For coverage install `pytest-cov` and run `pytest --cov=./peridynamics`
+- For coverage install `pytest-cov` and run `pytest --cov=./peripy`

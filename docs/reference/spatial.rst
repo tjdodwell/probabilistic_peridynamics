@@ -1,6 +1,6 @@
 Spatial documentation
 =====================
 
-.. automodule:: peridynamics.spatial
+.. automodule:: peripy.spatial
    :members:
 

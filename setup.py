@@ -7,20 +7,20 @@ extra_link_args = []
 
 ext_modules = [
     Extension(
-        "peridynamics.create_crack",
-        ["peridynamics/create_crack.pyx"],
+        "peripy.create_crack",
+        ["peripy/create_crack.pyx"],
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args
         ),
     Extension(
-        "peridynamics.peridynamics",
-        ["peridynamics/peridynamics.pyx"],
+        "peripy.peridynamics",
+        ["peripy/peridynamics.pyx"],
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args
         ),
     Extension(
-        "peridynamics.spatial",
-        ["peridynamics/spatial.pyx"],
+        "peripy.spatial",
+        ["peripy/spatial.pyx"],
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args
         )
@@ -28,8 +28,14 @@ ext_modules = [
 
 
 setup(
-    name="peridynamics",
+    name="peripy",
     version="0.1",
+    description="A fast OpenCL Peridynamics package for python",
+    long_description=README,
+    long_description_content_type="text/markdown",
+    url="https://github.com/alan-turing-institute/Probabilistic-Peridynamics",
+    author="Jim Madge, Ben Boys, Tim Dodwell, Greg Mingas",
+    license="MIT",
     packages=find_packages(exclude=['*.test']),
     include_package_data=True,
     ext_modules=cythonize(ext_modules),
