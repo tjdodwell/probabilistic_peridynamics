@@ -1346,25 +1346,32 @@ class TestSimulate:
             basic_models_2d.simulate(10, connectivity=(1, 2, 3))
             assert "connectivity must be of size 2" in exception.value
 
-    def test_stateless(self, cython_model):
+    def test_stateless(self, basic_models_2d):
         """Ensure the simulate method does not affect the state of Models."""
-        model = cython_model
+        model = basic_models_2d
         steps = 2
-        u, damage, connectivity, *_ = model.simulate(
-            steps=steps,
-            displacement_bc_magnitudes=np.array([0, (0.00001 / 2)]))
-        print(u, damage)
-        (expected_u,
-         expected_damage,
-         expected_connectivity,
+        (u,
+         damage,
+         connectivity,
+         force,
+         ud,
          *_) = model.simulate(
             steps=steps,
             displacement_bc_magnitudes=np.array([0, (0.00001 / 2)]))
-        print(expected_u, expected_damage)
+        (expected_u,
+         expected_damage,
+         expected_connectivity,
+         expected_force,
+         expected_ud,
+         *_) = model.simulate(
+            steps=steps,
+            displacement_bc_magnitudes=np.array([0, (0.00001 / 2)]))
         assert np.all(u == expected_u)
         assert np.all(damage == expected_damage)
         assert np.all(connectivity[0] == expected_connectivity[0])
         assert np.all(connectivity[1] == expected_connectivity[1])
+        assert np.all(force == expected_force)
+        assert np.all(ud == expected_ud)
 
     @pytest.fixture(scope="module")
     def simulate_force_test(self, data_path):
@@ -1429,16 +1436,26 @@ class TestSimulate:
         # Node 2 has no component of force in the x or z dimensions
         assert np.all(force[2, [0, 2]] == 0)
 
-    def test_restart(self, cython_model):
+    def test_restart(self, basic_models_2d):
         """Ensure simulation restarting gives consistent results."""
-        model = cython_model
+        model = basic_models_2d
         displacement_bc_magnitudes = np.linspace(0, (0.00001 * 99 / 2), 100)
 
-        u, damage, connectivity, *_ = model.simulate(
+        (u,
+         damage,
+         connectivity,
+         force,
+         ud,
+         *_) = model.simulate(
             steps=1,
             displacement_bc_magnitudes=displacement_bc_magnitudes
             )
-        u, damage, connectivity, *_ = model.simulate(
+        (u,
+         damage,
+         connectivity,
+         force,
+         ud,
+         *_) = model.simulate(
             steps=1,
             displacement_bc_magnitudes=displacement_bc_magnitudes,
             u=u,
@@ -1449,6 +1466,8 @@ class TestSimulate:
         (expected_u,
          expected_damage,
          expected_connectivity,
+         expected_force,
+         expected_ud,
          *_) = model.simulate(
             steps=2,
             displacement_bc_magnitudes=displacement_bc_magnitudes
@@ -1458,6 +1477,8 @@ class TestSimulate:
         assert np.all(damage == expected_damage)
         assert np.all(connectivity[0] == expected_connectivity[0])
         assert np.all(connectivity[1] == expected_connectivity[1])
+        assert np.all(force == expected_force)
+        assert np.all(ud == expected_ud)
 
     def test_write(self, cython_model, tmp_path):
         """Ensure that the mesh file written by simulate is correct."""
