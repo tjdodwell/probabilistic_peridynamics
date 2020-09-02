@@ -1,1 +1,2 @@
-include peridynamics/cl/*.cl
+include peripy/cl/*.cl
+include docs/_build
