@@ -1,6 +1,13 @@
 """Setup script for peridynamics."""
 from setuptools import setup, find_packages, Extension
 from Cython.Build import cythonize
+import pathlib
+
+# The directory containing this file
+HERE = pathlib.Path(__file__).parent
+
+# The text of the README file
+README = (HERE / "README.md").read_text()
 
 extra_compile_args = ['-O3']
 extra_link_args = []
