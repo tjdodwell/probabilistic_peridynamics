@@ -1,5 +1,5 @@
 """
-Peridynamics.
+PeriPy.
 
 A module for defining and simulating peridynamic systems.
 """
