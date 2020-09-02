@@ -26,7 +26,7 @@ class Model(object):
     correction factors. The model is defined by parameters and a set
     of initial conditions (coordinates, connectivity and optionally bond_types
     and stiffness_corrections). For this an
-    :class:`peridynamics.integrators.Integrator` is required, and optionally
+    :class:`peripy.integrators.Integrator` is required, and optionally
     functions implementing the boundarys. The :meth:`Model.simulate` method can
     be used to conduct a peridynamics simulation.
 
@@ -59,8 +59,8 @@ class Model(object):
         :arg str mesh_file: Path of the mesh file defining the systems nodes
             and connectivity.
         :arg  integrator: The integrator to use, see
-            :mod:`peridynamics.integrators` for options.
-        :type integrator: :class:`peridynamics.integrators.Integrator`
+            :mod:`peripy.integrators` for options.
+        :type integrator: :class:`peripy.integrators.Integrator`
         :arg float horizon: The horizon radius. Nodes within `horizon` of
             another interact with that node and are said to be within its
             neighbourhood.
@@ -1548,7 +1548,7 @@ class InvalidIntegrator(Exception):
         """
         message = (
                 f"{integrator} is not an instance of"
-                "peridynamics.integrators.Integrator"
+                "peripy.integrators.Integrator"
                 )
 
         super().__init__(message)

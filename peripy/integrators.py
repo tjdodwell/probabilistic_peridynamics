@@ -90,7 +90,7 @@ class Integrator(ABC):
 
         Builds the programs that are common to all integrators and the
         buffers which are independent of
-        :meth:`peridynamics.model.Model.simulate` parameters.
+        :meth:`peripy.model.Model.simulate` parameters.
         """
         self.nnodes = nnodes
         self.degrees_freedom = degrees_freedom
@@ -195,7 +195,7 @@ class Integrator(ABC):
         Initialise the OpenCL buffers.
 
         Initialises only the buffers which are dependent on
-        :meth:`peridynamics.model.Model.simulate` parameters.
+        :meth:`peripy.model.Model.simulate` parameters.
         """
         if (nbond_types == 1) and (nregimes == 1):
             self.bond_stiffness_d = np.float64(bond_stiffness)
@@ -227,7 +227,7 @@ class Integrator(ABC):
         self.nbond_types = np.intc(nbond_types)
 
         # Create OpenCL buffers that are dependent on
-        # :meth:`peridynamics.model.Model.simulate` parameters.
+        # :meth:`peripy.model.Model.simulate` parameters.
         # Read and write
         self.force_d = cl.Buffer(
             self.context, mf.READ_WRITE, force.nbytes)
@@ -357,7 +357,7 @@ class Euler(Integrator):
         Initiate arrays that are dependent on simulation parameters.
 
         Initiates arrays that are dependent on
-        :meth:`peridynamics.model.Model.simulate` parameters. Since
+        :meth:`peripy.model.Model.simulate` parameters. Since
         :class:`Euler` uses cython in place of OpenCL, there are no
         buffers to be created, just python objects that are used as arguments
         of the cython functions.
@@ -390,7 +390,7 @@ class Euler(Integrator):
         Since :class:`Euler` uses cython in place of OpenCL, there are no
         OpenCL programs or buffers to be built/created. Instead, this method
         instantiates the arrays and variables that are independent of
-        :meth:`peridynamics.model.Model.simulate` parameters as python
+        :meth:`peripy.model.Model.simulate` parameters as python
         objects that are used as arguments of the cython functions.
         """
         self.nnodes = nnodes
