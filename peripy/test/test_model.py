@@ -1349,7 +1349,10 @@ class TestSimulate:
     def test_stateless(self, basic_models_2d):
         """Ensure the simulate method does not affect the state of Models."""
         model = basic_models_2d
-        steps = 2
+        nlist, n_neigh = model.initial_connectivity
+        expected_initial_nlist = nlist.copy()
+        expected_initial_n_neigh = n_neigh.copy()
+        steps = 10
         (u,
          damage,
          connectivity,
@@ -1357,7 +1360,9 @@ class TestSimulate:
          ud,
          *_) = model.simulate(
             steps=steps,
-            displacement_bc_magnitudes=np.array([0, (0.00001 / 2)]))
+            displacement_bc_magnitudes=1 / 2 * np.linspace(
+                1, steps, steps))
+        initial_nlist, initial_n_neigh = model.initial_connectivity
         (expected_u,
          expected_damage,
          expected_connectivity,
@@ -1365,11 +1370,14 @@ class TestSimulate:
          expected_ud,
          *_) = model.simulate(
             steps=steps,
-            displacement_bc_magnitudes=np.array([0, (0.00001 / 2)]))
+            displacement_bc_magnitudes=1 / 2 * np.linspace(
+                1, steps, steps))
         assert np.all(u == expected_u)
         assert np.all(damage == expected_damage)
         assert np.all(connectivity[0] == expected_connectivity[0])
         assert np.all(connectivity[1] == expected_connectivity[1])
+        assert np.all(initial_nlist == expected_initial_nlist)
+        assert np.all(initial_n_neigh == expected_initial_n_neigh)
         assert np.all(force == expected_force)
         assert np.all(ud == expected_ud)
 

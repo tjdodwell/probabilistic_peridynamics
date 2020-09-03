@@ -1330,6 +1330,9 @@ class Model(object):
         # is provided
         if connectivity is None:
             nlist, n_neigh = self.initial_connectivity
+            # Make a copy so that the initial_connectivity remains unchanged
+            nlist = nlist.copy()
+            n_neigh = n_neigh.copy()
         elif type(connectivity) == tuple:
             if len(connectivity) != 2:
                 raise ValueError("connectivity size is wrong (expected 2,"

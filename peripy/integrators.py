@@ -127,7 +127,7 @@ class Integrator(ABC):
             self.bond_types_d = cl.Buffer(
                 self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
                 hostbuf=bond_types)
-        elif ((stiffness_corrections is None) and (bond_types is not None)):
+        elif (stiffness_corrections is None) and (bond_types is not None):
             self.bond_force_kernel = self.program.bond_force3
             self.bond_types_d = cl.Buffer(
                 self.context, mf.READ_ONLY | mf.COPY_HOST_PTR,
