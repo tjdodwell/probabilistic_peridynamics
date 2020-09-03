@@ -152,15 +152,18 @@ class Model(object):
         :type bond_types: :class:`numpy.ndarray`
         :arg stiffness_corrections: The stiffness_corrections for
             the model. If None the stiffness_corrections at the time
-            of construction of the :class:`Model` object will be used. Default
-            None.
+            of construction of the :class:`Model` object will be used. If not
+            None then these stiffness corrections will be used, overiding the
+            positional argument precise_stiffness_correction. Default None.
         :type stiffness_corrections: :class:`numpy.ndarray`
-        :arg int precise_stiffness_correction: A switch variable. Set to 1:
+        :arg int precise_stiffness_correction: A switch variable only
+            applicable when stiffness_corrections is None, i.e. when there are
+            stiffness corrections to be calculated. Set to 1:
             Stiffness corrections are calculated more accurately using
-            actual nodal volumes. Set to 0: Stiffness corrections are calculate
-            using an average nodal volume. Set to None: All stiffness
-            corrections are set to 1.0, i.e. no stiffness correction is
-            applied.
+            actual nodal volumes. Set to 0: Stiffness corrections are
+            calculated using an average nodal volume. Set to None:
+            All stiffness corrections are set to 1.0, i.e. no stiffness
+            correction is applied.
 
         :raises DimensionalityError: when an invalid `dimensions` argument is
             provided.
@@ -311,7 +314,9 @@ class Model(object):
                                      np.shape(stiffness_corrections)))
             else:
                 warnings.warn(
-                    "Reading stiffness_corrections from argument.")
+                    "Reading stiffness_corrections from argument and "
+                    "overriding precise_stiffness_correction (= {}).".format(
+                        precise_stiffness_correction))
                 self.stiffness_corrections = (
                     stiffness_corrections.astype(np.float64))
         else:
