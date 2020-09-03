@@ -11,28 +11,28 @@ Run the first example by typing python examples/example1/example.py
 
 The Model class
 ---------------
-The :class:`peridynamics.model.Model` class allows users to define a bond-based
+The :class:`peripy.model.Model` class allows users to define a bond-based
 peridynamics model for composite materials with non-linear micromodulus
 functions, stiffness correction factors and boundary conditions. The model
 is defined by parameters and a set of initial conditions (coordinates,
 connectivity and optionally bond_types and stiffness_corrections). For this an
-:class:`peridynamics.integrators.Integrator` is required, and optionally
+:class:`peripy.integrators.Integrator` is required, and optionally
 functions implementing the boundarys.
 
 The Integrator class
 --------------------
 
-The :class:`peridynamics.integrators.Integrator` is the explicit time
-integration method, see :mod:`peridynamics.integrators` for options.
+The :class:` peripy.integrators.Integrator` is the explicit time
+integration method, see :mod:` peripy.integrators` for options.
 Any integrator with the suffix 'CL' uses OpenCL kernels to calculate the
 bond force and displacement update, resulting in orders of magnitude faster
 simulation time when compared to using the cython implementation,
-:class:`peridynamics.integrators.Euler`. OpenCL is 'heterogeneous' which
+:class:` peripy.integrators.Euler`. OpenCL is 'heterogeneous' which
 means the 'CL' integrator classes will work on a CPU device as well as a
 GPU device. The preferable (faster) CL device will be chosen automatically.
 
     >>> from peridynamics import Model
-    >>> from peridynamics.integrators import EulerCL
+    >>> from  peripy.integrators import EulerCL
     >>>
     >>> def is_displacement_boundary(x):
     >>>     # Node does not live on a boundary
@@ -80,7 +80,7 @@ pairs of nodes between which the crack is.
 If it is more convenient to define the crack as a function you may also
 pass a function to the constructor which takes the array of coordinates as
 its only argument and returns a list of tuples as described above. The
-:func:`peridynamics.model.initial_crack_helper` decorator has been provided
+:func:` peripy.model.initial_crack_helper` decorator has been provided
 to easily create a function of the correct form from one which tests a
 single pair of node coordinates and returns `True` or `False`.
 
@@ -107,7 +107,7 @@ single pair of node coordinates and returns `True` or `False`.
 Conducting a simulation
 -----------------------
 
-The :meth:`peridynamics.model.Model.simulate` method can be used to conduct a
+The :meth:`peripy.model.Model.simulate` method can be used to conduct a
 peridynamics simulation. Here it is possible to define the boundary condition
 magnitude throughout the simulation.
 
