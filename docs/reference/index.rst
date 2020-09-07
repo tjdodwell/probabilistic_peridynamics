@@ -21,6 +21,7 @@ For learning how to use PeriPy, see the :ref:`complete documentation <peripy_doc
    model
    integrators
    spatial
+   correction
    create_crack
    peridynamics
    utilities

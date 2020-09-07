@@ -59,9 +59,11 @@ class TestRegression:
         path = data_path
         actual_nlist = connectivity[0]
         actual_n_neigh = connectivity[1]
-        expected_connectivity = np.load(path/"expected_connectivity.npz")
-        expected_nlist = expected_connectivity["nlist"]
-        expected_n_neigh = expected_connectivity["n_neigh"]
+        npz_file = np.load(
+            path/"expected_connectivity_crack.npz"
+            )
+        expected_nlist = npz_file["nlist"]
+        expected_n_neigh = npz_file["n_neigh"]
 
         assert np.all(expected_nlist == actual_nlist)
         assert np.all(expected_n_neigh == actual_n_neigh)
@@ -112,9 +114,11 @@ class TestRegression:
 
         actual_nlist = connectivity[0]
         actual_n_neigh = connectivity[1]
-        expected_connectivity = np.load(path/"expected_connectivity_cl.npz")
-        expected_nlist = expected_connectivity["nlist"]
-        expected_n_neigh = expected_connectivity["n_neigh"]
+        npz_file = np.load(
+            path/"expected_connectivity_crack_cl.npz"
+            )
+        expected_nlist = npz_file["nlist"]
+        expected_n_neigh = npz_file["n_neigh"]
 
         assert np.all(expected_nlist == actual_nlist)
         assert np.all(expected_n_neigh == actual_n_neigh)

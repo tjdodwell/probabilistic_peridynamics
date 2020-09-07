@@ -83,11 +83,15 @@ class TestForce:
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.int32)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
+        volume_correction = 0
+        node_radius = 1.0
+        horizon = 1.0
 
         force_expected = np.zeros((5, 3))
-        force_actual = bond_force(r0, r0, nl, n_neigh, volume, bond_stiffness,
-                                  force_bc_values, force_bc_types,
-                                  force_bc_scale)
+        force_actual = bond_force(
+            r0, r0, nl, n_neigh, volume, bond_stiffness, force_bc_values,
+            force_bc_types, force_bc_scale, volume_correction, horizon,
+            node_radius)
         assert np.allclose(force_actual, force_expected)
 
     def test_force(self):
@@ -111,6 +115,8 @@ class TestForce:
         force_bc_scale = 1.0
         force_bc_types = np.zeros((nnodes, 3), dtype=np.int32)
         force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
+        volume_correction = 0
+        node_radius = 1.0
 
         # Displace particles, but do not update neighbour list
         r = r0 + np.array([
@@ -119,12 +125,58 @@ class TestForce:
             [0.05, 0.05, 0.0]
             ])
 
-        actual_force = bond_force(r, r0, nl, n_neigh, volume,
-                                  bond_stiffness, force_bc_values,
-                                  force_bc_types, force_bc_scale)
+        actual_force = bond_force(
+            r, r0, nl, n_neigh, volume, bond_stiffness, force_bc_values,
+            force_bc_types, force_bc_scale, volume_correction, horizon,
+            node_radius)
 
         # Ensure force array is correct
         force_value = 0.00229417
+        expected_force = np.array([
+            [force_value, 0., 0.],
+            [-force_value, force_value, 0.],
+            [0., -force_value, 0.]
+            ])
+        assert np.allclose(actual_force, expected_force)
+
+    def test_partial_volume_correction(self):
+        """Ensure forces are in the correct direction using a minimal model."""
+        r0 = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            ])
+        horizon = 1.01
+        nnodes = 3
+        elastic_modulus = 0.05
+        bond_stiffness = 18.0 * elastic_modulus / (np.pi * horizon**4)
+        volume = np.full(nnodes, 0.16666667)
+        nl = np.array([
+            [1, 0],
+            [0, 2],
+            [2, 0]
+            ], dtype=np.intc)
+        n_neigh = np.array([1, 2, 1], dtype=np.intc)
+        force_bc_scale = 1.0
+        force_bc_types = np.zeros((nnodes, 3), dtype=np.int32)
+        force_bc_values = np.zeros((nnodes, 3), dtype=np.float64)
+        volume_correction = 1
+        node_radius = 1.0
+
+        # Displace particles, but do not update neighbour list
+        r = r0 + np.array([
+            [0.0, 0.0, 0.0],
+            [0.05, 0.0, 0.0],
+            [0.05, 0.05, 0.0]
+            ])
+
+        actual_force = bond_force(
+            r, r0, nl, n_neigh, volume, bond_stiffness, force_bc_values,
+            force_bc_types, force_bc_scale, volume_correction, horizon,
+            node_radius)
+
+        # Ensure force array is correct
+        force_value = 0.51 * 0.00229417
         expected_force = np.array([
             [force_value, 0., 0.],
             [-force_value, force_value, 0.],

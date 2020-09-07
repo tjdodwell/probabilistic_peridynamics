@@ -86,8 +86,8 @@ def strain2(l, r10, r20):
 
 cdef inline double cstrain2(double l, double[:] r10, double[:] r20):
     """
-    C function for calculating the strain given current distplacement and the
-    initial coordinates.
+    C function for calculating the strain given the current displacement and
+    the initial coordinates.
     """
     cdef double dl
 

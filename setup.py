@@ -30,6 +30,12 @@ ext_modules = [
         ["peripy/spatial.pyx"],
         extra_compile_args=extra_compile_args,
         extra_link_args=extra_link_args
+        ),
+    Extension(
+        "peripy.correction",
+        ["peripy/correction.pyx"],
+        extra_compile_args=extra_compile_args,
+        extra_link_args=extra_link_args
         )
     ]
 

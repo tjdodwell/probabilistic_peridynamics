@@ -1,7 +1,11 @@
 """Peridynamics model."""
 from .integrators import Integrator
 from .utilities import write_array
-from .create_crack import (create_crack_cython, create_crack_cl)
+from .create_crack import create_crack
+from .correction import (set_volume_correction,
+                         set_imprecise_stiffness_correction,
+                         set_precise_stiffness_correction,
+                         set_micromodulus_function)
 from collections import namedtuple
 import numpy as np
 import pathlib
@@ -43,7 +47,8 @@ class Model(object):
                  is_displacement_boundary=None, is_force_boundary=None,
                  is_tip=None, density=None, bond_types=None,
                  stiffness_corrections=None,
-                 precise_stiffness_correction=None):
+                 stiffness_correction=None, volume_correction=None,
+                 micromodulus_function=None, node_radius=None):
         """
         Create a :class:`Model` object.
 
@@ -154,16 +159,35 @@ class Model(object):
             the model. If None the stiffness_corrections at the time
             of construction of the :class:`Model` object will be used. If not
             None then these stiffness corrections will be used, overiding the
-            positional argument precise_stiffness_correction. Default None.
+            positional argument stiffness_correction. Default None.
         :type stiffness_corrections: :class:`numpy.ndarray`
-        :arg int precise_stiffness_correction: A switch variable only
+        :arg int stiffness_correction: A flag variable only
             applicable when stiffness_corrections is None, i.e. when there are
             stiffness corrections to be calculated. Set to 1:
             Stiffness corrections are calculated more accurately using
             actual nodal volumes. Set to 0: Stiffness corrections are
             calculated using an average nodal volume. Set to None:
             All stiffness corrections are set to 1.0, i.e. no stiffness
-            correction is applied.
+            correction is applied. Default None.
+        :arg int volume_correction: A flag variable denoting the algorithm for
+            approximation of the partial nodal volumes applied when
+            integrating the bond force over the horizon. Set to 0: The
+            'Partial Volume algorithm' [Seleson et al., Convergence studies
+            in meshfree peridynamic simulations, Computers & Mathematics with
+            Applications 71 (2016)] as first introduced by [Parks et al.,
+            Implementing peridynamics within a molecular dynamics code,
+            Computer Physics Communications 179 (2008)] is used. Set to None:
+            The 'Full Volume algorithm' is used; partial nodal volumes are
+            approximated by their full nodal volumes. Default None.
+        :arg int micromodulus_function: A flag variable denoting the
+            normalised micromodulus function. Set to 0: A conical micromodulus
+            function is used, which is normalised such that the maximum value
+            of the micromodulus function is the bond stiffness. Set to None: A
+            constant noramlised micromodulus function is used such that the
+            maximum value of the micromodulus function is the bond stiffness.
+            Default None.
+        :arg float node_radius: Average peridynamic node radius . Must be
+            provided if volume corrections (volume_correction=1) are applied.
 
         :raises DimensionalityError: when an invalid `dimensions` argument is
             provided.
@@ -198,7 +222,24 @@ class Model(object):
         # Read coordinates and connectivity from mesh file
         self._read_mesh(mesh_file, transfinite)
 
-        self.horizon = horizon
+        if volume_correction:
+            if type(node_radius) != float:
+                raise TypeError(
+                    "If volume_correction (= {}) is applied, an "
+                    "average node radius must be supplied as the "
+                    "keyword argument node_radius. Suggested value"
+                    " node_radius = np.power(volume_total / "
+                    "nnodes, 1. / 3) = {}, "
+                    "(expected {}, got {})".format(
+                        volume_correction,
+                        np.power(np.sum(self.volume) / self.nnodes,
+                                 1. / 3), float, type(node_radius)))
+            # Partial volumes a node radius outside the horizon distance will
+            # contribute to the pairwise force function integral, and
+            # therefore must be included in the neighbour distance search
+            self.horizon = horizon + node_radius
+        else:
+            self.horizon = horizon
 
         # Calculate the volume for each node, if None is provided
         if volume is None:
@@ -297,13 +338,35 @@ class Model(object):
         self.initial_connectivity = (nlist, n_neigh)
         self.degrees_freedom = 3
 
+        # Calculate stiffness corrections if None is provided
         if stiffness_corrections is None:
-            if precise_stiffness_correction is None:
-                self.stiffness_corrections = None
+            stiffness_correction_factors_are_applied = False
+            stiffness_corrections = np.ones(
+                (self.nnodes, self.max_neighbours), dtype=np.float64)
+            if micromodulus_function is not None:
+                # Apply micromodulus algorithm
+                # Calculate the micromodulus function values
+                stiffness_corrections = self._set_micromodulus_values(
+                    micromodulus_function, stiffness_corrections, horizon)
+                stiffness_correction_factors_are_applied = True
+            if volume_correction is not None:
+                # Apply volume correction algorithm
+                # Calculate the volume correction factors
+                stiffness_corrections = self._set_volume_corrections(
+                    volume_correction, stiffness_corrections, node_radius,
+                    horizon)
+                stiffness_correction_factors_are_applied = True
+            if stiffness_correction is not None:
+                # Apply stiffness correction algorithm
+                stiffness_corrections = self._set_stiffness_corrections(
+                    stiffness_correction, stiffness_corrections)
+                stiffness_correction_factors_are_applied = True
+            if stiffness_correction_factors_are_applied:
+                self.stiffness_corrections = stiffness_corrections
             else:
-                # Calculate stiffness correction factors and write to file
-                self.stiffness_corrections = self._set_stiffness_corrections(
-                    precise_stiffness_correction)
+                # Stiffness corrections factors are not applied
+                # This results in speedups in the memory constrained case
+                self.stiffness_corrections = None
         elif type(stiffness_corrections) == np.ndarray:
             if np.shape(stiffness_corrections) != (
                     self.nnodes, self.max_neighbours):
@@ -315,8 +378,14 @@ class Model(object):
             else:
                 warnings.warn(
                     "Reading stiffness_corrections from argument and "
-                    "overriding precise_stiffness_correction (= {}).".format(
-                        precise_stiffness_correction))
+                    "overriding stiffness_correction (={}), volume_correction "
+                    "(={}) and micromodulus_function (={}) flags! If these "
+                    "flags have changed since the stiffness_corrections were "
+                    "written to file, please remove the stiffness_corrections "
+                    "argument and overwrite existing stiffness_corrections "
+                    "with the stiffness_corrections calculated using the new "
+                    "flags.".format(
+                        stiffness_correction))
                 self.stiffness_corrections = (
                     stiffness_corrections.astype(np.float64))
         else:
@@ -509,18 +578,10 @@ class Model(object):
             if callable(initial_crack):
                 initial_crack = initial_crack(
                         coords, nlist, n_neigh)
-            if context:
-                # Initialise initial crack for OpenCL
-                create_crack_cl(
-                    np.array(initial_crack, dtype=np.int32),
-                    nlist, n_neigh, family
-                    )
-            else:
-                # Initialise initial crack for cython
-                create_crack_cython(
-                    np.array(initial_crack, dtype=np.int32),
-                    nlist, n_neigh
-                    )
+            create_crack(
+                np.array(initial_crack, dtype=np.int32),
+                nlist, n_neigh
+                )
 
         return (family, nlist, n_neigh, max_neighbours)
 
@@ -532,10 +593,8 @@ class Model(object):
             Set to 0 for a tetrahedral mesh (default). If set to 1, the
             volumes of the nodes are approximated as the average volume of
             nodes on a cuboidal tensor-grid mesh.
-        :arg float volume_total: User input for the total volume of the mesh,
-            for checking the sum total of elemental volumes is equal to user
-            input volume for simple prismatic problems. In the case where no
-            expected total volume is provided, the check is not done.
+        :arg float volume_total: Total volume of the mesh. Must be provided if
+            transfinite mode (transfinite=1) is used.
 
         :returns: Tuple containing an array of volumes for each node.
         :rtype: :class:`numpy.ndarray`
@@ -709,8 +768,96 @@ class Model(object):
             bond_types = None
         return bond_types
 
+    def _set_micromodulus_values(
+            self, micromodulus_function, stiffness_corrections, horizon):
+        """
+        Calculate an array of normalised micromodulus function values.
+
+        Calculates the micromodulus function values as an array of stiffness
+        correction factors. If micromodulus_function = None, a constant
+        micromodulus function is applied. If micromodulus_function = 0, a
+        conical micromodulus function is applied.
+
+        :arg int micromodulus_function: A flag variable. For the micromodulus
+            function algorithm.
+            Set to None: . Set to 1: . Set to 0:. Default None.
+        :arg stiffness_corrections: An (`nnodes`, `max_neighbours`) container
+            for the stiffness correction factors for each bond.
+        :type stiffness_corrections: :class:`numpy.ndarray`
+        :arg float horizon: The peridynamic horizon distance.
+
+        :returns: An (`nnodes`, `max_neighbours`) array of the normalised
+            micromodulus function values as an array of stiffness
+            correction factor of each bond.
+        :rtype: :class:`numpy.ndarray`
+        """
+        nlist, n_neigh = self.initial_connectivity
+
+        if micromodulus_function == 0:
+            # Conical micromodulus function
+            set_micromodulus_function(
+                stiffness_corrections, self.coords, nlist, n_neigh,
+                np.float64(horizon), np.intc(micromodulus_function))
+        else:
+            raise ValueError("micromodulus_function value is wrong "
+                             "(expected 0 or None, got {})".format(
+                                 micromodulus_function))
+
+        return stiffness_corrections
+
+    def _set_volume_corrections(
+            self, volume_correction, stiffness_corrections, horizon,
+            node_radius):
+        """
+        Calculate an array of partial volume correction factors.
+
+        Calculates the partial volume correction factors that
+        approximate the partial volumes used in the spatial integration of the
+        pairwise force density function (bond forces). If
+        volume_correction = 1, the 'Partial Volume algorithm' [Seleson et al.,
+        Convergence studies in meshfree peridynamic simulations, Computers &
+        Mathematics with Applications 71 (2016)] as first introduced by [Parks
+        et al., Implementing peridynamics within a molecular dynamics code,
+        Computer Physics Communications 179 (2008)] is used. Set to 0: The
+        'Full Volume algorithm' is used; partial nodal volumes are
+        approximated by their full nodal volumes. Default 0.
+
+        :arg int volume_correction: A flag variable. For the partial volume
+            correction algorithm.
+            Set to 0: The 'Partial Volume algorithm' as proposed by Hu, Ha, and
+            Bobaru [W. Hu, Y.D. Ha and F. Bobaru, Numerical integration in
+            peridynamics, Tech. Rep., University of Nebraska-Lincoln,
+            Department of Mechanical & Materials Engineering (September 2010)]
+            is used. Set to None: The 'Full Volume algorithm' is used; partial
+            nodal volumes are approximated by their full nodal volumes.
+        :arg stiffness_corrections: An (`nnodes`, `max_neighbours`) container
+            for the stiffness correction factors for each bond.
+        :type stiffness_corrections: :class:`numpy.ndarray`
+        :arg float horizon: The peridynamic horizon distance.
+        :arg float node_radius: Average peridynamic node radius . Must be
+            provided if volume corrections (volume_correction=1) are applied.
+
+        :returns: An (`nnodes`, `max_neighbours`) array of the stiffness
+            correction factor of each bond for each node.
+        :rtype: :class:`numpy.ndarray`
+        """
+        nlist, n_neigh = self.initial_connectivity
+
+        if volume_correction == 0:
+            # Calculate partial volume corrections
+            set_volume_correction(
+                stiffness_corrections, self.coords, nlist, n_neigh,
+                np.float64(horizon), np.float64(node_radius),
+                np.intc(volume_correction))
+        else:
+            raise ValueError("volume_correction value is wrong "
+                             "(expected 0 or None, got {})".format(
+                                 volume_correction))
+
+        return stiffness_corrections
+
     def _set_stiffness_corrections(
-            self, precise_stiffness_correction):
+            self, stiffness_correction, stiffness_corrections):
         """
         Calculate an array of stiffness correction factors.
 
@@ -718,69 +865,52 @@ class Model(object):
         surface softening effect for 2D/3D problem and writes to file.
         The 'volume method' proposed in Chapter 2 in Bobaru F, Foster JT,
         Geubelle PH, Silling SA (2017) Handbook of peridynamic modeling
-        (p51 – 52) is used when precise_stiffness_correction = 1 or 0.
+        (p51 – 52) is used when stiffness_correction = 1 or 0. Note
+        that stiffness correction factors are applied after the initiation of
+        the initial-crack: the surface softening effect for initial crack
+        surfaces will be corrected.
 
-        :arg float horizon: The horizon distance.
-        :arg connectivity: The initial connectivity for the simulation. A tuple
-            of a neighbour list and the number of neighbours for each node. If
-            None the connectivity at the time of construction of the
-            :class:`Model` object will be used. Default None.
-        :type connectivity: tuple(:class:`numpy.ndarray`,
-            :class:`numpy.ndarray`)
-        :arg int precise_stiffness_correction: A flag variable. Set to 1:
+        The correction factors are element-wise multiplied to the existing
+        corrections that apply to the bond stiffness so that the correction
+        factors can be stored to memory in a single array.
+
+        :arg int stiffness_correction: A flag variable. Set to 1:
             Stiffness corrections are calculated more accurately using
             actual nodal volumes. Set to 0: Stiffness corrections are calculate
             using an average nodal volume. Set to None: All stiffness
             corrections are set to 1.0, i.e. no stiffness correction is
             applied.
+        :arg stiffness_corrections: An (`nnodes`, `max_neighbours`) container
+            for the stiffness correction factors for each bond.
+        :type stiffness_corrections: :class:`numpy.ndarray`
 
-        :returns: An (`nnodes`, `max_neighbours`) array of the stiffness
-            correction factor of each bond for each node.
+        :returns: An (`nnodes`, `max_neighbours`) array of the combined
+            stiffness and volume correction factor of each bond for each node.
         :rtype: :class:`numpy.ndarray`
         """
+        # Post initial crack initiation connectivity
         nlist, n_neigh = self.initial_connectivity
-        stiffness_corrections = np.ones((self.nnodes, self.max_neighbours))
 
         if self.dimensions == 2:
-            family_volume_bulk = np.pi*np.power(self.horizon, 2)
+            family_volume_bulk = np.float64(np.pi*np.power(self.horizon, 2))
         elif self.dimensions == 3:
-            family_volume_bulk = (4./3)*np.pi*np.power(self.horizon, 3)
+            family_volume_bulk = np.float64(
+                (4./3)*np.pi*np.power(self.horizon, 3))
 
-        if precise_stiffness_correction == 1:
-            family_volumes = np.zeros(self.nnodes)
-            for i in range(0, self.nnodes):
-                tmp = 0.0
-                neighbour_list_i = nlist[i][:n_neigh[i]]
-                for j in range(n_neigh[i]):
-                    tmp += self.volume[neighbour_list_i[j]]
-                family_volumes[i] = tmp
-            for i in range(0, self.nnodes):
-                family_volume_i = family_volumes[i]
-                for neigh in range(n_neigh[i]):
-                    family_volume_j = family_volumes[nlist[i][neigh]]
-                    stiffness_correction_factor = 2. * family_volume_bulk / (
-                        family_volume_i + family_volume_j)
-                    stiffness_corrections[i][neigh] = (
-                        stiffness_correction_factor)
-
-        elif precise_stiffness_correction == 0:
-            average_node_volume = np.sum(self.volume) / self.nnodes
-            for i in range(0, self.nnodes):
-                nnodes_i_family = n_neigh[i]
-                nodei_family_volume = nnodes_i_family * average_node_volume
-                for neigh in range(nnodes_i_family):
-                    j = nlist[i][neigh]
-                    nnodes_j_family = n_neigh[j]
-                    nodej_family_volume = nnodes_j_family * average_node_volume
-                    stiffness_correction_factor = 2. * family_volume_bulk / (
-                        nodej_family_volume + nodei_family_volume)
-                    stiffness_corrections[i][neigh] = (
-                        stiffness_correction_factor)
+        if stiffness_correction == 1:
+            set_precise_stiffness_correction(
+                stiffness_corrections, nlist, n_neigh, self.volume,
+                family_volume_bulk)
+        elif stiffness_correction == 0:
+            average_node_volume = np.float64(np.sum(self.volume) / self.nnodes)
+            set_imprecise_stiffness_correction(
+                stiffness_corrections, nlist, n_neigh, average_node_volume,
+                family_volume_bulk)
         else:
-            raise ValueError("precise_stiffness_correction value is wrong "
+            raise ValueError("stiffness_correction value is wrong "
                              "(expected 0, 1 or None, got {})".format(
-                                 precise_stiffness_correction))
-        stiffness_corrections = stiffness_corrections.astype(np.float64)
+                                 stiffness_correction))
+
         if self.write_path is not None:
             write_array(
                 self.write_path,

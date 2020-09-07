@@ -1,7 +1,6 @@
 """Tests for the neighbour list module."""
 from .conftest import context_available
-from peripy.create_crack import (
-    create_crack_cython, create_crack_cl)
+from peripy.create_crack import (create_crack)
 from ..integrators import Euler, EulerCL
 from ..model import Model
 import numpy as np
@@ -162,13 +161,13 @@ class TestNeigbourList():
         assert np.all(n_neigh_actual == n_neigh_expected)
 
         crack = np.array([(0, 2), (1, 3)], dtype=np.int32)
-        create_crack_cython(crack, nlist_actual, n_neigh_actual)
+        create_crack(crack, nlist_actual, n_neigh_actual)
 
         nl_expected = np.array([
-            [1, 4, 4],
-            [0, 3, 0],
-            [0, 0, 0],
-            [1, 0, 0],
+            [1, 4, -1],
+            [0, -1, 0],
+            [-1, 0, 0],
+            [-1, 0, 0],
             [0, 0, 0]
             ])
         n_neigh_expected = np.array([2, 1, 0, 0, 1])
@@ -214,10 +213,10 @@ class TestNeigbourList():
         assert np.all(n_neigh_actual == n_neigh_expected)
 
         crack = np.array([(0, 2), (1, 3)], dtype=np.int32)
-        create_crack_cl(crack, nlist_actual, n_neigh_actual, n_neigh_actual)
+        create_crack(crack, nlist_actual, n_neigh_actual)
 
         nl_expected = np.array([
-            [1, -1, 4, -1],
+            [1, 4, -1, -1],
             [0, -1, -1, -1],
             [-1, -1, -1, -1],
             [-1, -1, -1, -1],

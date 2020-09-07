@@ -821,7 +821,9 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_2d
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=0)
+            precise_stiffness_correction=0,
+            corrections=np.ones(
+                (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d.npy")
         assert np.allclose(
@@ -833,7 +835,9 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using precise nodal volumes."""
         model, integrator = basic_model_2d
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=1)
+            precise_stiffness_correction=1,
+            corrections=np.ones(
+                (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d_precise.npy")
         assert np.allclose(
@@ -845,7 +849,9 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_3d
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=0)
+            precise_stiffness_correction=0,
+            corrections=np.ones(
+                (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d.npy")
         assert np.allclose(
@@ -858,7 +864,9 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_2d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=0)
+            precise_stiffness_correction=0,
+            corrections=np.ones(
+                (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d_cl.npy")
         assert np.allclose(
@@ -871,7 +879,9 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using precise nodal volumes."""
         model, integrator = basic_model_2d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=1)
+            precise_stiffness_correction=1,
+            corrections=np.ones(
+                (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d_precise_cl.npy")
         assert np.allclose(
@@ -884,7 +894,9 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_3d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=0)
+            precise_stiffness_correction=0,
+            corrections=np.ones(
+                (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d_cl.npy")
         assert np.allclose(
@@ -897,7 +909,9 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using precise nodal volumes."""
         model, integrator = basic_model_3d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=1)
+            precise_stiffness_correction=1,
+            corrections=np.ones(
+                (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d_precise_cl.npy")
         assert np.allclose(

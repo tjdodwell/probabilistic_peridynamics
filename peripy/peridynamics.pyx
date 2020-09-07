@@ -53,8 +53,12 @@ def bond_force(double[:, :] r, double[:, :] r0, int[:, :] nlist,
     :type force_bc_values: :class:`numpy.ndarray`
     :arg force_bc_types: The force boundary condition types for each node.
     :type force_bc_types: :class:`numpy.ndarray`
-    :arg float bc_scale: The scalar value applied to the
+    :arg double bc_scale: The scalar value applied to the
         force boundary conditions.
+    :arg bool volume correction: 1 if nodal volumes are approximated by
+        partial volumes, 0 if nodal volumes are approximated by full volumes.
+    :arg double horizon: The peridynamics horizon distance.
+    :arg double node_radius: The average radius of a peridynamic node.
     """
     cdef int nnodes = nlist.shape[0]
 
@@ -62,7 +66,7 @@ def bond_force(double[:, :] r, double[:, :] r0, int[:, :] nlist,
     cdef double[:, :] force_view = force
 
     cdef int i, j, dim, i_n_neigh, neigh
-    cdef double strain, l, force_norm
+    cdef double strain, l, force_norm, nu, partial_volume_i, partial_volume_j
     cdef double[3] f
 
     for i in range(nnodes):
@@ -83,7 +87,7 @@ def bond_force(double[:, :] r, double[:, :] r0, int[:, :] nlist,
 
                 # Add force to particle i, using Newton's third law subtract
                 # force from j
-                # Scale the force by the node volume of the child particle
+                # Scale the force by the partial volume of the child particle
                 for dim in range(3):
                     force_view[i, dim] = (force_view[i, dim]
                                           + f[dim] * volume[j])
@@ -138,7 +142,7 @@ def break_bonds(double[:, :] r, double[:, :]r0, int[:, :] nlist,
                     # neighbour on the list, then reducing the number of
                     # neighbours by 1.
                     # As neighbour `neigh` is now a new neighbour, we do not
-                    # adcave the neighbour index
+                    # advance the neighbour index
                     nlist[i, neigh] = nlist[i, i_n_neigh-1]
                     i_n_neigh -= 1
 

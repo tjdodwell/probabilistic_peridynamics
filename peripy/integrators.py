@@ -82,9 +82,9 @@ class Integrator(ABC):
         """
 
     def build(
-            self, nnodes, degrees_freedom, max_neighbours, coords,
-            volume, family, bc_types, bc_values, force_bc_types,
-            force_bc_values, stiffness_corrections, bond_types, densities):
+            self, nnodes, degrees_freedom, max_neighbours, coords, volume,
+            family, bc_types, bc_values, force_bc_types, force_bc_values,
+            stiffness_corrections, bond_types, densities):
         """
         Build OpenCL programs.
 
@@ -381,9 +381,10 @@ class Euler(Integrator):
         self.body_force = body_force
 
     def build(
-            self, nnodes, degrees_freedom, max_neighbours, coords,
-            volume, family, bc_types, bc_values, force_bc_types,
-            force_bc_values, stiffness_corrections, bond_types, densities):
+            self, nnodes, degrees_freedom, max_neighbours, coords, volume,
+            family, bc_types, bc_values, force_bc_types, force_bc_values,
+            stiffness_corrections, bond_types, densities, volume_correction,
+            horizon, node_radius):
         """
         Initiate integrator arrays.
 
@@ -401,6 +402,9 @@ class Euler(Integrator):
         self.bc_values = bc_values
         self.force_bc_types = force_bc_types
         self.force_bc_values = force_bc_values
+        self.volume_correction = volume_correction
+        self.horizon = horizon
+        self.node_radius = node_radius
         if bond_types is not None:
             raise ValueError("bond_types are not supported by this "
                              "integrator (expected {}, got {}), please use "

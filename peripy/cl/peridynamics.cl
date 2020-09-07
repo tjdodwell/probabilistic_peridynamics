@@ -171,7 +171,8 @@ __kernel void
      * fc_types - An (n,3) array of force boundary condition types,
      *     a value of 0 denotes a particle that is not externally loaded.
      * fc_values - An (n,3) array of the force boundary condition values applied to particles.
-     * stiffness_corrections - An (n, local_size) array of bond stiffness correction factors.
+     * stiffness_corrections - An (n, local_size) array of bond stiffness correction
+     *     factors multiplied by the partial volume correction factors.
      * bond_types - Not applied in this bond_force kernel. Placeholder argument.
      * regimes - Not applied in this bond_force kernel. Placeholder argument.
      * plus_cs - Not applied in this bond_force kernel. Placeholder argument.
