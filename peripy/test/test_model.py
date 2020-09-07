@@ -802,18 +802,131 @@ class TestDensities:
                     in exception.value)
 
 
-class TestStiffnessCorrections:
-    """Test _set_stiffness_corrections."""
+class TestMicromodulusFunction:
+    """Test _set_micromodulus_values."""
 
-    def test_value_stiffness_correction(self, data_path):
-        """Test exception when precise stiffness correction value is wrong."""
+    def test_value_micromodulus_function(self, data_path):
+        """Test exception when volume correction value is wrong."""
         with pytest.raises(ValueError) as exception:
             integrator = Euler(1)
             mesh_file = data_path / "example_mesh_3d.vtk"
             Model(mesh_file, integrator, horizon=0.1, critical_stretch=0.05,
                   bond_stiffness=18.0 * 0.05 / (np.pi * 0.0001**4),
-                  dimensions=3, precise_stiffness_correction=2)
-            assert(str("precise_stiffness_correction value is wrong")
+                  dimensions=3, micromodulus_function=1, node_radius=1.0)
+            assert(str("micromodulus_function value is wrong")
+                   in exception.value)
+
+    @context_available
+    def test_micromodulus_function_2d(
+            self, basic_model_2d_cl, data_path):
+        """Test corrections in 2d."""
+        model, integrator = basic_model_2d_cl
+        actual_volume_corrections = model._set_micromodulus_values(
+            micromodulus_function=0,
+            stiffness_corrections=np.ones(
+                (model.nnodes, model.max_neighbours), dtype=np.float64),
+            horizon=model.horizon)
+        expected_volume_corrections = np.load(
+            data_path / "expected_micromodulus_values_2d.npy")
+        assert np.allclose(
+            expected_volume_corrections,
+            actual_volume_corrections)
+
+    @context_available
+    def test_micromodulus_function_3d(
+            self, basic_model_3d_cl, data_path):
+        """Test corrections in 3d."""
+        model, integrator = basic_model_3d_cl
+        actual_volume_corrections = model._set_micromodulus_values(
+            micromodulus_function=0,
+            stiffness_corrections=np.ones(
+                (model.nnodes, model.max_neighbours), dtype=np.float64),
+            horizon=model.horizon)
+        expected_volume_corrections = np.load(
+            data_path / "expected_micromodulus_values_3d.npy")
+        assert np.allclose(
+            expected_volume_corrections,
+            actual_volume_corrections)
+
+
+class TestVolumeCorrections:
+    """Test _set_volume_corrections."""
+
+    def test_value_volume_correction(self, data_path):
+        """Test exception when volume correction value is wrong."""
+        with pytest.raises(ValueError) as exception:
+            integrator = Euler(1)
+            mesh_file = data_path / "example_mesh_3d.vtk"
+            Model(mesh_file, integrator, horizon=0.1, critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.0001**4),
+                  dimensions=3, volume_correction=1, node_radius=1.0)
+            assert(str("volume_correction value is wrong")
+                   in exception.value)
+
+    def test_value_node_radius(self, data_path):
+        """Test exception when node_radius not supplied."""
+        with pytest.raises(TypeError) as exception:
+            integrator = Euler(1)
+            mesh_file = data_path / "example_mesh_3d.vtk"
+            model = Model(
+                mesh_file, integrator, horizon=0.1, critical_stretch=0.05,
+                bond_stiffness=18.0 * 0.05 / (np.pi * 0.0001**4),
+                dimensions=3, volume_correction=0)
+            assert(str(
+                "If volume_correction (= 0) is applied, an "
+                "average node radius must be supplied as the "
+                "keyword argument node_radius. Suggested value"
+                " node_radius = np.power(volume_total / "
+                "nnodes, 1. / 3) = {}, ".format(
+                    np.power(1./model.nnodes, 1./3))) in exception.value)
+
+    @context_available
+    def test_volume_correction_2d(
+            self, basic_model_2d_cl, data_path):
+        """Test corrections in 2d."""
+        model, integrator = basic_model_2d_cl
+        actual_volume_corrections = model._set_volume_corrections(
+            volume_correction=0,
+            stiffness_corrections=np.ones(
+                (model.nnodes, model.max_neighbours), dtype=np.float64),
+            node_radius=np.power(1./model.nnodes, 1./3),
+            horizon=model.horizon)
+        expected_volume_corrections = np.load(
+            data_path / "expected_volume_corrections_2d.npy")
+        assert np.allclose(
+            expected_volume_corrections,
+            actual_volume_corrections)
+
+    @context_available
+    def test_volume_correction_3d(
+            self, basic_model_3d_cl, data_path):
+        """Test corrections in 3d."""
+        model, integrator = basic_model_3d_cl
+        actual_volume_corrections = model._set_volume_corrections(
+            volume_correction=0,
+            stiffness_corrections=np.ones(
+                (model.nnodes, model.max_neighbours), dtype=np.float64),
+            node_radius=np.power(1./model.nnodes, 1./3),
+            horizon=model.horizon)
+        expected_volume_corrections = np.load(
+            data_path / "expected_volume_corrections_3d.npy")
+        assert np.allclose(
+            expected_volume_corrections,
+            actual_volume_corrections)
+
+
+class TestStiffnessCorrections:
+    """Test _set_stiffness_corrections."""
+
+    def test_value_stiffness_correction(self, data_path):
+        """Test exception when stiffness correction value is wrong."""
+        with pytest.raises(ValueError) as exception:
+            integrator = Euler(1)
+            mesh_file = data_path / "example_mesh_3d.vtk"
+            Model(mesh_file, integrator, horizon=0.1, critical_stretch=0.05,
+                  bond_stiffness=18.0 * 0.05 / (np.pi * 0.0001**4),
+                  dimensions=3, stiffness_correction=2)
+            assert(str("stiffness_correction value is wrong")
                    in exception.value)
 
     def test_inprecise_stiffness_correction_2d(
@@ -821,8 +934,8 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_2d
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=0,
-            corrections=np.ones(
+            stiffness_correction=0,
+            stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d.npy")
@@ -835,8 +948,8 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using precise nodal volumes."""
         model, integrator = basic_model_2d
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=1,
-            corrections=np.ones(
+            stiffness_correction=1,
+            stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d_precise.npy")
@@ -849,8 +962,8 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_3d
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=0,
-            corrections=np.ones(
+            stiffness_correction=0,
+            stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d.npy")
@@ -864,8 +977,8 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_2d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=0,
-            corrections=np.ones(
+            stiffness_correction=0,
+            stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d_cl.npy")
@@ -879,8 +992,8 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using precise nodal volumes."""
         model, integrator = basic_model_2d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=1,
-            corrections=np.ones(
+            stiffness_correction=1,
+            stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_2d_precise_cl.npy")
@@ -894,8 +1007,8 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using average nodal volumes."""
         model, integrator = basic_model_3d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=0,
-            corrections=np.ones(
+            stiffness_correction=0,
+            stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d_cl.npy")
@@ -909,8 +1022,8 @@ class TestStiffnessCorrections:
         """Test stiffness corrections using precise nodal volumes."""
         model, integrator = basic_model_3d_cl
         actual_stiffness_corrections = model._set_stiffness_corrections(
-            precise_stiffness_correction=1,
-            corrections=np.ones(
+            stiffness_correction=1,
+            stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d_precise_cl.npy")
@@ -928,6 +1041,66 @@ class TestStiffnessCorrections:
                       dimensions=3)
         actual_stiffness_corrections = model.stiffness_corrections
         assert actual_stiffness_corrections is None
+
+
+class TestSuperimposedCorrections:
+
+    @context_available
+    def test_superimposed_correction_2d(
+            self, simple_displacement_boundary, data_path):
+        """Test superimposed corrections in 2d."""
+
+        mesh_file = data_path / "example_mesh.vtk"
+        euler = EulerCL(dt=1e-3)
+        model = Model(mesh_file, integrator=euler, horizon=0.1,
+                      critical_stretch=0.05,
+                      bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                      is_displacement_boundary=simple_displacement_boundary,
+                      stiffness_correction=1,
+                      micromodulus_function=0)
+        actual_corrections = model.stiffness_corrections
+
+        expected_stiffness_corrections = np.load(
+            data_path / "expected_stiffness_corrections_2d_precise_cl.npy")
+        expected_micromodulus_values = np.load(
+            data_path / "expected_micromodulus_values_2d.npy")
+        print(actual_corrections)
+        # Elementwise multiplication
+        expected_corrections = np.multiply(
+            expected_stiffness_corrections,
+            expected_micromodulus_values)
+        assert np.allclose(
+            expected_corrections,
+            actual_corrections)
+
+    @context_available
+    def test_superimposed_correction_3d(
+            self, simple_displacement_boundary, data_path):
+        """Test corrections in 3d."""
+
+        mesh_file = data_path / "example_mesh_3d.vtk"
+        euler = EulerCL(dt=1e-3)
+        model = Model(mesh_file, integrator=euler, horizon=0.1,
+                      critical_stretch=0.05,
+                      bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
+                      dimensions=3,
+                      is_displacement_boundary=simple_displacement_boundary,
+                      stiffness_correction=1,
+                      micromodulus_function=0)
+        actual_corrections = model.stiffness_corrections
+
+        expected_micromodulus_values = np.load(
+            data_path / "expected_micromodulus_values_3d.npy")
+        expected_stiffness_corrections = np.load(
+            data_path / "expected_stiffness_corrections_3d_precise_cl.npy")
+        print(actual_corrections)
+        # Elementwise multiplication
+        expected_corrections = np.multiply(
+            expected_stiffness_corrections,
+            expected_micromodulus_values)
+        assert np.allclose(
+            expected_corrections,
+            actual_corrections)
 
 
 class TestDamageModel:

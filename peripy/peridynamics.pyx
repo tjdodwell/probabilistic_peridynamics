@@ -55,10 +55,6 @@ def bond_force(double[:, :] r, double[:, :] r0, int[:, :] nlist,
     :type force_bc_types: :class:`numpy.ndarray`
     :arg double bc_scale: The scalar value applied to the
         force boundary conditions.
-    :arg bool volume correction: 1 if nodal volumes are approximated by
-        partial volumes, 0 if nodal volumes are approximated by full volumes.
-    :arg double horizon: The peridynamics horizon distance.
-    :arg double node_radius: The average radius of a peridynamic node.
     """
     cdef int nnodes = nlist.shape[0]
 

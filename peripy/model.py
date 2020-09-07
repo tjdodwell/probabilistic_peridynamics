@@ -222,25 +222,6 @@ class Model(object):
         # Read coordinates and connectivity from mesh file
         self._read_mesh(mesh_file, transfinite)
 
-        if volume_correction:
-            if type(node_radius) != float:
-                raise TypeError(
-                    "If volume_correction (= {}) is applied, an "
-                    "average node radius must be supplied as the "
-                    "keyword argument node_radius. Suggested value"
-                    " node_radius = np.power(volume_total / "
-                    "nnodes, 1. / 3) = {}, "
-                    "(expected {}, got {})".format(
-                        volume_correction,
-                        np.power(np.sum(self.volume) / self.nnodes,
-                                 1. / 3), float, type(node_radius)))
-            # Partial volumes a node radius outside the horizon distance will
-            # contribute to the pairwise force function integral, and
-            # therefore must be included in the neighbour distance search
-            self.horizon = horizon + node_radius
-        else:
-            self.horizon = horizon
-
         # Calculate the volume for each node, if None is provided
         if volume is None:
             # Calculate the volume for each node
@@ -262,6 +243,26 @@ class Model(object):
             raise TypeError("volume type is wrong (expected {}, got "
                             "{})".format(type(volume),
                                          np.ndarray))
+
+        if volume_correction is not None:
+            if not ((type(node_radius) == float)
+                    or (type(node_radius) == np.float64)):
+                raise TypeError(
+                    "If volume_correction (= {}) is applied, an "
+                    "average node radius must be supplied as the "
+                    "keyword argument node_radius. Suggested value"
+                    " node_radius = np.power(volume_total / "
+                    "nnodes, 1. / 3) = {}, "
+                    "(expected {}, got {})".format(
+                        volume_correction,
+                        np.power(np.sum(self.volume) / self.nnodes,
+                                 1. / 3), float, type(node_radius)))
+            # Partial volumes a node radius outside the horizon distance will
+            # contribute to the pairwise force function integral, and
+            # therefore must be included in the neighbour distance search
+            self.horizon = horizon + node_radius
+        else:
+            self.horizon = horizon
 
         # Calculate the family (number of bonds in the initial configuration)
         # and connectivity for each node, if None is provided
@@ -349,6 +350,7 @@ class Model(object):
                 stiffness_corrections = self._set_micromodulus_values(
                     micromodulus_function, stiffness_corrections, horizon)
                 stiffness_correction_factors_are_applied = True
+            print(stiffness_corrections)
             if volume_correction is not None:
                 # Apply volume correction algorithm
                 # Calculate the volume correction factors
@@ -356,11 +358,13 @@ class Model(object):
                     volume_correction, stiffness_corrections, node_radius,
                     horizon)
                 stiffness_correction_factors_are_applied = True
+            print(stiffness_corrections)
             if stiffness_correction is not None:
                 # Apply stiffness correction algorithm
                 stiffness_corrections = self._set_stiffness_corrections(
                     stiffness_correction, stiffness_corrections)
                 stiffness_correction_factors_are_applied = True
+            print(stiffness_corrections)
             if stiffness_correction_factors_are_applied:
                 self.stiffness_corrections = stiffness_corrections
             else:

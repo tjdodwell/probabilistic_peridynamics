@@ -294,15 +294,11 @@ class TestEuler:
         stiffness_corrections = None
         bond_types = None
         densities = None
-        volume_correction = 0
-        horizon = model.horizon
-        node_radius = 1.0
 
         integrator.build(
             nnodes, degrees_freedom, max_neighbours, coords,
             volume, family, bc_types, bc_values, force_bc_types,
-            force_bc_values, stiffness_corrections, bond_types, densities,
-            volume_correction, horizon, node_radius)
+            force_bc_values, stiffness_corrections, bond_types, densities)
 
         assert np.allclose(integrator.nnodes, nnodes)
         assert np.allclose(integrator.coords, coords)
@@ -330,16 +326,12 @@ class TestEuler:
         stiffness_corrections = None
         bond_types = 1
         densities = None
-        volume_correction = 0
-        horizon = model.horizon
-        node_radius = 1.0
 
         with pytest.raises(ValueError) as exception:
             integrator.build(
                 nnodes, degrees_freedom, max_neighbours, coords,
                 volume, family, bc_types, bc_values, force_bc_types,
-                force_bc_values, stiffness_corrections, bond_types, densities,
-                volume_correction, horizon, node_radius)
+                force_bc_values, stiffness_corrections, bond_types, densities)
             assert (
                 str("bond_types are not supported by this") in exception.value)
 
@@ -360,16 +352,12 @@ class TestEuler:
         stiffness_corrections = 1
         bond_types = None
         densities = None
-        volume_correction = 0
-        horizon = model.horizon
-        node_radius = 1.0
 
         with pytest.raises(ValueError) as exception:
             integrator.build(
                 nnodes, degrees_freedom, max_neighbours, coords,
                 volume, family, bc_types, bc_values, force_bc_types,
-                force_bc_values, stiffness_corrections, bond_types, densities,
-                volume_correction, horizon, node_radius)
+                force_bc_values, stiffness_corrections, bond_types, densities)
             assert (
                 str("stiffness_corrections are not") in exception.value)
 
@@ -390,17 +378,13 @@ class TestEuler:
         stiffness_corrections = None
         bond_types = None
         densities = 1
-        volume_correction = 0
-        horizon = model.horizon
-        node_radius = 1.0
 
         with pytest.raises(ValueError) as exception:
 
             integrator.build(
                 nnodes, degrees_freedom, max_neighbours, coords,
                 volume, family, bc_types, bc_values, force_bc_types,
-                force_bc_values, stiffness_corrections, bond_types, densities,
-                volume_correction, horizon, node_radius)
+                force_bc_values, stiffness_corrections, bond_types, densities)
             assert (
                 str("densities are not supported") in exception.value)
 
@@ -540,17 +524,13 @@ class TestEulerCL:
         stiffness_corrections = None
         bond_types = None
         densities = 1
-        volume_correction = 0
-        horizon = model.horizon
-        node_radius = 1.0
 
         with pytest.raises(ValueError) as exception:
 
             integrator.build(
                 nnodes, degrees_freedom, max_neighbours, coords,
                 volume, family, bc_types, bc_values, force_bc_types,
-                force_bc_values, stiffness_corrections, bond_types, densities,
-                volume_correction, horizon, node_radius)
+                force_bc_values, stiffness_corrections, bond_types, densities)
             assert (
                 str("densities are not supported") in exception.value)
 
@@ -686,17 +666,13 @@ class TestEulerCromerCL:
         stiffness_corrections = None
         bond_types = None
         densities = None
-        volume_correction = 0
-        horizon = model.horizon
-        node_radius = 1.0
 
         with pytest.raises(ValueError) as exception:
 
             integrator.build(
                 nnodes, degrees_freedom, max_neighbours, coords,
                 volume, family, bc_types, bc_values, force_bc_types,
-                force_bc_values, stiffness_corrections, bond_types, densities,
-                volume_correction, horizon, node_radius)
+                force_bc_values, stiffness_corrections, bond_types, densities)
             assert (
                 str("densities must be supplied") in exception.value)
 
@@ -837,17 +813,13 @@ class TestVelocityVerletCL:
         stiffness_corrections = None
         bond_types = None
         densities = None
-        volume_correction = 0
-        horizon = model.horizon
-        node_radius = 1.0
 
         with pytest.raises(ValueError) as exception:
 
             integrator.build(
                 nnodes, degrees_freedom, max_neighbours, coords,
                 volume, family, bc_types, bc_values, force_bc_types,
-                force_bc_values, stiffness_corrections, bond_types, densities,
-                volume_correction, horizon, node_radius)
+                force_bc_values, stiffness_corrections, bond_types, densities)
             assert (
                 str("densities must be supplied") in exception.value)
 

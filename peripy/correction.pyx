@@ -157,13 +157,13 @@ def set_volume_correction(double[:, :]volume_corrections, double[:, :]r0,
                     # USERNOTE: Place your own volume correction algorithm here
                     correction = 1.00
                 # Set volume correction for this bond
-                volume_corrections[i, neigh] = correction
+                volume_corrections[i, neigh] *= correction
 
                 # Also set for j, since it is symmetric
                 j_n_neigh = n_neigh[j]
                 for jneigh in range(j_n_neigh):
                     if nlist[j, jneigh] == i:
-                        volume_corrections[j, jneigh] = correction
+                        volume_corrections[j, jneigh] *= correction
                         break
             # Move on to the next neighbour
             neigh += 1
@@ -188,8 +188,7 @@ cdef inline double cvolume_correction(double[:] r10, double[:] r20,
 
 def set_micromodulus_function(
         double[:, :]micromodulus_values, double[:, :]r0, int[:, :] nlist,
-        int[:] n_neigh, double horizon, double node_radius,
-        int micromodulus_function):
+        int[:] n_neigh, double horizon, int micromodulus_function):
     """
     Calculate the normalised conical micromodulus function values given the
     initial coordinates and peridynamic horizon.
@@ -229,13 +228,13 @@ def set_micromodulus_function(
                     # USERNOTE: Place your own micromodulus function here
                     value = 1.00
                 # Set volume correction for this bond
-                micromodulus_values[i, neigh] = value
+                micromodulus_values[i, neigh] *= value
 
                 # Also set for j, since it is symmetric
                 j_n_neigh = n_neigh[j]
                 for jneigh in range(j_n_neigh):
                     if nlist[j, jneigh] == i:
-                        micromodulus_values[j, jneigh] = value
+                        micromodulus_values[j, jneigh] *= value
                         break
             # Move on to the next neighbour
             neigh += 1
