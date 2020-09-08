@@ -868,17 +868,14 @@ class TestVolumeCorrections:
         with pytest.raises(TypeError) as exception:
             integrator = Euler(1)
             mesh_file = data_path / "example_mesh_3d.vtk"
-            model = Model(
+            Model(
                 mesh_file, integrator, horizon=0.1, critical_stretch=0.05,
                 bond_stiffness=18.0 * 0.05 / (np.pi * 0.0001**4),
                 dimensions=3, volume_correction=0)
             assert(str(
                 "If volume_correction (= 0) is applied, an "
                 "average node radius must be supplied as the "
-                "keyword argument node_radius. Suggested value"
-                " node_radius = np.power(volume_total / "
-                "nnodes, 1. / 3) = {}, ".format(
-                    np.power(1./model.nnodes, 1./3))) in exception.value)
+                "keyword argument node_radius") in exception.value)
 
     @context_available
     def test_volume_correction_2d(
