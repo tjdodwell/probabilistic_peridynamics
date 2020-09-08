@@ -2,11 +2,15 @@ from .spatial cimport ceuclid
 import numpy as np
 
 
-def set_imprecise_stiffness_correction(
+def set_imprecise_surface_correction(
         double[:, :] stiffness_corrections, int[:, :] nlist, int[:] n_neigh,
         double average_volume, double family_volume_bulk):
     """
-    Calculate the stiffness corrections using an average nodal volume.
+    Calculate the surface corrections using an average nodal volume.
+
+    Uses the 'volume method' proposed by Bobaru et al. [Chapter 2 in Bobaru F,
+    Foster JT, Geubelle PH, Silling SA, Handbook of peridynamic modeling,
+    (2017) (p51 – 52)].
 
     :arg stiffness_corrections: The stiffness corrections.
     :type stiffness_corrections: :class:`numpy.ndarray`
@@ -52,11 +56,15 @@ def set_imprecise_stiffness_correction(
             neigh += 1
 
 
-def set_precise_stiffness_correction(
+def set_precise_surface_correction(
         double[:, :] stiffness_corrections, int[:, :] nlist, int[:] n_neigh,
         double[:] volume, double family_volume_bulk):
     """
-    Calculate the stiffness corrections given actual nodal volumes.
+    Calculate the surface corrections given actual nodal volumes.
+
+    Uses the 'volume method' proposed by Bobaru et al. [Chapter 2 in Bobaru F,
+    Foster JT, Geubelle PH, Silling SA, Handbook of peridynamic modeling,
+    (2017) (p51 – 52)].
 
     :arg stiffness_corrections: The stiffness corrections.
     :type stiffness_corrections: :class:`numpy.ndarray`
@@ -131,6 +139,12 @@ def set_volume_correction(double[:, :]volume_corrections, double[:, :]r0,
     :arg float horizon: The critical strain.
     :arg float node_radius: The node radius.
     :arg int volume_correction: A flag variable denoting the algorithm used.
+        Set to 0: Uses the 'Partial Area/Volume HHB algorithm', as proposed by
+        Hu, Ha, and Bobaru [W. Hu, Y.D. Ha and F. Bobaru, Numerical integration
+        in peridynamics, Tech. Rep., University of Nebraska-Lincoln, Department
+        of Mechanical & Materials Engineering (September 2010)]. Otherwise:
+        The 'Full Volume algorithm' is used; partial nodal volumes are
+        approximated by their full nodal volumes.
     """
     cdef int nnodes = nlist.shape[0]
 
@@ -151,7 +165,7 @@ def set_volume_correction(double[:, :]volume_corrections, double[:, :]r0,
             if i < j:
                 # Calculate the correction depending on the algorithm
                 if volume_correction == 0:
-                    correction = cvolume_correction(
+                    correction = cPA_HHB(
                         r0[i], r0[j], horizon, node_radius)
                 else:
                     # USERNOTE: Place your own volume correction algorithm here
@@ -169,11 +183,16 @@ def set_volume_correction(double[:, :]volume_corrections, double[:, :]r0,
             neigh += 1
 
 
-cdef inline double cvolume_correction(double[:] r10, double[:] r20,
-                                      double horizon, double node_radius):
+cdef inline double cPA_HHB(double[:] r10, double[:] r20,
+                           double horizon, double node_radius):
     """
     C function for calculating the partial volume correction given the initial
     coordinates, peridynamic horizon and node radius.
+
+    Uses the 'Partial Area/Volume HHB algorithm', as proposed by
+    Hu, Ha, and Bobaru [W. Hu, Y.D. Ha and F. Bobaru, Numerical integration in
+    peridynamics, Tech. Rep., University of Nebraska-Lincoln, Department of
+    Mechanical & Materials Engineering (September 2010)]
     """
 
     l0 = ceuclid(r10, r20)
@@ -202,6 +221,9 @@ def set_micromodulus_function(
     :arg n_neigh: The number of neighbours for each node.
     :type n_neigh: :class:`numpy.ndarray`
     :arg float horizon: The critical strain.
+    :arg int micromodulus_function: A flag variable denoting the micromodulus
+        function used. Set to 0: Uses the normalised connical micromodulus
+        function. Otherwise: Uses a constant micromodulus function.
     """
     cdef int nnodes = nlist.shape[0]
 

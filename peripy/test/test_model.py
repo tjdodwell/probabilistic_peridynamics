@@ -912,26 +912,26 @@ class TestVolumeCorrections:
             actual_volume_corrections)
 
 
-class TestStiffnessCorrections:
-    """Test _set_stiffness_corrections, more tests at test_correction.py."""
+class TestSurfaceCorrections:
+    """Test _set_surface_corrections, more tests at test_correction.py."""
 
-    def test_value_stiffness_correction(self, data_path):
-        """Test exception when stiffness correction value is wrong."""
+    def test_value_surface_correction(self, data_path):
+        """Test exception when surface correction value is wrong."""
         with pytest.raises(ValueError) as exception:
             integrator = Euler(1)
             mesh_file = data_path / "example_mesh_3d.vtk"
             Model(mesh_file, integrator, horizon=0.1, critical_stretch=0.05,
                   bond_stiffness=18.0 * 0.05 / (np.pi * 0.0001**4),
-                  dimensions=3, stiffness_correction=2)
-            assert(str("stiffness_correction value is wrong")
+                  dimensions=3, surface_correction=2)
+            assert(str("surface_correction value is wrong")
                    in exception.value)
 
-    def test_inprecise_stiffness_correction_2d(
+    def test_inprecise_surface_correction_2d(
             self, basic_model_2d, data_path):
-        """Test stiffness corrections using average nodal volumes."""
+        """Test surface corrections using average nodal volumes."""
         model, integrator = basic_model_2d
-        actual_stiffness_corrections = model._set_stiffness_corrections(
-            stiffness_correction=0,
+        actual_stiffness_corrections = model._set_surface_corrections(
+            surface_correction=0,
             stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
@@ -940,12 +940,12 @@ class TestStiffnessCorrections:
             expected_stiffness_corrections,
             actual_stiffness_corrections)
 
-    def test_precise_stiffness_correction_2d(
+    def test_precise_surface_correction_2d(
             self, basic_model_2d, data_path):
-        """Test stiffness corrections using precise nodal volumes."""
+        """Test surface corrections using precise nodal volumes."""
         model, integrator = basic_model_2d
-        actual_stiffness_corrections = model._set_stiffness_corrections(
-            stiffness_correction=1,
+        actual_stiffness_corrections = model._set_surface_corrections(
+            surface_correction=1,
             stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
@@ -954,12 +954,12 @@ class TestStiffnessCorrections:
             expected_stiffness_corrections,
             actual_stiffness_corrections)
 
-    def test_inprecise_stiffness_correction_3d(
+    def test_inprecise_surface_correction_3d(
             self, basic_model_3d, data_path):
-        """Test stiffness corrections using average nodal volumes."""
+        """Test surface corrections using average nodal volumes."""
         model, integrator = basic_model_3d
-        actual_stiffness_corrections = model._set_stiffness_corrections(
-            stiffness_correction=0,
+        actual_stiffness_corrections = model._set_surface_corrections(
+            surface_correction=0,
             stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
@@ -969,12 +969,12 @@ class TestStiffnessCorrections:
             actual_stiffness_corrections)
 
     @context_available
-    def test_inprecise_stiffness_correction_2d_cl(
+    def test_inprecise_surface_correction_2d_cl(
             self, basic_model_2d_cl, data_path):
-        """Test stiffness corrections using average nodal volumes."""
+        """Test surface corrections using average nodal volumes."""
         model, integrator = basic_model_2d_cl
-        actual_stiffness_corrections = model._set_stiffness_corrections(
-            stiffness_correction=0,
+        actual_stiffness_corrections = model._set_surface_corrections(
+            surface_correction=0,
             stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
@@ -984,12 +984,12 @@ class TestStiffnessCorrections:
             actual_stiffness_corrections)
 
     @context_available
-    def test_precise_stiffness_correction_2d_cl(
+    def test_precise_surface_correction_2d_cl(
             self, basic_model_2d_cl, data_path):
-        """Test stiffness corrections using precise nodal volumes."""
+        """Test surface corrections using precise nodal volumes."""
         model, integrator = basic_model_2d_cl
-        actual_stiffness_corrections = model._set_stiffness_corrections(
-            stiffness_correction=1,
+        actual_stiffness_corrections = model._set_surface_corrections(
+            surface_correction=1,
             stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
@@ -999,12 +999,12 @@ class TestStiffnessCorrections:
             actual_stiffness_corrections)
 
     @context_available
-    def test_inprecise_stiffness_correction_3d_cl(
+    def test_inprecise_surface_correction_3d_cl(
             self, basic_model_3d_cl, data_path):
-        """Test stiffness corrections using average nodal volumes."""
+        """Test surface corrections using average nodal volumes."""
         model, integrator = basic_model_3d_cl
-        actual_stiffness_corrections = model._set_stiffness_corrections(
-            stiffness_correction=0,
+        actual_stiffness_corrections = model._set_surface_corrections(
+            surface_correction=0,
             stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
@@ -1014,12 +1014,12 @@ class TestStiffnessCorrections:
             actual_stiffness_corrections)
 
     @context_available
-    def test_precise_stiffness_correction_3d_cl(
+    def test_precise_surface_correction_3d_cl(
             self, basic_model_3d_cl, data_path):
-        """Test stiffness corrections using precise nodal volumes."""
+        """Test surface corrections using precise nodal volumes."""
         model, integrator = basic_model_3d_cl
-        actual_stiffness_corrections = model._set_stiffness_corrections(
-            stiffness_correction=1,
+        actual_stiffness_corrections = model._set_surface_corrections(
+            surface_correction=1,
             stiffness_corrections=np.ones(
                 (model.nnodes, model.max_neighbours), dtype=np.float64))
         expected_stiffness_corrections = np.load(
@@ -1028,8 +1028,8 @@ class TestStiffnessCorrections:
             expected_stiffness_corrections,
             actual_stiffness_corrections)
 
-    def test_none_stiffness_corrections(self, data_path):
-        """Test no stiffness corrections case."""
+    def test_none_surface_corrections(self, data_path):
+        """Test no surface corrections case."""
         integrator = Euler(1)
         mesh_file = data_path / "example_mesh_3d.vtk"
         model = Model(mesh_file, integrator, horizon=0.1,
@@ -1053,7 +1053,7 @@ class TestSuperimposedCorrections:
                       critical_stretch=0.05,
                       bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
                       is_displacement_boundary=simple_displacement_boundary,
-                      stiffness_correction=1,
+                      surface_correction=1,
                       micromodulus_function=0)
         actual_corrections = model.stiffness_corrections
 
@@ -1080,7 +1080,7 @@ class TestSuperimposedCorrections:
                       bond_stiffness=18.0 * 0.05 / (np.pi * 0.1**4),
                       dimensions=3,
                       is_displacement_boundary=simple_displacement_boundary,
-                      stiffness_correction=1,
+                      surface_correction=1,
                       micromodulus_function=0)
         actual_corrections = model.stiffness_corrections
 

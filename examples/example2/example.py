@@ -158,7 +158,7 @@ def main():
     dt = 1.3e-5
     integrator = VelocityVerletCL(dt=dt, damping=damping)
 
-    # Try reading connectivity, bond_types and stiffness_correction files from
+    # Try reading volume, density, family and connectivity arrays from
     # the file ./1650beam13539_model.h5
     # volume is an (nnodes, ) :class:`np.ndarray` of particle volumes, where
     # nnodes is the number of particles in the .msh file

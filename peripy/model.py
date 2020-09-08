@@ -3,8 +3,8 @@ from .integrators import Integrator
 from .utilities import write_array
 from .create_crack import create_crack
 from .correction import (set_volume_correction,
-                         set_imprecise_stiffness_correction,
-                         set_precise_stiffness_correction,
+                         set_imprecise_surface_correction,
+                         set_precise_surface_correction,
                          set_micromodulus_function)
 from collections import namedtuple
 import numpy as np
@@ -47,7 +47,7 @@ class Model(object):
                  is_displacement_boundary=None, is_force_boundary=None,
                  is_tip=None, density=None, bond_types=None,
                  stiffness_corrections=None,
-                 stiffness_correction=None, volume_correction=None,
+                 surface_correction=None, volume_correction=None,
                  micromodulus_function=None, node_radius=None):
         """
         Create a :class:`Model` object.
@@ -159,26 +159,33 @@ class Model(object):
             the model. If None the stiffness_corrections at the time
             of construction of the :class:`Model` object will be used. If not
             None then these stiffness corrections will be used, overiding the
-            positional argument stiffness_correction. Default None.
+            positional arguments surface_correction, volume_correction and
+            micromodulus_function. Default None.
         :type stiffness_corrections: :class:`numpy.ndarray`
-        :arg int stiffness_correction: A flag variable only
-            applicable when stiffness_corrections is None, i.e. when there are
-            stiffness corrections to be calculated. Set to 1:
-            Stiffness corrections are calculated more accurately using
-            actual nodal volumes. Set to 0: Stiffness corrections are
-            calculated using an average nodal volume. Set to None:
-            All stiffness corrections are set to 1.0, i.e. no stiffness
-            correction is applied. Default None.
+        :arg int surface_correction: A flag variable only denoting the
+            algorithm for correcting the peridynamic surface softening effect.
+            Le and Bobaru [Q. V. Le, F. Bobaru, Surface corrections for
+            peridynamic models in elasticity and fracture, Computational
+            Mechanics 61 (2018) 499–518.
+            URL: https://link.springer.com/article/10.1007/s00466-017-1469-1.]
+            provide a detailed comparison of the most common surface correction
+            techniques. The 'volume method' proposed by Bobaru et al. [Chapter
+            2 in Bobaru F, Foster JT, Geubelle PH, Silling SA, Handbook of
+            peridynamic modeling, (2017) (p51 – 52)]
+            is used when surface_correction= 1 or 0. Set to 1: Surface
+            corrections are calculated more accurately using actual nodal
+            volumes. Set to 0: Surface corrections are calculated using an
+            average nodal volume. Set to None: All no surface correction is
+            applied. Default None.
         :arg int volume_correction: A flag variable denoting the algorithm for
             approximation of the partial nodal volumes applied when
-            integrating the bond force over the horizon. Set to 0: The
-            'Partial Volume algorithm' [Seleson et al., Convergence studies
-            in meshfree peridynamic simulations, Computers & Mathematics with
-            Applications 71 (2016)] as first introduced by [Parks et al.,
-            Implementing peridynamics within a molecular dynamics code,
-            Computer Physics Communications 179 (2008)] is used. Set to None:
+            integrating the bond force over the horizon. Set to 0: The 'Partial
+            Volume algorithm' as proposed by Hu, Ha, and Bobaru [W. Hu, Y.D. Ha
+            and F. Bobaru, Numerical integration in peridynamics, Tech. Rep.,
+            University of Nebraska-Lincoln, Department of Mechanical &
+            Materials Engineering (September 2010)] is used. Set to None:
             The 'Full Volume algorithm' is used; partial nodal volumes are
-            approximated by their full nodal volumes. Default None.
+            approximated by their full nodal volumes. Defauly None.
         :arg int micromodulus_function: A flag variable denoting the
             normalised micromodulus function. Set to 0: A conical micromodulus
             function is used, which is normalised such that the maximum value
@@ -345,12 +352,11 @@ class Model(object):
             stiffness_corrections = np.ones(
                 (self.nnodes, self.max_neighbours), dtype=np.float64)
             if micromodulus_function is not None:
-                # Apply micromodulus algorithm
+                # Apply micromodulus function
                 # Calculate the micromodulus function values
                 stiffness_corrections = self._set_micromodulus_values(
                     micromodulus_function, stiffness_corrections, horizon)
                 stiffness_correction_factors_are_applied = True
-            print(stiffness_corrections)
             if volume_correction is not None:
                 # Apply volume correction algorithm
                 # Calculate the volume correction factors
@@ -358,15 +364,19 @@ class Model(object):
                     volume_correction, stiffness_corrections, node_radius,
                     horizon)
                 stiffness_correction_factors_are_applied = True
-            print(stiffness_corrections)
-            if stiffness_correction is not None:
-                # Apply stiffness correction algorithm
-                stiffness_corrections = self._set_stiffness_corrections(
-                    stiffness_correction, stiffness_corrections)
+            if surface_correction is not None:
+                # Apply surface correction algorithm
+                # Calculate the stiffness correction factors
+                stiffness_corrections = self._set_surface_corrections(
+                    surface_correction, stiffness_corrections)
                 stiffness_correction_factors_are_applied = True
-            print(stiffness_corrections)
             if stiffness_correction_factors_are_applied:
                 self.stiffness_corrections = stiffness_corrections
+                # Write the stiffness_corrections to file
+                if self.write_path is not None:
+                    write_array(
+                        self.write_path,
+                        "stiffness_corrections", stiffness_corrections)
             else:
                 # Stiffness corrections factors are not applied
                 # This results in speedups in the memory constrained case
@@ -382,14 +392,14 @@ class Model(object):
             else:
                 warnings.warn(
                     "Reading stiffness_corrections from argument and "
-                    "overriding stiffness_correction (={}), volume_correction "
+                    "overriding surface_correction (={}), volume_correction "
                     "(={}) and micromodulus_function (={}) flags! If these "
                     "flags have changed since the stiffness_corrections were "
                     "written to file, please remove the stiffness_corrections "
                     "argument and overwrite existing stiffness_corrections "
                     "with the stiffness_corrections calculated using the new "
                     "flags.".format(
-                        stiffness_correction, volume_correction,
+                        surface_correction, volume_correction,
                         micromodulus_function))
                 self.stiffness_corrections = (
                     stiffness_corrections.astype(np.float64))
@@ -783,6 +793,10 @@ class Model(object):
         micromodulus function is applied. If micromodulus_function = 0, a
         conical micromodulus function is applied.
 
+        The correction factors are element-wise multiplied to the existing
+        corrections that apply to the bond stiffnesses so that the correction
+        factors can be stored in memory as a single array.
+
         :arg int micromodulus_function: A flag variable. For the micromodulus
             function algorithm.
             Set to None: . Set to 1: . Set to 0:. Default None.
@@ -827,6 +841,10 @@ class Model(object):
         'Full Volume algorithm' is used; partial nodal volumes are
         approximated by their full nodal volumes. Default 0.
 
+        The correction factors are element-wise multiplied to the existing
+        corrections that apply to the bond stiffnesses so that the correction
+        factors can be stored in memory as a single array.
+
         :arg int volume_correction: A flag variable. For the partial volume
             correction algorithm.
             Set to 0: The 'Partial Volume algorithm' as proposed by Hu, Ha, and
@@ -861,30 +879,36 @@ class Model(object):
 
         return stiffness_corrections
 
-    def _set_stiffness_corrections(
-            self, stiffness_correction, stiffness_corrections):
+    def _set_surface_corrections(
+            self, surface_correction, stiffness_corrections):
         """
-        Calculate an array of stiffness correction factors.
+        Calculate an array of surface correction factors.
 
-        Calculates stiffness correction factors that reduce the peridynamics
-        surface softening effect for 2D/3D problem and writes to file.
-        The 'volume method' proposed in Chapter 2 in Bobaru F, Foster JT,
-        Geubelle PH, Silling SA (2017) Handbook of peridynamic modeling
-        (p51 – 52) is used when stiffness_correction = 1 or 0. Note
-        that stiffness correction factors are applied after the initiation of
-        the initial-crack: the surface softening effect for initial crack
-        surfaces will be corrected.
+        Calculates surface correction factors that reduce the peridynamics
+        surface softening effect for 2D/3D problems. Le and Bobaru [Q. V. Le,
+        F. Bobaru, Surface corrections for peridynamic models in elasticity and
+        fracture, Computational Mechanics 61 (2018) 499–518.
+        URL: https://link.springer.com/article/10.1007/s00466-017-1469-1.]
+        provide a detailed comparison of the most common surface correction
+        techniques.
+
+        The 'volume method' proposed by Bobaru et al. [Chapter 2 in Bobaru F,
+        Foster JT, Geubelle PH, Silling SA, Handbook of peridynamic modeling,
+        (2017) (p51 – 52)] is used when surface_correction= 1 or 0.
+
+        Note that stiffness correction factors are applied after the initiation
+        of the initial-crack, i.e. the surface softening effect for initial
+        crack surfaces will be corrected.
 
         The correction factors are element-wise multiplied to the existing
-        corrections that apply to the bond stiffness so that the correction
-        factors can be stored to memory in a single array.
+        corrections that apply to the bond stiffnesses so that the correction
+        factors can be stored in memory as a single array.
 
-        :arg int stiffness_correction: A flag variable. Set to 1:
-            Stiffness corrections are calculated more accurately using
-            actual nodal volumes. Set to 0: Stiffness corrections are calculate
-            using an average nodal volume. Set to None: All stiffness
-            corrections are set to 1.0, i.e. no stiffness correction is
-            applied.
+        :arg int surface_correction: A flag variable. Set to 1:
+            Surface corrections are calculated more accurately using
+            actual nodal volumes. Set to 0: Surface corrections are calculated
+            using an average nodal volume. Set to None: No surface correction
+            is applied.
         :arg stiffness_corrections: An (`nnodes`, `max_neighbours`) container
             for the stiffness correction factors for each bond.
         :type stiffness_corrections: :class:`numpy.ndarray`
@@ -902,24 +926,20 @@ class Model(object):
             family_volume_bulk = np.float64(
                 (4./3)*np.pi*np.power(self.horizon, 3))
 
-        if stiffness_correction == 1:
-            set_precise_stiffness_correction(
+        if surface_correction == 1:
+            set_precise_surface_correction(
                 stiffness_corrections, nlist, n_neigh, self.volume,
                 family_volume_bulk)
-        elif stiffness_correction == 0:
+        elif surface_correction == 0:
             average_node_volume = np.float64(np.sum(self.volume) / self.nnodes)
-            set_imprecise_stiffness_correction(
+            set_imprecise_surface_correction(
                 stiffness_corrections, nlist, n_neigh, average_node_volume,
                 family_volume_bulk)
         else:
-            raise ValueError("stiffness_correction value is wrong "
+            raise ValueError("surface_correction value is wrong "
                              "(expected 0, 1 or None, got {})".format(
-                                 stiffness_correction))
+                                 surface_correction))
 
-        if self.write_path is not None:
-            write_array(
-                self.write_path,
-                "stiffness_corrections", stiffness_corrections)
         return stiffness_corrections
 
     def _set_damage_model(self, bond_stiffness, critical_stretch):

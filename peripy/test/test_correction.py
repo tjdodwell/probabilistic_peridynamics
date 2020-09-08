@@ -1,8 +1,8 @@
 """Tests for the correction module."""
 import numpy as np
 from peripy.correction import (set_volume_correction,
-                               set_imprecise_stiffness_correction,
-                               set_precise_stiffness_correction,
+                               set_imprecise_surface_correction,
+                               set_precise_surface_correction,
                                set_micromodulus_function)
 
 
@@ -103,11 +103,11 @@ def test_volume_correction():
     assert np.allclose(actual_vlm_crtn, expected_vlm_crtn)
 
 
-class TestStiffnessCorrection():
-    """Test the stiffness correction functions."""
+class TestSurfaceCorrection():
+    """Test the surface correction functions."""
 
     def test_imprecise(self):
-        """Test stiffness corrections using average nodal volumes."""
+        """Test surface corrections using average nodal volumes."""
         nl = np.array([
             [1, 0],
             [0, 2],
@@ -118,8 +118,8 @@ class TestStiffnessCorrection():
         average_volume = np.float64(1.0)
         family_volume_bulk = np.float64(2.0)
         actual_stf_crtn = stf_crtn_container.copy()
-        set_imprecise_stiffness_correction(actual_stf_crtn, nl, n_neigh,
-                                           average_volume, family_volume_bulk)
+        set_imprecise_surface_correction(actual_stf_crtn, nl, n_neigh,
+                                         average_volume, family_volume_bulk)
         expected_stf_crtn = np.array([
             [4./3, 1],
             [4./3, 4./3],
@@ -128,7 +128,7 @@ class TestStiffnessCorrection():
         assert np.allclose(actual_stf_crtn, expected_stf_crtn)
 
     def test_precise(self):
-        """Test stiffness corrections using precise nodal volumes."""
+        """Test surface corrections using precise nodal volumes."""
         volume = np.array([1.0, 2.0, 1.0], dtype=np.float64)
         nl = np.array([
             [1, 0],
@@ -139,8 +139,8 @@ class TestStiffnessCorrection():
         stf_crtn_container = np.ones(np.shape(nl), dtype=np.float64)
         family_volume_bulk = np.float64(2.0)
         actual_stf_crtn = stf_crtn_container.copy()
-        set_precise_stiffness_correction(actual_stf_crtn, nl, n_neigh,
-                                         volume, family_volume_bulk)
+        set_precise_surface_correction(actual_stf_crtn, nl, n_neigh,
+                                       volume, family_volume_bulk)
         expected_stf_crtn = np.array([
             [4./4, 1],
             [4./4, 4./4],
