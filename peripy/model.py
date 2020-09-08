@@ -251,12 +251,12 @@ class Model(object):
                     "If volume_correction (= {}) is applied, an "
                     "average node radius must be supplied as the "
                     "keyword argument node_radius. Suggested value"
-                    " node_radius = np.power(volume_total / "
-                    "nnodes, 1. / 3) = {}, "
+                    " node_radius = 1. / 2 * np.power(volume_total / "
+                    "nnodes, 1. / 3)= {}, "
                     "(expected {}, got {})".format(
                         volume_correction,
-                        np.power(np.sum(self.volume) / self.nnodes,
-                                 1. / 3), float, type(node_radius)))
+                        (1. / 2) * np.power(np.sum(self.volume) / self.nnodes,
+                                            1. / 3), float, type(node_radius)))
             # Partial volumes a node radius outside the horizon distance will
             # contribute to the pairwise force function integral, and
             # therefore must be included in the neighbour distance search
