@@ -432,7 +432,8 @@ class TestEulerCL:
         u_expected = np.load(path/"expected_displacements.npy")
         force_expected = np.load(path/"expected_force.npy")
         damage_expected = np.load(path/"expected_damage.npy")
-        expected_connectivity = np.load(path/"expected_connectivity_crack_cl.npz")
+        expected_connectivity = np.load(
+            path/"expected_connectivity_crack_cl.npz")
         nlist_expected = expected_connectivity["nlist"]
         n_neigh_expected = expected_connectivity["n_neigh"]
 

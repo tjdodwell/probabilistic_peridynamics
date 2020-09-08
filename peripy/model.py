@@ -389,7 +389,8 @@ class Model(object):
                     "argument and overwrite existing stiffness_corrections "
                     "with the stiffness_corrections calculated using the new "
                     "flags.".format(
-                        stiffness_correction))
+                        stiffness_correction, volume_correction,
+                        micromodulus_function))
                 self.stiffness_corrections = (
                     stiffness_corrections.astype(np.float64))
         else:

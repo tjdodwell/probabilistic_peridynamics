@@ -107,6 +107,7 @@ class TestStiffnessCorrection():
     """Test the stiffness correction functions."""
 
     def test_imprecise(self):
+        """Test stiffness corrections using average nodal volumes."""
         nl = np.array([
             [1, 0],
             [0, 2],
@@ -127,6 +128,7 @@ class TestStiffnessCorrection():
         assert np.allclose(actual_stf_crtn, expected_stf_crtn)
 
     def test_precise(self):
+        """Test stiffness corrections using precise nodal volumes."""
         volume = np.array([1.0, 2.0, 1.0], dtype=np.float64)
         nl = np.array([
             [1, 0],

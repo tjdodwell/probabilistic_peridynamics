@@ -916,7 +916,7 @@ class TestVolumeCorrections:
 
 
 class TestStiffnessCorrections:
-    """Test _set_stiffness_corrections."""
+    """Test _set_stiffness_corrections, more tests at test_correction.py."""
 
     def test_value_stiffness_correction(self, data_path):
         """Test exception when stiffness correction value is wrong."""
@@ -1044,12 +1044,12 @@ class TestStiffnessCorrections:
 
 
 class TestSuperimposedCorrections:
+    """Test that the stiffness corrections are being multiplied correctly."""
 
     @context_available
     def test_superimposed_correction_2d(
             self, simple_displacement_boundary, data_path):
         """Test superimposed corrections in 2d."""
-
         mesh_file = data_path / "example_mesh.vtk"
         euler = EulerCL(dt=1e-3)
         model = Model(mesh_file, integrator=euler, horizon=0.1,
@@ -1064,7 +1064,6 @@ class TestSuperimposedCorrections:
             data_path / "expected_stiffness_corrections_2d_precise_cl.npy")
         expected_micromodulus_values = np.load(
             data_path / "expected_micromodulus_values_2d.npy")
-        print(actual_corrections)
         # Elementwise multiplication
         expected_corrections = np.multiply(
             expected_stiffness_corrections,
@@ -1077,7 +1076,6 @@ class TestSuperimposedCorrections:
     def test_superimposed_correction_3d(
             self, simple_displacement_boundary, data_path):
         """Test corrections in 3d."""
-
         mesh_file = data_path / "example_mesh_3d.vtk"
         euler = EulerCL(dt=1e-3)
         model = Model(mesh_file, integrator=euler, horizon=0.1,
@@ -1093,7 +1091,6 @@ class TestSuperimposedCorrections:
             data_path / "expected_micromodulus_values_3d.npy")
         expected_stiffness_corrections = np.load(
             data_path / "expected_stiffness_corrections_3d_precise_cl.npy")
-        print(actual_corrections)
         # Elementwise multiplication
         expected_corrections = np.multiply(
             expected_stiffness_corrections,
