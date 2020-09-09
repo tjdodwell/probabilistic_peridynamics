@@ -159,7 +159,7 @@ __kernel void
 	) {
     /* Calculate the force due to bonds on each node.
      *
-     * This bond_force function is for the simple case of no stiffness corrections and no bond types.
+     * This bond_force function is for the simple case of stiffness corrections and no bond types.
      *
      * u - An (n,3) array of the current displacements of the particles.
      * force - An (n,3) array of the current forces on the particles.
@@ -294,7 +294,7 @@ __kernel void
 	) {
     /* Calculate the force due to bonds on each node.
      *
-     * This bond_force function is for the simple case of no stiffness corrections and no bond types.
+     * This bond_force function is for the case of no stiffness corrections and bond types.
      *
      * u - An (n,3) array of the current displacements of the particles.
      * force - An (n,3) array of the current forces on the particles.
@@ -410,10 +410,17 @@ __kernel void
         //Get the reduced forces
         // node_no == node_id_i
         int node_no = global_id/local_size;
+        double const force_x = local_cache_x[0];
+        double const force_y = local_cache_y[0];
+        double const force_z = local_cache_z[0];
+        // Update body forces in each direction
+        body_force[3 * node_no + 0] = force_x;
+        body_force[3 * node_no + 1] = force_y;
+        body_force[3 * node_no + 2] = force_z;
         // Update forces in each direction
-        force[3 * node_no + 0] = (fc_types[3 * node_no + 0] == 0 ? local_cache_x[0] : (local_cache_x[0] + fc_scale * fc_values[3 * node_no + 0]));
-        force[3 * node_no + 1] = (fc_types[3 * node_no + 1] == 0 ? local_cache_y[0] : (local_cache_y[0] + fc_scale * fc_values[3 * node_no + 1]));
-        force[3 * node_no + 2] = (fc_types[3 * node_no + 2] == 0 ? local_cache_z[0] : (local_cache_z[0] + fc_scale * fc_values[3 * node_no + 2]));
+        force[3 * node_no + 0] = (fc_types[3 * node_no + 0] == 0 ? force_x : (force_x + fc_scale * fc_values[3 * node_no + 0]));
+        force[3 * node_no + 1] = (fc_types[3 * node_no + 1] == 0 ? force_y : (force_y + fc_scale * fc_values[3 * node_no + 1]));
+        force[3 * node_no + 2] = (fc_types[3 * node_no + 2] == 0 ? force_z : (force_z + fc_scale * fc_values[3 * node_no + 2]));
     }
 }
 
@@ -442,7 +449,7 @@ __kernel void
 	) {
     /* Calculate the force due to bonds on each node.
      *
-     * This bond_force function is for the simple case of no stiffness corrections and no bond types.
+     * This bond_force function is for the case of stiffness corrections and bond types.
      *
      * u - An (n,3) array of the current displacements of the particles.
      * force - An (n,3) array of the current forces on the particles.
@@ -558,10 +565,17 @@ __kernel void
         //Get the reduced forces
         // node_no == node_id_i
         int node_no = global_id/local_size;
+        double const force_x = local_cache_x[0];
+        double const force_y = local_cache_y[0];
+        double const force_z = local_cache_z[0];
+        // Update body forces in each direction
+        body_force[3 * node_no + 0] = force_x;
+        body_force[3 * node_no + 1] = force_y;
+        body_force[3 * node_no + 2] = force_z;
         // Update forces in each direction
-        force[3 * node_no + 0] = (fc_types[3 * node_no + 0] == 0 ? local_cache_x[0] : (local_cache_x[0] + fc_scale * fc_values[3 * node_no + 0]));
-        force[3 * node_no + 1] = (fc_types[3 * node_no + 1] == 0 ? local_cache_y[0] : (local_cache_y[0] + fc_scale * fc_values[3 * node_no + 1]));
-        force[3 * node_no + 2] = (fc_types[3 * node_no + 2] == 0 ? local_cache_z[0] : (local_cache_z[0] + fc_scale * fc_values[3 * node_no + 2]));
+        force[3 * node_no + 0] = (fc_types[3 * node_no + 0] == 0 ? force_x : (force_x + fc_scale * fc_values[3 * node_no + 0]));
+        force[3 * node_no + 1] = (fc_types[3 * node_no + 1] == 0 ? force_y : (force_y + fc_scale * fc_values[3 * node_no + 1]));
+        force[3 * node_no + 2] = (fc_types[3 * node_no + 2] == 0 ? force_z : (force_z + fc_scale * fc_values[3 * node_no + 2]));
     }
 }
 
