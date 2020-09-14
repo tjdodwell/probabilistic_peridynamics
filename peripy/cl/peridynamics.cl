@@ -54,10 +54,8 @@ __kernel void
 	const int local_id = get_local_id(0);
     // local_size is the max_neigh, usually 128 or 256 depending on the problem
     const int local_size = get_local_size(0);
-
-	// Find corresponding node id
-	const double temp = global_id / local_size;
-	const int node_id_i = floor(temp);
+	// group_id is the node i
+	const int node_id_i = get_group_id(0);
 
 	// Access local node within node_id_i's horizon with corresponding node_id_j,
 	const int node_id_j = nlist[global_id];
@@ -189,10 +187,8 @@ __kernel void
 	const int local_id = get_local_id(0);
     // local_size is the max_neigh, usually 128 or 256 depending on the problem
     const int local_size = get_local_size(0);
-
-	// Find corresponding node id
-	const double temp = global_id / local_size;
-	const int node_id_i = floor(temp);
+	// group_id is node i
+	const int node_id_i = get_group_id(0);
 
 	// Access local node within node_id_i's horizon with corresponding node_id_j,
 	const int node_id_j = nlist[global_id];
@@ -323,10 +319,9 @@ __kernel void
 	const int local_id = get_local_id(0);
     // local_size is the max_neigh, usually 128 or 256 depending on the problem
     const int local_size = get_local_size(0);
+    // group_id is node i
+	const int node_id_i = get_group_id(0);
 
-	// Find corresponding node id
-	const double temp = global_id / local_size;
-	const int node_id_i = floor(temp);
 
 	// Access local node within node_id_i's horizon with corresponding node_id_j,
 	const int node_id_j = nlist[global_id];
@@ -478,10 +473,8 @@ __kernel void
 	const int local_id = get_local_id(0);
     // local_size is the max_neigh, usually 128 or 256 depending on the problem
     const int local_size = get_local_size(0);
-
-	// Find corresponding node id
-	const double temp = global_id / local_size;
-	const int node_id_i = floor(temp);
+    // group_id is node i
+	const int node_id_i = get_group_id(0);
 
 	// Access local node within node_id_i's horizon with corresponding node_id_j,
 	const int node_id_j = nlist[global_id];
