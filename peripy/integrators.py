@@ -256,7 +256,6 @@ class Integrator(ABC):
     def _damage(self, nlist_d, family_d, n_neigh_d, damage_d, local_mem):
         """Calculate bond damage."""
         queue = self.queue
-
         # Call kernel
         self.damage_kernel(
             queue, (self.nnodes * self.max_neighbours,),
