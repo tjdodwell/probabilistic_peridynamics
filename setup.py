@@ -51,9 +51,9 @@ setup(
     license="MIT",
     packages=find_packages(exclude=['*.test']),
     include_package_data=True,
-    entry_points = {
-        'console_scripts': ['peripy = peripy.cli:main'],
-    },
+    entry_points={
+        'console_scripts': ['peripy=peripy.cli:main']
+        },
     ext_modules=cythonize(ext_modules),
     install_requires=[
         'meshio',
