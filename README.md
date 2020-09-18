@@ -35,7 +35,7 @@ Get started from the PyPI package (preferred)
 ### Running examples ###
 
 - Run the first example by typing `peripy run example1` on the command line
-- You can show the example code by typing `peripy run example1 --cat
+- You can show the example code by typing `peripy run example1 --cat`
 - Type `peripy run --list` for a list of examples
 - For usage, type `peripy run --help`
 
