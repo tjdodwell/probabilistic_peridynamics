@@ -23,8 +23,8 @@ Features
 - Velocity-Verlet, Euler and Euler-Cromer integrators are included and the code is easily extendable to define your own higher order, adaptive integrators.
 
 
-Get started from the PyPI package (preferred)
----------------------------------------------
+Get started (preferred)
+-----------------------
 
 ### Building and Installation ###
 
