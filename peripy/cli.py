@@ -48,6 +48,13 @@ def run_tests(args):
     cmdline.main(args=argv)
 
 
+def run_coverage(args):
+    """Run tests from the command line."""
+    argv = ['--pyargs', '--cov=peripy'] + args
+    from pytest import cmdline
+    cmdline.main(args=argv)
+
+
 def main():
     """Scipt for running PeriPy related tasks."""
     parser = ArgumentParser(description=__doc__, add_help=False)
@@ -68,6 +75,12 @@ def main():
         add_help=False
     )
     tests.set_defaults(func=run_tests)
+
+    coverage = subparsers.add_parser(
+        'coverage', help='Run entire PeriPy test-suite with coverage report',
+        add_help=False
+    )
+    coverage.set_defaults(func=run_coverage)
 
     if (len(sys.argv) == 1 or (len(sys.argv) > 1 and
                                sys.argv[1] in ['-h', '--help'])):

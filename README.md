@@ -44,7 +44,7 @@ The tests for this project use [pytest](https://pytest.org/en/latest/). To run
 the tests yourself,
 
 - Type `peripy test` on the command line
-- For coverage install `pytest-cov` and run `pytest --pyargs --cov./peripy peripy`
+- For coverage install `pytest-cov` and type `peripy coverage` on the command line
 
 Get started from the GitHub repository (for developers)
 -------------------------------------------------------
