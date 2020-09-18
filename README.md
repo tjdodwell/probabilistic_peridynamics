@@ -10,17 +10,17 @@ PeriPy allows users to write their code in pure Python. Simulations are then exe
 
 Features
 --------
-- Easy to use, get started with the latest documentation at [peripy.readthedocs.org](https://peripy.readthedocs.org)
+- Easy to use. Get started with the latest documentation at [peripy.readthedocs.org](https://peripy.readthedocs.org)
 - 2-5x faster than exisiting OpenCL solvers
-- 'Outer-loop' applications including uncertainty quantification, optimisation and feature recognition are made possible.
-- Support for both regular and irregular mesh files. See [meshio](https://github.com/nschloe/meshio) for the full list of mesh formats.
+- 'Outer-loop' applications including uncertainty quantification, optimisation and feature recognition are made possible
+- Support for both regular and irregular mesh files. See [meshio](https://github.com/nschloe/meshio) for the full list of mesh formats
 - Support for composite and interface material models
 - Support for arbritrary n-linear 'microelastic' damage models
 - Simulates force or displacement controlled boundary conditions and initial conditions
 - Arbritrary subsets of particles are easily measured for their displacements, damages etc.
 - Output files can be viewed in [Paraview](https://www.paraview.org/)
-- 'Partial volume correction' algorithms, 'surface correction' algorithms and 'micromodulus functions' are included and the code is easily extendable to define your own.
-- Velocity-Verlet, Euler and Euler-Cromer integrators are included and the code is easily extendable to define your own higher order, adaptive integrators.
+- Various 'partial volume correction' algorithms, 'surface correction' algorithms and 'micromodulus functions' are included. The code is easily extended to define your own
+- Velocity-Verlet, Euler and Euler-Cromer integrators are included and the code is easily extended to define your own higher order and/or adaptive integrators
 
 
 Get started (preferred)
