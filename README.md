@@ -10,7 +10,7 @@ PeriPy allows users to write their code in pure Python. Simulations are then exe
 
 Features
 --------
-- Easy to use, get started with the latest documentation at
+- Easy to use, get started with the latest documentation at [peripy.readthedocs.org](https://peripy.readthedocs.org)
 - 2-5x faster than exisiting OpenCL solvers
 - 'Outer-loop' applications including uncertainty quantification, optimisation and feature recognition are made possible.
 - Support for both regular and irregular mesh files. See [meshio](https://github.com/nschloe/meshio) for the full list of mesh formats.
@@ -34,7 +34,8 @@ Get started from the PyPI package (preferred)
 
 ### Running examples ###
 
-- Type `peripy run example1` on the command line
+- Run the first example by typing `peripy run example1` on the command line
+- You can show the example code by typing `peripy run example1 --cat
 - Type `peripy run --list` for a list of examples
 - For usage, type `peripy run --help`
 
