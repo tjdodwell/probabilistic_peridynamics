@@ -1,14 +1,24 @@
-"""A simple, 2D peridynamics simulation example."""
+"""
+A simple, 2D peridynamics simulation example.
+
+This example is a 1.0m x 1.0m 2D plate with a central pre-crack subjected to
+uniform velocity displacements on the left-hand side and right-hand side of
+2.5x10^-6 metres per time-step.
+"""
 import argparse
 import cProfile
 from io import StringIO
 import numpy as np
 import pathlib
-from peridynamics import Model, ModelCL
-from peridynamics.model import initial_crack_helper
-from peridynamics.integrators import Euler
+from peripy import Model
+from peripy.model import initial_crack_helper
+from peripy.integrators import EulerCL, Euler
 from pstats import SortKey, Stats
 
+
+# The .msh file is a finite element mesh generated with a finite
+# element mesh generator. 'test.vtk' was generated with gmsh and
+# contains 2113 particles.
 mesh_file = pathlib.Path(__file__).parent.absolute() / "test.vtk"
 
 
@@ -35,55 +45,80 @@ def is_crack(x, y):
     return output
 
 
-def boundary_function(model, u, step):
+def is_displacement_boundary(x):
     """
-    Apply a load to the system.
+    Return a boolean list of displacement boundarys for each direction.
 
-    Particles on each of the sides of the system are pulled apart with
-    increasing time step.
+    Returns a (3,) boolean list, whose elements are:
+        None where there is no boundary condition;
+        -1 where the boundary is displacement loaded in negative direction;
+        1 where the boundary is displacement loaded in positive direction;
+        0 where the boundary is clamped;
+
+    :arg x: Particle coordinate array of size (3,).
+    :type x: :class:`numpy.ndarray`
     """
-    load_rate = 0.00001
-
-    u[model.lhs, 1:3] = 0.
-    u[model.rhs, 1:3] = 0.
-
-    extension = 0.5 * step * load_rate
-    u[model.lhs, 0] = -extension
-    u[model.rhs, 0] = extension
-
-    return u
+    # Particle does not live on a boundary
+    bnd = [None, None, None]
+    # Particle does live on boundary
+    if x[0] < 0.15:
+        bnd[0] = -1
+    elif x[0] > 0.85:
+        bnd[0] = 1
+    return bnd
 
 
 def main():
     """Conduct a peridynamics simulation."""
     parser = argparse.ArgumentParser()
+    # The --profile argument generates profiling information for the example
     parser.add_argument('--profile', action='store_const', const=True)
+    # The --opencl argument toggles between OpenCL and cython implementations
     parser.add_argument('--opencl', action='store_const', const=True)
     args = parser.parse_args()
-
     if args.profile:
         profile = cProfile.Profile()
         profile.enable()
 
     if args.opencl:
-        model = ModelCL(mesh_file, horizon=0.1, critical_strain=0.005,
-                        elastic_modulus=0.05, initial_crack=is_crack)
+        # The :class:`peripy.integrators.EulerCL` class is the OpenCL
+        # implementation of the explicit Euler integration scheme.
+        integrator = EulerCL(dt=1e-3)
     else:
-        model = Model(mesh_file, horizon=0.1, critical_strain=0.005,
-                      elastic_modulus=0.05, initial_crack=is_crack)
+        # The :class:`peripy.integrators.Euler` class is the cython
+        # implementation of the explicit Euler integration scheme.
+        integrator = Euler(dt=1e-3)
 
-    # Set left-hand side and right-hand side of boundary
-    model.lhs = np.nonzero(model.coords[:, 0] < 1.5*model.horizon)
-    model.rhs = np.nonzero(model.coords[:, 0] > 1.0 - 1.5*model.horizon)
+    # The bond_stiffness, also known as the micromodulus, of the peridynamic
+    # bond, using Silling's (2005) derivation for the prototype microelastic
+    # brittle (PMB) material model.
+    # An arbritrary value of the critical_stretch = 0.005m is used.
+    horizon = 0.1
+    bond_stiffness = 18.00 * 0.05 / (np.pi * horizon**4)
+    # The :class:`peripy.model.Model` defines and calculates the
+    # connectivity of the model, as well as the boundary conditions and crack.
+    model = Model(
+        mesh_file, integrator=integrator, horizon=horizon,
+        critical_stretch=0.005, bond_stiffness=bond_stiffness,
+        is_displacement_boundary=is_displacement_boundary,
+        dimensions=2, initial_crack=is_crack)
 
-    integrator = Euler(dt=1e-3)
+    # The simulation will have 1000 time steps, and last
+    # dt * steps = 1e-3 * 1000 = 1.0 seconds
+    steps = 1000
 
+    # The boundary condition magnitudes will be applied at a rate of
+    # 2.5e-6 m per time-step, giving a total final displacement (the sum of the
+    # left and right hand side) of 5mm.
+    displacement_bc_array = np.linspace(2.5e-6, 2.5e-3, steps)
+
+    # The :meth:`Model.simulate` method can be used to conduct a peridynamics
+    # simulation. Here it is possible to define the boundary condition
+    # magnitude throughout the simulation.
     u, damage, *_ = model.simulate(
-        steps=1000,
-        integrator=integrator,
-        boundary_function=boundary_function,
-        write=10000
-        )
+        steps=steps,
+        displacement_bc_magnitudes=displacement_bc_array,
+        write=100)
 
     if args.profile:
         profile.disable()

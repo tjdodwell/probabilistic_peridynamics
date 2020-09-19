@@ -14,12 +14,16 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../'))
 
+# Add type of source files
+source_suffix = ['.rst', '.md']
+
+master_doc = 'contents'
 
 # -- Project information -----------------------------------------------------
 
-project = 'Probabilistic Peridynamics'
-copyright = '2020, Jim Madge, Tim Dodwell, Ben Boys'
-author = 'Jim Madge, Tim Dodwell, Ben Boys'
+project = 'PeriPy'
+copyright = '2020, Jim Madge, Tim Dodwell, Ben Boys, Greg Mingas'
+author = 'Jim Madge, Tim Dodwell, Ben Boys, Greg Mingas'
 
 
 # -- General configuration ---------------------------------------------------

@@ -1,4 +1,6 @@
-include peridynamics/cl/*.cl
-include peridynamics/cl/spatial.h
-
-include peridynamics/spatial.pxd
+include peripy/cl/*.cl
+recursive-include examples/example1 *.vtk *.py
+recursive-include examples/example2 *.msh *.py
+include examples/*.py
+include peripy/test/*.py
+recursive-include peripy/test/data *.msh *.vtk *.npy *.npz
