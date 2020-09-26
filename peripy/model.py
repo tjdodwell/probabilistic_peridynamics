@@ -489,15 +489,11 @@ class Model(object):
         """
         mesh = meshio.read(filename)
 
-        if transfinite:
-            # Only need coordinates, encoded as mesh points
-            self.coords = np.array(mesh.points, dtype=np.float64)
-            self.nnodes = self.coords.shape[0]
-        else:
-            # Get coordinates, encoded as mesh points
-            self.coords = np.array(mesh.points, dtype=np.float64)
-            self.nnodes = self.coords.shape[0]
+        # Get coordinates, encoded as mesh points
+        self.coords = np.array(mesh.points, dtype=np.float64)
+        self.nnodes = self.coords.shape[0]
 
+        if not transfinite:
             # Get connectivity, mesh triangle cells
             self.mesh_connectivity = mesh.cells_dict[
                 self.mesh_elements.connectivity
