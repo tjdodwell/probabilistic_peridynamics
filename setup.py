@@ -42,7 +42,7 @@ ext_modules = [
 
 setup(
     name="peripy",
-    version="0.1.0",
+    version="1.0.0",
     description="A fast OpenCL Peridynamics package for python",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -58,10 +58,10 @@ setup(
     install_requires=[
         'meshio',
         'numpy',
-        'pyopencl==2020.1',
         'scipy',
         'tqdm',
         'h5py',
-        'sklearn'
+        'sklearn',
+	'tqdm'
         ]
     )

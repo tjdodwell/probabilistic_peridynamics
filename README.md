@@ -11,7 +11,7 @@ PeriPy allows users to write their code in pure Python. Simulations are then exe
 Features
 --------
 - Easy to use. Get started with the latest documentation at [peripy.readthedocs.org](https://peripy.readthedocs.org)
-- 2-5x faster than exisiting OpenCL solvers
+- 2-10x faster than exisiting OpenCL solvers
 - 'Outer-loop' applications including uncertainty quantification, optimisation and feature recognition are made possible
 - Support for both regular and irregular mesh files. See [meshio](https://github.com/nschloe/meshio) for the full list of mesh formats
 - Support for composite and interface material models
@@ -29,6 +29,16 @@ Get started (preferred)
 ### Building and Installation ###
 
 - The package requires Python 3.7+
+- Install pyopencl, a build dependency by following these instructions https://documen.tician.de/pyopencl/misc.html
+- To install pyopencl, note that pyopencl may need to be installed from `(base)` environment
+- To install pyopencl in Windows, first, ensure the C++ build tools for Visual Studio are installed (e.g., see https://youtu.be/KUTVnxCeC50)
+- Make sure the OpenCL device driver is installed for your device
+```
+python
+import pyopencl
+pyopencl.get_platforms()
+```
+The error `pyopencl._cl.LogicError: clGetPlatformIDs failed: PLATFORM_NOT_FOUND_KHR` means that the OpenCL device driver is not correctly installed.
 - Install cython, a build dependency, `pip install cython`
 - Install PeriPy `pip install peripy`
 
@@ -54,10 +64,20 @@ Get started from the GitHub repository (for developers)
 ### Building and Installation ###
 
 - The package requires Python 3.7+
-- Clone the repository `git clone
-  git@github.com:alan-turing-institute/probabilistic_peridynamics.git`
+- Install pyopencl, a build dependency by following these instructions https://documen.tician.de/pyopencl/misc.html
+- To install pyopencl, note that pyopencl may need to be installed from `(base)` environment
+- To install pyopencl in Windows, first, ensure the C++ build tools for Visual Studio are installed (e.g., see https://youtu.be/KUTVnxCeC50)
+- Make sure the OpenCL device driver is installed for your device
+```
+python
+import pyopencl
+pyopencl.get_platforms()
+```
+The error `pyopencl._cl.LogicError: clGetPlatformIDs failed: PLATFORM_NOT_FOUND_KHR` means that the OpenCL device driver is not correctly installed.
 - Install cython, a build dependency, `pip install cython`
-- Install using pip `pip install . -e` from the root directory of the repository
+- Clone the repository `git clone
+  git@github.com:alan-turing-institute/peripy.git`
+- Install using pip `pip install -e .` from the root directory of the repository
 
 ### Running examples ###
 
