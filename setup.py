@@ -58,7 +58,7 @@ setup(
     install_requires=[
         'meshio',
         'numpy',
-        'pyopencl==2020.1',
+        'pyopencl',
         'scipy',
         'tqdm',
         'h5py',

@@ -31,7 +31,7 @@ Get started (preferred)
 - The package requires Python 3.7+
 - Install pyopencl, a build dependency by following these instructions https://documen.tician.de/pyopencl/misc.html
 - To install pyopencl, note that pyopencl may need to be installed from `(base)` environment
-- To install pyopencl in Windows, first, ensure the C++ build tools for Visual Studio are installed (e.g., see https://youtu.be/KUTVnxCeC50)
+- If using pyopencl on Windows with a CPU (rather than a GPU), first, ensure the C++ build tools for Visual Studio are installed (e.g., see https://youtu.be/KUTVnxCeC50)
 - Make sure the OpenCL device driver is installed for your device:
   ```
   python
@@ -66,7 +66,7 @@ Get started from the GitHub repository (for developers)
 - The package requires Python 3.7+
 - Install pyopencl, a build dependency by following these instructions https://documen.tician.de/pyopencl/misc.html
 - To install pyopencl, note that pyopencl may need to be installed from `(base)` environment
-- To install pyopencl in Windows, first, ensure the C++ build tools for Visual Studio are installed (e.g., see https://youtu.be/KUTVnxCeC50)
+- If using pyopencl on Windows with a CPU (rather than a GPU), first, ensure the C++ build tools for Visual Studio are installed (e.g., see https://youtu.be/KUTVnxCeC50)
 - Make sure the OpenCL device driver is installed for your device
   ```
   python
@@ -88,7 +88,7 @@ Get started from the GitHub repository (for developers)
 The tests for this project use [pytest](https://pytest.org/en/latest/). To run
 the tests yourself,
 
-- Install using pip `pip install -e .` from the root directory of the repository
+- If you haven't already, install using pip `pip install -e .` from the root directory of the repository
 - Install pytest using pip `pip install pytest`
 - Run `pytest` from the root directory of the repository
 - For coverage install `pytest-cov` and run `pytest --cov=./peripy`
