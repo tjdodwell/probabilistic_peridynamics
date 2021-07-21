@@ -62,6 +62,6 @@ setup(
         'tqdm',
         'h5py',
         'sklearn',
-	'tqdm'
+        'tqdm',
         ]
     )
