@@ -130,3 +130,11 @@ dmypy.json
 
 # Mac OS directory information
 .DS_Store
+
+# cython
+*.c
+
+# Ben's files
+examples/example4/
+examples/example3/
+post_processing/
